@@ -204,6 +204,11 @@ export function addWeeklyCompareViews(
   dash["!cols"]=Array.from({length:16},(_,i)=>({wch:i===0?3:i===1?25:i===9?3:15}));
   dash["!rows"]=Array.from({length:66},(_,i)=>({hpt:i===1||i===2?28:i===3||i===4?25:i===5?10:i===6?13:i===14||i===44?32:i===16||i===46?30:i===8||i===9?26:23}));
   book.Sheets["Compare Dashboard"]=dash;
-  book.SheetNames=[ "Compare Dashboard", "Weekly Summary", "Agent Comparison", "Topic Comparison", "Tag Comparison",
-    ...book.SheetNames.filter(name=>!["Compare Dashboard","Weekly Summary","Agent Comparison","Topic Comparison","Tag Comparison"].includes(name)) ];
+  // Weekly Compare is a comparison report, not a second copy of the
+  // aggregate Monthly dashboard. Keep only the seven distinct, actionable tabs.
+  const useful = ["Compare Dashboard","Weekly Summary","Agent Comparison","Topic Comparison",
+    "Tag Comparison","Case Detail","Comment Detail"];
+  const redundant = ["Dashboard","Performance Summary","Agent Performance","Topic Performance","Tag Analysis"];
+  redundant.forEach(name=>{delete book.Sheets[name];});
+  book.SheetNames=useful.filter(name=>Boolean(book.Sheets[name]));
 }

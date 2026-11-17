@@ -141,7 +141,7 @@ function wrapReportComment(text: unknown): string[] {
 function detailedRows(rows: CanonicalReportCase[]) {
   return rows.map(item => {
     const values: Record<string, string | number> = {
-      "Case ID": item.caseId, "Row Type": "Case",
+      "Case ID": item.caseId,
       "Case Date": item.caseDate || "", "Audit Date": item.auditDate || "",
       "Team": rowTeam(item), "Agent": rowAgent(item), "Month": rowMonth(item), "Week": rowWeek(item),
       "Intent TH": item.inquiryTh || "", "Intent EN": item.inquiryEn || "",
@@ -161,33 +161,54 @@ function detailedRows(rows: CanonicalReportCase[]) {
   });
 }
 
-// Continuation rows have no Case ID or score: a case remains one evaluated case.
-// The Row Type column includes the source Case ID so continuation lines can be traced.
-function expandCaseDetailComments(cases: Record<string, string | number>[]) {
-  const commentColumns = [...new Set(cases.flatMap(item =>
-    Object.keys(item).filter(key => / Comment$/.test(key))
-  ))];
-  const records: Record<string, string | number>[] = [];
-  const heights: number[] = [];
-  cases.forEach(item => {
-    const byColumn = new Map(commentColumns.map(key => [key, wrapReportComment(item[key] || "")]));
-    const segments = Math.max(1, ...[...byColumn.values()].map(value => value.length));
-    for (let part = 0; part < segments; part++) {
-      const record: Record<string, string | number> = part === 0
-        ? { ...item }
-        : { "Case ID": "", "Row Type": "↳ Comment ต่อ " + part + " · " + String(item["Case ID"] || "") };
-      let lineCount = 1;
-      commentColumns.forEach(key => {
-        const chunk = byColumn.get(key)?.[part] || "";
-        if (part === 0 || chunk) record[key] = chunk;
-        if (chunk) lineCount = Math.max(lineCount, chunk.split("\n").length);
-      });
-      records.push(record);
-      // Restrict every physical Excel row to a readable height (maximum ~96 pt).
-      heights.push(Math.min(100, Math.max(28, 13 + lineCount * 17)));
+// One row = one case in Case Detail. The full QA wording is stored separately
+// as a readable, filterable stream by Case ID and Topic, without duplicating scores.
+function prepareReadableCaseDetails(rows: Record<string, string | number>[]) {
+  type CellLink = { column: string; row: number };
+  const cases: Record<string, string | number>[] = [];
+  const comments: Record<string, string | number>[] = [];
+  const links: CellLink[][] = [];
+  const preview = (value: string, limit = 95) => {
+    const short = Array.from(value.replace(/\s+/gu," ").trim());
+    return short.length > limit ? short.slice(0, limit).join("").trimEnd() + "…  →" : short.join("");
+  };
+  rows.forEach((original) => {
+    const record = { ...original };
+    delete record["Row Type"];
+    const caseId = String(original["Case ID"] || "");
+    const base = { "Case ID": caseId, "Agent": String(original.Agent || ""), "Week": String(original.Week || "") };
+    const targetLinks: CellLink[] = [];
+    const appendComment = (topicName: string, content: string) => {
+      const chunks = wrapReportComment(content).filter(chunk => chunk.trim());
+      if(!chunks.length) return 0;
+      const firstRow = comments.length + 2; // Header is row 1.
+      chunks.forEach((chunk, i) => comments.push({
+        ...base, "Topic": topicName, "Part": `${i+1} / ${chunks.length}`, "Comment": chunk,
+      }));
+      return firstRow;
+    };
+    const description = richTextToPlainText(original["Case Description"] || "");
+    if (description) {
+      const firstRow = appendComment("Case Description",description);
+      if (firstRow) targetLinks.push({column:"Case Description",row:firstRow});
+      record["Case Description"] = preview(description);
     }
+    const columns = Object.keys(original).filter(key=>/ Comment$/.test(key))
+      .sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
+    columns.forEach(column => {
+      const content = richTextToPlainText(original[column] || "");
+      if (!content) {record[column] = "—";return;}
+      const code = column.replace(/ Comment$/,"");
+      const firstRow = appendComment("Topic " + code,content);
+      record[column] = "อ่าน Comment ฉบับเต็ม →";
+      if(firstRow) targetLinks.push({column,row:firstRow});
+    });
+    record["ดูข้อความทั้งหมด"] = targetLinks.length ? "เปิด Comment Detail →" : "—";
+    if(targetLinks.length) targetLinks.push({column:"ดูข้อความทั้งหมด",row:targetLinks[0].row});
+    cases.push(record);
+    links.push(targetLinks);
   });
-  return { records, heights };
+  return {cases, comments, links};
 }
 export function buildReportWorkbook(rows: CanonicalReportCase[], kind: Kind, scope: string, period: string, generatedBy: string, generatedAt: string, compareOptions?: {unit:"week";periods:string[]}) {
   const book = XLSX.utils.book_new();
@@ -269,12 +290,28 @@ export function buildReportWorkbook(rows: CanonicalReportCase[], kind: Kind, sco
   add("Agent Performance",agents.map(x=>({Agent:x.name,Cases:x.count,"Average Score":x.average===null?"":Number(x.average.toFixed(2)),"KPI Status":x.kpi})),[39,16,21,27]);
   add("Topic Performance",topics.map(x=>({Topic:topicName(x.code),"Average Score":Number(x.average.toFixed(2)),"Maximum Score":Number(x.max.toFixed(2)),"Average %":Number(x.percent.toFixed(2)),Cases:x.cases})),[58,20,20,20,16]);
   add("Tag Analysis",tags.map(x=>({Tag:x.tag,"Cases Affected":x.cases,"Share %":Number(x.percent.toFixed(2))})),[57,19,20]);
-  const detailed = expandCaseDetailComments(detailedRows(rows));
-  const detailHeaders = [...new Set(detailed.records.flatMap(record => Object.keys(record)))];
-  add("Case Detail", detailed.records,
+  const detailed = prepareReadableCaseDetails(detailedRows(rows));
+  const detailHeaders = [...new Set(detailed.cases.flatMap(record => Object.keys(record)))];
+  add("Case Detail", detailed.cases,
     detailHeaders.map(key =>
-      key === "Row Type" ? 35 : /Description|Comment/.test(key) ? 60 : /Agent|Intent/.test(key) ? 36 : 20
-    ), detailed.heights);
+      key === "ดูข้อความทั้งหมด" ? 29
+        : / Comment$/.test(key) ? 29
+        : key === "Case Description" ? 40
+        : /Agent|Intent/.test(key) ? 29 : key === "Case ID" ? 17 : 19
+    ), detailed.cases.map(() => 45));
+  const caseSheet = book.Sheets["Case Detail"];
+  const headers = (XLSX.utils.sheet_to_json<(string|number)[]>(caseSheet,{header:1})[0] || []).map(String);
+  detailed.links.forEach((targets,i) => targets.forEach(link => {
+    const column = headers.indexOf(link.column);
+    if(column < 0) return;
+    const address = XLSX.utils.encode_cell({r:i+1,c:column});
+    if(caseSheet[address]) {
+      caseSheet[address].l = {Target:"#'Comment Detail'!A"+link.row,Tooltip:"อ่านคำอธิบายฉบับเต็มของเคสนี้"};
+    }
+  }));
+  add("Comment Detail",detailed.comments,
+    [17,30,28,21,15,91],
+    detailed.comments.map(record=>Math.min(150,Math.max(38,18+String(record.Comment||"").split("\n").length*17))));
   if(compareOptions?.unit==="week" && compareOptions.periods.length>1) {
     addWeeklyCompareViews(book,rows,compareOptions.periods,scope,generatedBy,generatedAt);
   }

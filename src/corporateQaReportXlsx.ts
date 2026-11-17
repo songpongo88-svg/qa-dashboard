@@ -20,7 +20,7 @@ const add = (doc: XMLDocument, parent: Element, name: string, attrs: Record<stri
   parent.appendChild(element);
   return element;
 };
-type StyleName = "mastheadRight" | "mastheadDetail" | "mastheadMeta" | "mastheadAccent" | "mastheadLine" | "title" | "subtitle" | "hero" | "section" | "cardLabel" | "cardValue" | "cardDetail" | "heading" | "stripe" | "stripeCenter" | "score" | "success" | "danger" | "footer" | "topicBar" | "plain" | "topicOneLine" | "numeric2" | "percent2" | "tagPercent2";
+type StyleName = "mastheadRight" | "mastheadDetail" | "mastheadMeta" | "mastheadAccent" | "mastheadLine" | "title" | "subtitle" | "hero" | "section" | "cardLabel" | "cardValue" | "cardDetail" | "heading" | "stripe" | "stripeCenter" | "score" | "success" | "danger" | "footer" | "topicBar" | "plain" | "commentLink" | "commentBody" | "topicOneLine" | "numeric2" | "percent2" | "tagPercent2";
 function createStyles(source: string) {
   const doc = parse(source);
   const root = doc.documentElement;
@@ -47,7 +47,7 @@ function createStyles(source: string) {
     light: font("FFFFFF",true,12), display: font("FFFFFF",true,18,"Kanit"),
     gold: font(gold,false,10,"Kanit"), value: font(purple,true,22),
     label: font("675472",true,9,"Kanit"), plain: font("342B3B",false,10,"Kanit"),
-    bold: font(deep,true,10), score: font(purple,true,11),
+    bold: font(deep,true,10), score: font(purple,true,11), link: font("69309E",true,10),
     green: font("187756",true,10), red: font("BC3D52",true,10),
     footer: font("584368",false,9), bar: font("8755AF",true,12),
     headerDetail: font("E7DBF2",false,11), headerMeta: font("F2E8F7",false,9),
@@ -57,14 +57,14 @@ function createStyles(source: string) {
   const fillsId = { deep: fill(deep), purple: fill(purple), pale: fill(pale), light: fill(light),
     white: fill("FFFFFF"), violet: fill("EADBF0"), gold: fill("F6E6CC") };
   const styles: Record<StyleName,number> = {} as Record<StyleName,number>;
-  function style(name:StyleName, fontId:number, fillId:number, center=false, wrap=false, right=false) {
+  function style(name:StyleName, fontId:number, fillId:number, center=false, wrap=false, right=false, top=false) {
     const id=xfs.children.length;
     const numberFormatId=name==="percent2"||name==="tagPercent2"?167:name==="numeric2"?166:0;
     const xf = add(doc,xfs,"xf",{
       numFmtId:String(numberFormatId),fontId:String(fontId),fillId:String(fillId),borderId:"0",xfId:"0",
       applyFont:"1",applyFill:"1",applyAlignment:"1",applyNumberFormat:numberFormatId?"1":"0"
     });
-    add(doc,xf,"alignment",{horizontal:right?"right":center?"center":"left",vertical:"center",wrapText:wrap?"1":"0"});
+    add(doc,xf,"alignment",{horizontal:right?"right":center?"center":"left",vertical:top?"top":"center",wrapText:wrap?"1":"0"});
     styles[name]=id;
   }
   style("title",fontsId.display,fillsId.deep);
@@ -85,6 +85,8 @@ function createStyles(source: string) {
   style("cardDetail",fontsId.footer,fillsId.white,true);
   style("heading",fontsId.bold,fillsId.violet,true,true);
   style("plain",fontsId.plain,fillsId.white,false,true);
+  style("commentLink",fontsId.link,fillsId.pale,true,true);
+  style("commentBody",fontsId.plain,fillsId.white,false,true,false,true);
   style("topicOneLine",fontsId.topicName,fillsId.white,false,false);
   style("numeric2",fontsId.score,fillsId.white,true);
   style("percent2",fontsId.score,fillsId.white,true);
@@ -196,6 +198,23 @@ function styleSheet(source:string, sheetName:string, st:Record<StyleName,number>
     for(let r=2;r<=maxRow;r++){
       for(const c of floatColumns)set(r,c,"numeric2");
       for(const c of percentColumns)set(r,c,"tagPercent2");
+      if(baseName==="Comment Detail"){
+        set(r,1,"metaLabel");
+        set(r,4,"topicName");
+        set(r,6,"commentBody");
+      } else if(baseName==="Case Detail"){
+        const firstRow = rows.get(1);
+        const headers = new Map(Array.from(firstRow?.children || []).map(c=>{
+          const address = c.getAttribute("r") || "";
+          const col = colNumber(address.replace(/\d/g,""));
+          // SheetJS emits inline string headers in Case Detail.
+          const text = Array.from(c.getElementsByTagNameNS(NS,"t")).map(t=>t.textContent||"").join("");
+          return [col,text] as const;
+        }));
+        headers.forEach((text,col)=>{
+          if(/ Comment$/.test(text)||text==="ดูข้อความทั้งหมด") set(r,col,"commentLink");
+        });
+      }
     }
   }
   return xml(doc);
