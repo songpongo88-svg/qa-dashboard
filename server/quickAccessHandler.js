@@ -137,3 +137,39 @@ export default async function handler(req, res) {
     return res.status(status).json({ error: status >= 500 ? "QUICK_ACCESS_UNAVAILABLE" : String(error?.message || "UNAUTHORIZED"), ...(status === 401 && error?.code ? { code: error.code } : {}) });
   }
 }
+
+// Temporary, public-safe connectivity probe. Returns only service health,
+// never user data, credentials, Firestore documents or link contents.
+let quickAccessProbe = { until: 0, value: null };
+export async function probeQuickAccessConnections() {
+  if (quickAccessProbe.value && Date.now() < quickAccessProbe.until) return quickAccessProbe.value;
+  const checks = { identityProvider: "unknown", sessionCollection: "unknown", linkStorage: "unknown" };
+  try {
+    const authToken = await getGoogleToken();
+    checks.identityProvider = "available";
+    await readDoc("qa_user_sessions/__quick_access_health_check__", authToken);
+    checks.sessionCollection = "available";
+  } catch (error) {
+    checks.identityProvider = checks.identityProvider === "available" ? "available" : "unavailable";
+    checks.sessionCollection = "unavailable";
+  }
+  try {
+    const bridgeUrl = String(process.env.SPARKS_SUPABASE_BRIDGE_URL || "");
+    const bridgeToken = String(process.env.SPARKS_SUPABASE_BRIDGE_TOKEN || "");
+    if (!/^https:\/\/[^\s]+\/functions\/v1\/qa-sparks-runtime(?:-preview|-test)?$/.test(bridgeUrl) || bridgeToken.length < 40)
+      throw new Error("STORAGE_SETTINGS_UNAVAILABLE");
+    const bridge = bridgeUrl.replace(/qa-sparks-runtime(?:-preview|-test)?$/, "qa-dashboard-quick-access");
+    const answer = await fetch(bridge, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-qa-sparks-server-secret": bridgeToken },
+      body: JSON.stringify({ action:"list", actorUsername:"health-probe", isAdmin:false }),
+      signal: AbortSignal.timeout(12000),
+    });
+    const body = await answer.json().catch(() => ({}));
+    checks.linkStorage = answer.ok && Array.isArray(body.links) ? "available" : "unavailable";
+  } catch {
+    checks.linkStorage = "unavailable";
+  }
+  quickAccessProbe = { until: Date.now() + 120000, value: checks };
+  return checks;
+}

@@ -1,4 +1,4 @@
-import quickAccessHandler from "../server/quickAccessHandler.js";
+import quickAccessHandler, { probeQuickAccessConnections } from "../server/quickAccessHandler.js";
 
 // Public, read-only status endpoint. Never returns keys, private project IDs,
 // wallet amounts or user information. No Firebase or Supabase read is made.
@@ -9,6 +9,14 @@ function provider(value) {
 }
 
 export default function handler(req, res) {
+  // Read-only and data-free one-time support diagnostic; never disclose the
+  // underlying credentials, login IDs, links, or stored documents.
+  if (req.method === "GET" && req.query?.qaQuickCheck === "1") {
+    res.setHeader("Cache-Control", "private, no-store");
+    return probeQuickAccessConnections()
+      .then((checks) => res.status(200).json({quickAccessServiceHealth:checks}))
+      .catch(() => res.status(503).json({quickAccessServiceHealth:"unavailable"}));
+  }
   // Reuse this existing function slot for authenticated Quick Access POST actions;
   // all legacy status GETs and unrelated POSTs retain their existing behavior.
   if (req.method === "POST" && req.headers?.["x-qa-quick-access"] === "1") {
