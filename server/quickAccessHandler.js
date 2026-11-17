@@ -7,6 +7,10 @@ let googleToken = "";
 let googleTokenExpires = 0;
 const fail = (message, status = 403, code = "") => { throw Object.assign(new Error(message), { status, code }); };
 const safeName = (value) => String(value || "").trim().toLowerCase();
+// The login creates session IDs with a normalized username prefix, which may
+// legitimately contain "." or "@"; the previous ASCII-only check rejected them.
+const sessionDocPrefix = (username) => safeName(username).replace(/\//g, "__").replace(/\s+/g, "_") + "-";
+const isSafeDocumentId = (id) => id.length <= 240 && !/[\/#?\[\]\u0000-\u001f]/u.test(id);
 const data = (document) => Object.fromEntries(Object.entries(document?.fields || {}).map(([key, field]) =>
   [key, field?.stringValue ?? field?.booleanValue ?? field?.integerValue ?? ""]));
 const b64 = (object) => Buffer.from(JSON.stringify(object)).toString("base64url");
@@ -48,8 +52,11 @@ async function readDoc(path, token) {
   return data(await response.json());
 }
 async function verifyQaSession(username, sessionId, requireAdmin) {
-  if (!/^[a-z0-9._-]{1,100}$/.test(username) || !/^[a-zA-Z0-9_-]{10,180}$/.test(sessionId))
-    fail("QA Dashboard session identity is missing", 401, "SESSION_ID_MISSING");
+  const sessionPrefix = sessionDocPrefix(username);
+  if (!username || username.length > 100 || !isSafeDocumentId(username) ||
+      !sessionId.startsWith(sessionPrefix) || !isSafeDocumentId(sessionId) ||
+      sessionId.length < sessionPrefix.length + 10)
+    fail("QA Dashboard session identity is missing or malformed", 401, "SESSION_ID_MISSING");
   const token = await getGoogleToken();
   const session = await readDoc("qa_user_sessions/" + encodeURIComponent(sessionId), token);
   if (!session) fail("QA Dashboard session not found", 401, "SESSION_NOT_FOUND");
@@ -59,17 +66,23 @@ async function verifyQaSession(username, sessionId, requireAdmin) {
   const expiry = Date.parse(session.expiresAt);
   if (!Number.isFinite(expiry)) fail("QA Dashboard session expiry invalid", 401, "SESSION_INVALID");
   if (expiry <= Date.now()) fail("QA Dashboard session has expired", 401, "SESSION_EXPIRED");
-  const control = await readDoc("qa_user_session_controls/" + encodeURIComponent(username), token);
+  // Client sessionStore uses the normalized account ID for revocation control.
+  const controlDocId = sessionDocPrefix(username).slice(0, -1);
+  const control = await readDoc("qa_user_session_controls/" + encodeURIComponent(controlDocId), token);
   const cutoff = Date.parse(control?.revokedBefore || "");
   if (Number.isFinite(cutoff) && Date.parse(session.createdAt) <= cutoff)
     fail("QA Dashboard session was revoked", 401, "SESSION_REVOKED");
   if (!requireAdmin) return { username, admin: false };
-  if (username !== "songpon" || session.role !== "Quality Assurance")
-    fail("Only the QA Dashboard administrator can manage Quick Access links", 403);
+  // Match the administrator identity recognized by the Dashboard UI while
+  // verifying it against the server-read profile, never client-supplied names.
   const profile = await readDoc("qa_user_profiles/" + encodeURIComponent(username), token);
-  if (!profile || safeName(profile.username) !== username ||
-      profile.role !== "Quality Assurance" || profile.status === "Suspended")
-    fail("The QA administrator profile is not active", 403);
+  const sessionQa = safeName(session.role) === "quality assurance";
+  const profileQa = safeName(profile?.role) === "quality assurance";
+  const trustedAdmin = username === "songpon" ||
+    safeName(profile?.displayName) === "songpon phothong";
+  if (!sessionQa || !profile || safeName(profile.username) !== username ||
+      !profileQa || profile.status === "Suspended" || !trustedAdmin)
+    fail("Only the active QA Dashboard administrator can manage Quick Access links", 403);
   return { username, admin: true };
 }
 

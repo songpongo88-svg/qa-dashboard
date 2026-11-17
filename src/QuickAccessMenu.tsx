@@ -123,8 +123,14 @@ async function sendRequest(username: string, sessionId: string, action: string, 
         throw new Error("Session สำหรับ Quick Access หมดอายุแล้ว กรุณาบันทึกงานที่ค้างอยู่ จากนั้น Sign Out และ Login QA Dashboard ใหม่");
       if (code === "SESSION_REVOKED")
         throw new Error("Session นี้ถูกยกเลิกจากระบบกลาง กรุณาบันทึกงานที่ค้างอยู่ แล้ว Login QA Dashboard ใหม่");
-      if (["SESSION_NOT_FOUND", "SESSION_ID_MISSING", "SESSION_MISMATCH", "SESSION_POLICY"].includes(code))
-        throw new Error("ไม่พบ Session ที่ตรงกับบัญชี QA Dashboard กรุณาบันทึกงานที่ค้างอยู่ แล้วออกจากระบบและ Login ใหม่");
+      if (code === "SESSION_ID_MISSING")
+        throw new Error("Session ID ไม่ตรงรูปแบบ กรุณารีเฟรชหน้า หากยังไม่ได้ให้บันทึกงานแล้ว Login ใหม่");
+      if (code === "SESSION_NOT_FOUND")
+        throw new Error("ไม่พบ Session นี้ในระบบกลาง กรุณาบันทึกงานที่ค้างอยู่ แล้วออกจากระบบและ Login ใหม่");
+      if (code === "SESSION_MISMATCH")
+        throw new Error("Session และบัญชีที่ Login ไม่ตรงกัน กรุณาบันทึกงานที่ค้างอยู่ แล้ว Login ใหม่");
+      if (code === "SESSION_POLICY")
+        throw new Error("Session ใช้กติกาเก่า กรุณาบันทึกงานที่ค้างอยู่ แล้ว Login ใหม่");
       throw new Error("ยืนยัน Session กับระบบกลางไม่สำเร็จ กรุณาบันทึกงานที่ค้างอยู่ แล้ว Login QA Dashboard ใหม่");
     }
     if (response.status === 403) throw new Error("บัญชีนี้ไม่มีสิทธิ์จัดการ Quick Access กรุณาติดต่อ Admin");
@@ -231,7 +237,14 @@ export default function QuickAccessMenu({ username, sessionId, canManage }: { us
   return <div className="qa-quick-root" ref={rootRef} data-quick-access-menu="true">
     <button type="button" className={"qa-quick-trigger" + (open ? " qa-quick-trigger--open" : "")}
       aria-haspopup="dialog" aria-expanded={open} aria-label="Quick Access - External Links" title="Quick Access · External Links"
-      onClick={() => { setOpen(!open); if (!open) setMode("grid"); }}>
+      onClick={() => {
+        setOpen(!open);
+        if (!open) {
+          setMode("grid");
+          // Retry once on reopen after login/session startup races.
+          if (!ready && !loading) void refresh();
+        }
+      }}>
       <Glyph name="grid" size={20} /><span className="qa-quick-trigger-label">Quick Access</span>
     </button>
     {open && <div className="qa-quick-panel" role="dialog" aria-label="Quick Access External Links">
