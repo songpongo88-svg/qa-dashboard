@@ -4115,7 +4115,7 @@ export default function App() {
       const initialTab = normalizeAppTab(new URL(window.location.href).searchParams.get("tab"));
       const storedTab = normalizeAppTab(window.sessionStorage.getItem(ACTIVE_TAB_SESSION_STORAGE_KEY));
       const requestedTab = initialTab || storedTab || "dashboard";
-      return requestedTab === "summary" ? "dashboard" : requestedTab;
+      return requestedTab === "summary" || requestedTab === "report-center" ? "dashboard" : requestedTab;
     } catch {
       return "dashboard";
     }
@@ -4130,14 +4130,14 @@ export default function App() {
       const valid = Array.isArray(stored)
         ? stored.map(normalizeWorkspaceTabKey).filter(Boolean) as WorkspaceTabKey[]
         : [];
-      return ["dashboard", ...valid.filter((item) => item !== "dashboard" && item !== "summary" && item !== "case-detail")];
+      return ["dashboard", ...valid.filter((item) => item !== "dashboard" && item !== "summary" && item !== "report-center" && item !== "case-detail")];
     } catch {
       return ["dashboard"];
     }
   });
   const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<WorkspaceTabKey>(() => {
     const stored = normalizeWorkspaceTabKey(window.sessionStorage.getItem(ACTIVE_WORKSPACE_TAB_SESSION_STORAGE_KEY));
-    return stored && stored !== "summary" && stored !== "case-detail"
+    return stored && stored !== "summary" && stored !== "report-center" && stored !== "case-detail"
       ? stored
       : (activeTab as WorkspaceTabKey) || "dashboard";
   });
@@ -5083,7 +5083,7 @@ export default function App() {
       workspaceKey?: WorkspaceTabKey;
     } = {}
   ) => {
-    const unifiedTab = tab === "summary" ? "dashboard" : tab;
+    const unifiedTab = tab === "summary" || tab === "report-center" ? "dashboard" : tab;
     const blockedReason = getTabBlockedReason(unifiedTab);
     const nextTab = blockedReason ? "dashboard" : unifiedTab;
 
@@ -5126,7 +5126,7 @@ export default function App() {
       normalizeAppTab(params.get("tab")) ||
       normalizeAppTab(window.sessionStorage.getItem(ACTIVE_TAB_SESSION_STORAGE_KEY)) ||
       "dashboard";
-    const requestedTab = requestedLegacyTab === "summary" ? "dashboard" : requestedLegacyTab;
+    const requestedTab = requestedLegacyTab === "summary" || requestedLegacyTab === "report-center" ? "dashboard" : requestedLegacyTab;
     const blockedReason = getTabBlockedReason(requestedTab);
     const nextTab = blockedReason ? "dashboard" : requestedTab;
 
@@ -5137,7 +5137,7 @@ export default function App() {
     window.sessionStorage.setItem(ACTIVE_TAB_SESSION_STORAGE_KEY, nextTab);
     setActiveTab(nextTab);
     const normalizedRouteWorkspaceTab = normalizeWorkspaceTabKey(params.get("workspace"));
-    const routeWorkspaceTab = normalizedRouteWorkspaceTab === "summary" || normalizedRouteWorkspaceTab === "case-detail"
+    const routeWorkspaceTab = normalizedRouteWorkspaceTab === "summary" || normalizedRouteWorkspaceTab === "report-center" || normalizedRouteWorkspaceTab === "case-detail"
       ? "dashboard"
       : normalizedRouteWorkspaceTab;
     const nextWorkspaceTab: WorkspaceTabKey = blockedReason
@@ -5192,7 +5192,7 @@ export default function App() {
       return;
     }
 
-    if (workspaceKey === "case-detail" || workspaceKey === "summary") {
+    if (workspaceKey === "case-detail" || workspaceKey === "summary" || workspaceKey === "report-center") {
       setDashboardSubTab("overview");
       setSelectedDashboardCaseId("");
       navigateToTab("dashboard", {
