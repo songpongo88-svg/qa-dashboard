@@ -10,6 +10,7 @@ import { createYearlyAgentMonthlyPdf, createYearlyAgentMonthlyXlsx } from "./yea
 import { assertEvaluationScopeComplete } from "./evaluationEditingStore";
 import { getAppealScoreHold } from "./pendingAppealScore";
 import { isTestCaseEvaluation } from "./lib/evaluationScope";
+import { addWeeklyCompareViews } from "./weeklyCompareWorkbook";
 
 type Kind = "monthly" | "weekly" | "yearly" | "compare" | "slides";
 type Scope = "all" | "team" | "agent" | "case";
@@ -118,7 +119,7 @@ function detailedRows(rows: CanonicalReportCase[]) {
     return values;
   });
 }
-export function buildReportWorkbook(rows: CanonicalReportCase[], kind: Kind, scope: string, period: string, generatedBy: string, generatedAt: string) {
+export function buildReportWorkbook(rows: CanonicalReportCase[], kind: Kind, scope: string, period: string, generatedBy: string, generatedAt: string, compareOptions?: {unit:"week";periods:string[]}) {
   const book = XLSX.utils.book_new();
   const stats = summary(rows), agents = agentRows(rows, kind), topics = topicRows(rows), tags = tagRows(rows);
   const evaluatedMonth=rows[0] ? rowMonth(rows[0]) : "";
@@ -200,6 +201,9 @@ export function buildReportWorkbook(rows: CanonicalReportCase[], kind: Kind, sco
   add("Tag Analysis",tags.map(x=>({Tag:x.tag,"Cases Affected":x.cases,"Share %":Number(x.percent.toFixed(2))})),[57,19,20]);
   const detailed=detailedRows(rows);
   add("Case Detail",detailed,Object.keys(detailed[0]||{}).map(key=>/Description|Comment/.test(key)?60:/Agent|Intent/.test(key)?36:20));
+  if(compareOptions?.unit==="week" && compareOptions.periods.length>1) {
+    addWeeklyCompareViews(book,rows,compareOptions.periods,scope,generatedBy,generatedAt);
+  }
   return book;
 }
 

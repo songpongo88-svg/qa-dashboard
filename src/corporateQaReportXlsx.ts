@@ -110,7 +110,7 @@ function createStyles(source: string) {
 }
 const colNumber = (c: string) => [...c].reduce((n,v)=>n*26+v.charCodeAt(0)-64,0);
 function styleSheet(source:string, sheetName:string, st:Record<StyleName,number>) {
-  const dashboard=sheetName==="Dashboard" || sheetName==="QA Dashboard";
+  const dashboard=sheetName==="Dashboard" || sheetName==="QA Dashboard" || sheetName==="Compare Dashboard";
   const baseName=sheetName.replace(/^QA /,"");
   const doc=parse(source);
   const root=doc.documentElement;
@@ -247,10 +247,10 @@ async function embedLogo(zip:JSZip,index:number,book:XLSX.WorkBook) {
     zip.file(mediaPath,image);
     zip.file(drawingPath,`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="${REL}">
-<xdr:oneCellAnchor><xdr:from><xdr:col>1</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>1</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from>
-<xdr:ext cx="1190000" cy="710000"/><xdr:pic><xdr:nvPicPr><xdr:cNvPr id="1" name="QA Dashboard Logo"/><xdr:cNvPicPr/></xdr:nvPicPr>
+<xdr:oneCellAnchor><xdr:from><xdr:col>1</xdr:col><xdr:colOff>40000</xdr:colOff><xdr:row>1</xdr:row><xdr:rowOff>40000</xdr:rowOff></xdr:from>
+<xdr:ext cx="1230000" cy="1230000"/><xdr:pic><xdr:nvPicPr><xdr:cNvPr id="1" name="QA Dashboard Logo"/><xdr:cNvPicPr/></xdr:nvPicPr>
 <xdr:blipFill><a:blip r:embed="rId1"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill>
-<xdr:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="1190000" cy="710000"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic>
+<xdr:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="1230000" cy="1230000"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic>
 <xdr:clientData/></xdr:oneCellAnchor></xdr:wsDr>`);
     const topicSheet=book.Sheets["Topic Performance"] || book.Sheets["QA Topic Performance"];
     const tagSheet=book.Sheets["Tag Analysis"] || book.Sheets["QA Tag Analysis"];
@@ -266,13 +266,22 @@ async function embedLogo(zip:JSZip,index:number,book:XLSX.WorkBook) {
     const tagData=(tagSheet?XLSX.utils.sheet_to_json<Record<string,unknown>>(tagSheet):[]).slice(0,7)
       .map(row=>({label:String(row.Tag || "").slice(0,28),amount:Number(row["Cases Affected"] || 0)})).filter(x=>Number.isFinite(x.amount));
 
+    const weeklyCompare = book.SheetNames.includes("Compare Dashboard") && book.Sheets["Weekly Summary"];
+    const weeklyRows = weeklyCompare ? XLSX.utils.sheet_to_json<Record<string,unknown>>(weeklyCompare) : [];
+    const weeklyScores = weeklyRows.map(row=>({label:String(row.Week||""),amount:Number(row["Average Score"])})).filter(p=>p.label && Number.isFinite(p.amount));
+    const weeklyCases = weeklyRows.map(row=>({label:String(row.Week||""),amount:Number(row.Cases)})).filter(p=>p.label && Number.isFinite(p.amount));
     const topicRef=book.Sheets["Topic Performance"] ? "Topic Performance" : "QA Topic Performance";
     const tagRef=book.Sheets["Tag Analysis"] ? "Tag Analysis" : "QA Tag Analysis";
-    const chartParts=[
+    const chartParts=weeklyCompare ? [
+      {id:2,name:"qaReportTopic.xml",from:1,to:9,title:"Average QA by Selected Week",items:weeklyScores,
+        labelFormula:`'Weekly Summary'!$A$2:$A${weeklyRows.length+1}`,valueFormula:`'Weekly Summary'!$C$2:$C${weeklyRows.length+1}`,axis:48650112},
+      {id:3,name:"qaReportTag.xml",from:10,to:16,title:"Evaluated Cases by Week",items:weeklyCases,
+        labelFormula:`'Weekly Summary'!$A$2:$A${weeklyRows.length+1}`,valueFormula:`'Weekly Summary'!$B$2:$B${weeklyRows.length+1}`,axis:48650212},
+    ] : [
       {id:2,name:"qaReportTopic.xml",from:1,to:9,title:"Topic Performance (%)",items:topicData,
-        labelFormula:`'${topicRef}'!$A$2:$A$${topicData.length+1}`,valueFormula:`'${topicRef}'!$D$2:$D$${topicData.length+1}`,axis:48650112},
+        labelFormula:`'${topicRef}'!$A$2:$A${topicData.length+1}`,valueFormula:`'${topicRef}'!$D$2:$D${topicData.length+1}`,axis:48650112},
       {id:3,name:"qaReportTag.xml",from:10,to:16,title:"Most Frequent Tags",items:tagData,
-        labelFormula:`'${tagRef}'!$A$2:$A$${tagData.length+1}`,valueFormula:`'${tagRef}'!$B$2:$B$${tagData.length+1}`,axis:48650212},
+        labelFormula:`'${tagRef}'!$A$2:$A${tagData.length+1}`,valueFormula:`'${tagRef}'!$B$2:$B${tagData.length+1}`,axis:48650212},
     ];
     const extra=chartParts.map(part=>nativeChartAnchor(part.id,part.from,part.to)).join("");
     const currentDrawing=await zip.file(drawingPath)!.async("string");
@@ -331,7 +340,7 @@ export async function exportCorporateReport(book:XLSX.WorkBook):Promise<Blob> {
     if(!original)continue;
     zip.file(path,styleSheet(original,book.SheetNames[i],styles));
   }
-  const dashboardIndex=book.SheetNames.findIndex(name=>name==="Dashboard" || name==="QA Dashboard");
+  const dashboardIndex=book.SheetNames.findIndex(name=>name==="Compare Dashboard" || name==="Dashboard" || name==="QA Dashboard");
   if(dashboardIndex>=0) await embedLogo(zip,dashboardIndex+1,book);
   return zip.generateAsync({type:"blob",compression:"DEFLATE",compressionOptions:{level:6},mimeType:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
 }
