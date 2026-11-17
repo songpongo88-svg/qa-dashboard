@@ -1,4 +1,7 @@
 import { loadCanonicalReportData, type CanonicalReportCase, type CanonicalReportData } from "./DashboardMockup";
+import { buildReportWorkbook } from "./ReportCenterMockup";
+import { exportCorporateReport } from "./corporateQaReportXlsx";
+import { isTestCaseEvaluation as isReportTestCaseEvaluation } from "./lib/evaluationScope";
 import YearlyTeamSummary from "./YearlyTeamSummary";
 import YearlyAgentMonthlyReport from "./YearlyAgentMonthlyReport";
 import { createYearlyAgentMonthlyXlsx, createYearlyAgentMonthlyPdf } from "./yearlyAgentMonthlyExport";
@@ -6526,7 +6529,7 @@ export default function SummaryMockup({
     if (hold) throw new Error(hold.label);
     const months = yearlyYears.flatMap(yearlyMonthKeys);
     await assertEvaluationScopeComplete(agentNames, months);
-    return { reports, agentNames, months };
+    return { reports, agentNames, months, cases };
   }
 
   // This report is an additional export, not a replacement for Yearly Team Summary.
@@ -6575,72 +6578,96 @@ export default function SummaryMockup({
     }
   }
 
+  // Reuse Report Center's exact corporate workbook generator for Dashboard Excel exports.
+  // Export the currently selected Dashboard periods/teams/agents, rather than silently
+  // reverting to a different Report Center default month or agent.
   async function exportCurrentAnalyticsExcel() {
-    if (analysisMode === "yearly") {
-      try {
-        const { reports, agentNames, months } = await loadYearlyExportReports();
-        const result = await createYearlyTeamSummaryXlsx(reports, {
-          team: yearlyTeam === "all" ? "All Teams" : yearlyTeam,
-          agent: effectiveSelectedAgent === "all" ? "All Agents" : effectiveSelectedAgent,
-        });
-        await assertEvaluationScopeComplete(agentNames, months);
-        const url = URL.createObjectURL(new Blob([result.bytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
-        const link = document.createElement("a");
-        link.href = url; link.download = result.fileName;
-        document.body.appendChild(link); link.click(); link.remove();
-        window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-        setAnalyticsExportOpen(false);
-      } catch (error) {
-        window.alert(error instanceof Error ? error.message : "ส่งออก Yearly ไม่สำเร็จ กรุณาลองอีกครั้ง");
-      }
+    if (!canExportAnalytics || (analysisMode !== "yearly" && appealScoreHold)) {
+      window.alert(appealScoreHold?.label || "ไม่มีสิทธิ์ส่งออกรายงาน");
       return;
     }
 
-    try { await assertEvaluationScopeComplete(currentEvaluationScope.agents, currentEvaluationScope.months); }
-    catch (error) { window.alert(error instanceof Error ? error.message : "Evaluation status could not be verified."); return; }
-    if (appealScoreHold) return;
-    const workbook = XLSX.utils.book_new();
+    const generatedBy = String(currentUser?.displayName || currentUser?.agentName || currentUser?.username || "Authorized QA User");
+    const generatedAt = new Date().toLocaleString("en-GB", {
+      timeZone: "Asia/Bangkok", day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit",
+    });
     const periodLabel = effectivePeriodLabels.join(" | ") || "Current Period";
-    const summarySheet = XLSX.utils.json_to_sheet([{
-      "View By": reportModeName,
-      Period: periodLabel,
-      Team: selectedTeam === "all" ? (currentUserTeamName || "All Teams") : selectedTeam,
-      Agent: effectiveSelectedAgent === "all" ? "All Agents" : effectiveSelectedAgent,
-      Mode: isComparisonMode ? "Compare" : "Single Period",
-      "Average Score": summaryCards.avgScore,
-      "Cases Evaluated": summaryCards.caseCount,
-      "Total Incentive": formatCurrencyTHB(getTotalIncentiveForCases(filteredCases)),
-      "Overall Grade": summaryCards.grade,
-      "Exported By": String(currentUser?.displayName || currentUser?.username || "-"),
-      "Exported At": formatPdfDateTime(new Date()),
-    }]);
-    const caseSheet = XLSX.utils.json_to_sheet(filteredCases.length ? filteredCases.map((item) => ({
-      "Case ID": item.caseId,
-      Agent: item.agent,
-      "Audit Date": item.auditDate,
-      Month: item.monthLabel,
-      Week: item.weekLabel,
-      Year: item.yearKey,
-      Score: item.finalScore,
-      Grade: item.grade,
-      Status: item.reviewStatus,
-      Inquiry: item.inquiryTh || item.inquiryEn || "-",
-    })) : [{ Message: "No data for the current view" }]);
-    const topicSheet = XLSX.utils.json_to_sheet(topicSummary.length ? topicSummary.map((topic) => ({
-      Topic: topic.code,
-      Description: topic.label,
-      "Average Score": topic.avgScore,
-      Max: topic.max,
-      "Average %": topic.pct,
-    })) : [{ Message: "No topic data for the current view" }]);
-    XLSX.utils.book_append_sheet(workbook, summarySheet, "Summary");
-    XLSX.utils.book_append_sheet(workbook, caseSheet, "Cases");
-    XLSX.utils.book_append_sheet(workbook, topicSheet, "Topics");
-    const safePeriod = periodLabel.replace(/[^a-zA-Z0-9_-]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 70) || "Current_View";
-    try { await assertEvaluationScopeComplete(currentEvaluationScope.agents, currentEvaluationScope.months); }
-    catch (error) { window.alert(error instanceof Error ? error.message : "Evaluation status could not be verified."); return; }
-    XLSX.writeFile(workbook, `QA_Analytics_${safePeriod}.xlsx`);
-    setAnalyticsExportOpen(false);
+    const scopeLabel = effectiveSelectedAgent !== "all" ? effectiveSelectedAgent
+      : selectedTeam !== "all" ? selectedTeam
+      : roleScopedAgentList.length ? "Assigned Agents" : "All_Agents";
+
+    const saveCorporateWorkbook = async (book: XLSX.WorkBook, name: string) => {
+      const blob = await exportCorporateReport(book);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = name;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    };
+
+    try {
+      if (analysisMode === "yearly") {
+        // Report Center's default Yearly Excel is the Agent / 12 Months matrix,
+        // with its corporate Dashboard and raw Case Detail workbook appended.
+        const { reports, cases } = await loadYearlyExportReports();
+        const actual = cases.filter((item) =>
+          yearlyYears.includes(String(item.monthKey || "").slice(0, 4)) &&
+          !isReportTestCaseEvaluation(item) && Number.isFinite(Number(item.finalScore))
+        );
+        if (!actual.length) throw new Error("ไม่พบข้อมูลเคสในปีและผู้ถูกประเมินที่เลือก");
+
+        const result = await createYearlyAgentMonthlyXlsx(reports, {
+          team: yearlyTeam === "all" ? "All Teams" : yearlyTeam,
+          agent: effectiveSelectedAgent === "all" ? "All Agents" : effectiveSelectedAgent,
+        });
+        const book = XLSX.read(result.bytes, { type: "array" });
+        const detailBook = buildReportWorkbook(actual, "yearly", scopeLabel, yearlyYears.join(" | "), generatedBy, generatedAt);
+        detailBook.SheetNames.forEach((sheetName) => {
+          const target = book.SheetNames.includes(sheetName) ? "QA " + sheetName : sheetName;
+          XLSX.utils.book_append_sheet(book, detailBook.Sheets[sheetName], target);
+        });
+        await saveCorporateWorkbook(book, result.fileName);
+      } else {
+        if (!filteredCases.length) throw new Error("ไม่พบเคสในช่วงเวลาที่เลือก");
+        // Verify the live, complete canonical data rather than exporting cached
+        // on-screen scores or accidentally widening an agent/team/period filter.
+        const fresh = await loadCanonicalReportData();
+        const identity = (item: {monthKey: string; agent: string; caseId: string}) =>
+          String(item.monthKey || "") + "|" + canonicalAgentIdentityKey(item.agent) + "|" + String(item.caseId || "").trim().toUpperCase();
+        const snapshot = new Map(filteredCases.map(item => [identity(item), item]));
+        const actual = fresh.cases.filter(item =>
+          snapshot.has(identity(item)) &&
+          !isReportTestCaseEvaluation(item) &&
+          Number.isFinite(Number(item.finalScore))
+        );
+        if (actual.length !== filteredCases.length ||
+          actual.some(item => {
+            const preview = snapshot.get(identity(item));
+            return !preview || Number(preview.finalScore) !== Number(item.finalScore) ||
+              String(preview.reviewStatus || "") !== String(item.reviewStatus || "");
+          })) {
+          throw new Error("ข้อมูลเปลี่ยนแปลงจากหน้า Dashboard กรุณา Refresh แล้วสร้างรายงานใหม่");
+        }
+        const pendingAppeal = getAppealScoreHold(actual);
+        if (pendingAppeal) throw new Error(pendingAppeal.label);
+        await assertEvaluationScopeComplete(
+          [...new Set(actual.map(item => item.agent))],
+          [...new Set(actual.map(item => item.monthKey))]
+        );
+
+        const kind = analysisMode === "weekly" ? "weekly" : isComparisonMode ? "compare" : "monthly";
+        const book = buildReportWorkbook(actual, kind, scopeLabel, periodLabel, generatedBy, generatedAt);
+        const safePeriod = periodLabel.replace(/[^a-zA-Z0-9_-]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 70) || "Current_View";
+        const safeScope = scopeLabel.replace(/[^a-zA-Z0-9ก-๙_-]+/g, "_").slice(0, 48) || "All_Agents";
+        await saveCorporateWorkbook(book, `QA_${kind.toUpperCase()}_${safePeriod}_${safeScope}.xlsx`);
+      }
+      setAnalyticsExportOpen(false);
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : "สร้าง Excel จาก Report Center ไม่สำเร็จ");
+    }
   }
 
   async function generateSummaryReportPdf() {

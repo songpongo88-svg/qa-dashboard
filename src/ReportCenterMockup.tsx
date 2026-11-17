@@ -118,7 +118,7 @@ function detailedRows(rows: CanonicalReportCase[]) {
     return values;
   });
 }
-function buildReportWorkbook(rows: CanonicalReportCase[], kind: Kind, scope: string, period: string, generatedBy: string, generatedAt: string) {
+export function buildReportWorkbook(rows: CanonicalReportCase[], kind: Kind, scope: string, period: string, generatedBy: string, generatedAt: string) {
   const book = XLSX.utils.book_new();
   const stats = summary(rows), agents = agentRows(rows, kind), topics = topicRows(rows), tags = tagRows(rows);
   const evaluatedMonth=rows[0] ? rowMonth(rows[0]) : "";
