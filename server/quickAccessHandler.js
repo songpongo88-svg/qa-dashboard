@@ -47,8 +47,8 @@ async function readDoc(path, token) {
     headers: { authorization: "Bearer " + token }, cache: "no-store", signal: AbortSignal.timeout(10000),
   });
   if (response.status === 404) return null;
-  if (response.status === 429) fail("QA session provider has reached its quota", 503);
-  if (!response.ok) fail("QA session validation is unavailable", 503);
+  if (response.status === 429) fail("QA session provider has reached its quota", 503, "FIRESTORE_HTTP_429");
+  if (!response.ok) fail("QA session validation is unavailable", 503, "FIRESTORE_HTTP_" + response.status);
   return data(await response.json());
 }
 async function verifyQaSession(username, sessionId, requireAdmin) {
@@ -152,6 +152,10 @@ export async function probeQuickAccessConnections() {
   } catch (error) {
     checks.identityProvider = checks.identityProvider === "available" ? "available" : "unavailable";
     checks.sessionCollection = "unavailable";
+    // Distinguish quota (429), IAM (403), and temporary upstream failure
+    // without returning credentials, document IDs, or account data.
+    checks.sessionFailure = /^FIRESTORE_HTTP_(401|403|404|429|500|502|503)$/.test(String(error?.code||""))
+      ? String(error.code) : "PROVIDER_UNAVAILABLE";
   }
   try {
     const bridgeUrl = String(process.env.SPARKS_SUPABASE_BRIDGE_URL || "");
