@@ -11,6 +11,7 @@ import { assertEvaluationScopeComplete } from "./evaluationEditingStore";
 import { getAppealScoreHold } from "./pendingAppealScore";
 import { isTestCaseEvaluation } from "./lib/evaluationScope";
 import { addWeeklyCompareViews } from "./weeklyCompareWorkbook";
+import { richTextToPlainText } from "./richText";
 
 type Kind = "monthly" | "weekly" | "yearly" | "compare" | "slides";
 type Scope = "all" | "team" | "agent" | "case";
@@ -98,10 +99,50 @@ function agentRows(rows: CanonicalReportCase[], mode: Kind = "monthly") {
       items.length < 10 ? "Not assessed" : (summary(items).average || 0) >= 85 ? "Pass" : "Below 85%",
   }));
 }
+// Excel displays plain text exactly as the QA editor displays it, not HTML tags.
+// Keep line breaks and every character of the original narrative.
+const EXCEL_COMMENT_WRAP_CHARS = 56;
+const EXCEL_COMMENT_LINES_PER_ROW = 5;
+function wrapReportComment(text: unknown): string[] {
+  const cleaned = richTextToPlainText(text)
+    .replace(/\r\n?/g, "\n")
+    .replace(/\u00a0/g, " ")
+    .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "")
+    .replace(/\n{4,}/g, "\n\n")
+    .trim();
+  if (!cleaned) return [""];
+  const lines: string[] = [];
+  for (const raw of cleaned.split("\n")) {
+    if (!raw.trim()) {
+      if (lines.length && lines[lines.length - 1] !== "") lines.push("");
+      continue;
+    }
+    let units = Array.from(raw.trimEnd());
+    while (units.length > EXCEL_COMMENT_WRAP_CHARS) {
+      let cut = EXCEL_COMMENT_WRAP_CHARS;
+      for (let i = cut; i > 36; i--) {
+        if (/\s/u.test(units[i - 1])) { cut = i; break; }
+      }
+      // Keep Thai vowels and tone marks attached to their consonants.
+      while (cut < units.length && /[\u0e31\u0e34-\u0e3a\u0e47-\u0e4e\u0300-\u036f]/u.test(units[cut])) cut++;
+      lines.push(units.slice(0, cut).join("").trimEnd());
+      units = units.slice(cut);
+      while (units.length && /\s/u.test(units[0])) units.shift();
+    }
+    if (units.length) lines.push(units.join(""));
+  }
+  const chunks: string[] = [];
+  for (let i = 0; i < lines.length; i += EXCEL_COMMENT_LINES_PER_ROW) {
+    chunks.push(lines.slice(i, i + EXCEL_COMMENT_LINES_PER_ROW).join("\n"));
+  }
+  return chunks.length ? chunks : [""];
+}
+
 function detailedRows(rows: CanonicalReportCase[]) {
   return rows.map(item => {
     const values: Record<string, string | number> = {
-      "Case ID": item.caseId, "Case Date": item.caseDate || "", "Audit Date": item.auditDate || "",
+      "Case ID": item.caseId, "Row Type": "Case",
+      "Case Date": item.caseDate || "", "Audit Date": item.auditDate || "",
       "Team": rowTeam(item), "Agent": rowAgent(item), "Month": rowMonth(item), "Week": rowWeek(item),
       "Intent TH": item.inquiryTh || "", "Intent EN": item.inquiryEn || "",
       "Case Description": item.caseDescription || "", "Final Score": rowScore(item),
@@ -114,10 +155,39 @@ function detailedRows(rows: CanonicalReportCase[]) {
       values[code + " Score"] = topic.score;
       values[code + " Max"] = topic.max;
       values[code + " Tag"] = (topic.issueTags || []).join(", ");
-      values[code + " Comment"] = String(topic.comment || "");
+      values[code + " Comment"] = richTextToPlainText(topic.comment || "");
     });
     return values;
   });
+}
+
+// Continuation rows have no Case ID or score: a case remains one evaluated case.
+// The Row Type column includes the source Case ID so continuation lines can be traced.
+function expandCaseDetailComments(cases: Record<string, string | number>[]) {
+  const commentColumns = [...new Set(cases.flatMap(item =>
+    Object.keys(item).filter(key => / Comment$/.test(key))
+  ))];
+  const records: Record<string, string | number>[] = [];
+  const heights: number[] = [];
+  cases.forEach(item => {
+    const byColumn = new Map(commentColumns.map(key => [key, wrapReportComment(item[key] || "")]));
+    const segments = Math.max(1, ...[...byColumn.values()].map(value => value.length));
+    for (let part = 0; part < segments; part++) {
+      const record: Record<string, string | number> = part === 0
+        ? { ...item }
+        : { "Case ID": "", "Row Type": "↳ Comment ต่อ " + part + " · " + String(item["Case ID"] || "") };
+      let lineCount = 1;
+      commentColumns.forEach(key => {
+        const chunk = byColumn.get(key)?.[part] || "";
+        if (part === 0 || chunk) record[key] = chunk;
+        if (chunk) lineCount = Math.max(lineCount, chunk.split("\n").length);
+      });
+      records.push(record);
+      // Restrict every physical Excel row to a readable height (maximum ~96 pt).
+      heights.push(Math.min(100, Math.max(28, 13 + lineCount * 17)));
+    }
+  });
+  return { records, heights };
 }
 export function buildReportWorkbook(rows: CanonicalReportCase[], kind: Kind, scope: string, period: string, generatedBy: string, generatedAt: string, compareOptions?: {unit:"week";periods:string[]}) {
   const book = XLSX.utils.book_new();
@@ -188,19 +258,22 @@ export function buildReportWorkbook(rows: CanonicalReportCase[], kind: Kind, sco
   dash["!rows"]=Array.from({length:66},(_,i)=>({hpt:i===1||i===2?28:i===3||i===4?25:i===5?10:i===6?13:i===14||i===44?32:i===16||i===46?30:i===8||i===9?26:23}));
   XLSX.utils.book_append_sheet(book,dash,"Dashboard");
   const groups = reportRows(rows, kind === "weekly" ? "week" : kind === "yearly" || kind === "compare" ? "month" : "agent");
-  const add = (name: string, records: Record<string, string | number>[], widths: number[]) => {
+  const add = (name: string, records: Record<string, string | number>[], widths: number[], rowHeights: number[] = []) => {
     const data = XLSX.utils.json_to_sheet(records.length ? records : [{ "No Data": "ไม่มีข้อมูล" }]);
     data["!cols"] = widths.map(wch => ({ wch }));
     if(records.length&&data["!ref"])data["!autofilter"]={ref:data["!ref"]};
-    data["!rows"]= [{hpt:32}];
+    data["!rows"]= [{hpt:32}, ...rowHeights.map(hpt => ({hpt}))];
     XLSX.utils.book_append_sheet(book,data,name);
   };
   add("Performance Summary", groups.map(x=>({Group:x.label,Cases:x.count,"Average Score":x.average===null?"":Number(x.average.toFixed(2))})),[39,17,21]);
   add("Agent Performance",agents.map(x=>({Agent:x.name,Cases:x.count,"Average Score":x.average===null?"":Number(x.average.toFixed(2)),"KPI Status":x.kpi})),[39,16,21,27]);
   add("Topic Performance",topics.map(x=>({Topic:topicName(x.code),"Average Score":Number(x.average.toFixed(2)),"Maximum Score":Number(x.max.toFixed(2)),"Average %":Number(x.percent.toFixed(2)),Cases:x.cases})),[58,20,20,20,16]);
   add("Tag Analysis",tags.map(x=>({Tag:x.tag,"Cases Affected":x.cases,"Share %":Number(x.percent.toFixed(2))})),[57,19,20]);
-  const detailed=detailedRows(rows);
-  add("Case Detail",detailed,Object.keys(detailed[0]||{}).map(key=>/Description|Comment/.test(key)?60:/Agent|Intent/.test(key)?36:20));
+  const detailed = expandCaseDetailComments(detailedRows(rows));
+  add("Case Detail", detailed.records,
+    Object.keys(detailed.records[0] || {}).map(key =>
+      key === "Row Type" ? 35 : /Description|Comment/.test(key) ? 60 : /Agent|Intent/.test(key) ? 36 : 20
+    ), detailed.heights);
   if(compareOptions?.unit==="week" && compareOptions.periods.length>1) {
     addWeeklyCompareViews(book,rows,compareOptions.periods,scope,generatedBy,generatedAt);
   }
