@@ -1057,6 +1057,7 @@ export default function CreateEvaluationMockup({
   const [stickyNotes, setStickyNotes] = useState<StickyNoteTabs>(() => readCachedStickyNotes(stickyNoteOwner));
   const stickyNote = stickyNotes.notes.find(note => note.id === stickyNotes.activeNoteId)?.content || "";
   const [stickyNoteMessage, setStickyNoteMessage] = useState("");
+  const [stickyNoteTabToClose, setStickyNoteTabToClose] = useState<string | null>(null);
   const [stickyNoteOpen, setStickyNoteOpen] = useState(false);
   const [stickyNoteReady, setStickyNoteReady] = useState(false);
   const [issueTagCatalog, setIssueTagCatalog] = useState<EvaluationIssueTag[]>([]);
@@ -1315,6 +1316,7 @@ export default function CreateEvaluationMockup({
     setStickyNoteReady(false);
     const cached = readCachedStickyNotes(stickyNoteOwner);
     setStickyNotes(cached);
+    setStickyNoteTabToClose(null);
     setStickyNoteMessage("");
 
     void fetchStoredStickyNotes(stickyNoteOwner).then((stored) => {
@@ -2193,19 +2195,38 @@ export default function CreateEvaluationMockup({
   }
 
   function addStickyNoteTab() {
-    const nextNumber = Math.max(0, ...stickyNotes.notes.map(note => Number(note.id.replace("note-", "")) || 0)) + 1;
+    const nextNumber = stickyNotes.nextNoteNumber;
     const id = `note-${nextNumber}`;
+    setStickyNoteTabToClose(null);
     updateStickyNotes({
       notes: [...stickyNotes.notes, {id, content: ""}],
       activeNoteId: id,
+      nextNoteNumber: nextNumber + 1,
     });
     setStickyNoteMessage(`สร้าง Note ${nextNumber} แล้ว`);
   }
 
   function selectStickyNoteTab(id: string) {
+    setStickyNoteTabToClose(null);
     if (id === stickyNotes.activeNoteId) return;
     updateStickyNotes({...stickyNotes, activeNoteId: id});
     setStickyNoteMessage("");
+  }
+
+  function confirmCloseStickyNoteTab() {
+    if (!stickyNoteTabToClose) return;
+    const removedIndex = stickyNotes.notes.findIndex(note => note.id === stickyNoteTabToClose);
+    if (removedIndex < 0) { setStickyNoteTabToClose(null); return; }
+    const noteNumber = stickyNoteTabToClose.replace("note-", "");
+    const remaining = stickyNotes.notes.filter(note => note.id !== stickyNoteTabToClose);
+    // The Sticky Note popup always has an editor, even if the final tab closes.
+    const notes = remaining.length ? remaining : [{id: "note-1", content: ""}];
+    const activeNoteId = stickyNotes.activeNoteId === stickyNoteTabToClose
+      ? (remaining[Math.min(removedIndex, remaining.length - 1)]?.id || "note-1")
+      : stickyNotes.activeNoteId;
+    setStickyNoteTabToClose(null);
+    updateStickyNotes({...stickyNotes, notes, activeNoteId});
+    setStickyNoteMessage(`ปิด Note ${noteNumber} แล้ว`);
   }
 
   function clearStickyNote() {
@@ -4445,26 +4466,44 @@ export default function CreateEvaluationMockup({
         </>
         ) : null}
       </div>
-      {workspaceView === "form" ? <StickyNotePopup owner={stickyNoteOwner} onOpenChange={setStickyNoteOpen}>
+      {workspaceView === "form" ? <StickyNotePopup owner={stickyNoteOwner} onOpenChange={(isOpen) => {
+        setStickyNoteOpen(isOpen);
+        if (!isOpen) setStickyNoteTabToClose(null);
+      }}>
               <div className="mb-3 flex items-center gap-2 border-b border-amber-200 pb-3" data-sticky-note-tabs="true">
                 <div role="tablist" aria-label="Sticky Note Tabs" className="flex min-w-0 flex-1 gap-2 overflow-x-auto pb-1">
                   {stickyNotes.notes.map(note => {
                     const selected = note.id === stickyNotes.activeNoteId;
+                    const noteNumber = note.id.replace("note-", "");
                     return (
-                      <button
-                        type="button"
-                        role="tab"
+                      <div
+                        role="presentation"
                         key={note.id}
-                        id={`sticky-tab-${note.id}`}
-                        aria-controls="sticky-note-editor-panel"
-                        aria-selected={selected}
-                        onClick={() => selectStickyNoteTab(note.id)}
-                        className={`shrink-0 rounded-t-xl border px-4 py-2.5 text-sm font-semibold transition ${selected
+                        className={`flex shrink-0 items-center rounded-t-xl border transition ${selected
                           ? "border-amber-400 bg-amber-100 text-amber-950 shadow-sm"
                           : "border-slate-200 bg-slate-50 text-slate-600 hover:border-amber-200 hover:bg-amber-50"}`}
                       >
-                        Note {note.id.replace("note-", "")}
-                      </button>
+                        <button
+                          type="button"
+                          role="tab"
+                          id={`sticky-tab-${note.id}`}
+                          aria-controls="sticky-note-editor-panel"
+                          aria-selected={selected}
+                          onClick={() => selectStickyNoteTab(note.id)}
+                          className="px-3 py-2.5 text-sm font-semibold"
+                        >
+                          Note {noteNumber}
+                        </button>
+                        <button
+                          type="button"
+                          aria-label={`ปิด Note ${noteNumber}`}
+                          title={`ปิด Note ${noteNumber}`}
+                          onClick={() => setStickyNoteTabToClose(note.id)}
+                          className="mr-1 grid h-7 w-7 place-items-center rounded-lg text-slate-500 transition hover:bg-rose-100 hover:text-rose-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-rose-500"
+                        >
+                          <span aria-hidden="true">×</span>
+                        </button>
+                      </div>
                     );
                   })}
                 </div>
@@ -4478,6 +4517,25 @@ export default function CreateEvaluationMockup({
                   +
                 </button>
               </div>
+              {stickyNoteTabToClose ? (
+                <div role="alert" className="mb-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3" data-sticky-note-close-confirmation="true">
+                  <p className="text-sm font-bold text-rose-900">ยืนยันปิด Note {stickyNoteTabToClose.replace("note-", "")}?</p>
+                  <p className="mt-1 text-xs leading-5 text-rose-800">
+                    การปิดแท็บจะลบข้อความภายใน Note นี้ หากยืนยันแล้วไม่สามารถกู้คืนได้
+                    {stickyNotes.notes.length === 1 ? " และระบบจะสร้าง Note 1 ว่างไว้แทน" : ""}
+                  </p>
+                  <div className="mt-3 flex flex-wrap justify-end gap-2">
+                    <button type="button" onClick={() => setStickyNoteTabToClose(null)}
+                      className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+                      ยกเลิก
+                    </button>
+                    <button type="button" onClick={confirmCloseStickyNoteTab}
+                      className="rounded-lg bg-rose-700 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-800">
+                      ยืนยันปิด Note
+                    </button>
+                  </div>
+                </div>
+              ) : null}
               <div id="sticky-note-editor-panel" role="tabpanel" aria-labelledby={`sticky-tab-${stickyNotes.activeNoteId}`}>
                 <RichTextToolbar editorId="qa-evaluation-sticky-note" compact className="sticky top-0 z-10 mb-3 rounded-xl border border-slate-200" />
                 <div className="space-y-3">

@@ -96,7 +96,7 @@ export async function saveStoredStickyNote(username: string, note: string) {
 // The legacy "note" field remains compatible with older deployments, and
 // a legacy single note is migrated into Note 1 without changing its HTML.
 export type StickyNoteTab = { id: string; content: string };
-export type StickyNoteTabs = { notes: StickyNoteTab[]; activeNoteId: string };
+export type StickyNoteTabs = { notes: StickyNoteTab[]; activeNoteId: string; nextNoteNumber: number };
 const STICKY_NOTE_TABS_CACHE_PREFIX = "qa-dashboard:create-evaluation:sticky-note-tabs:user:";
 
 function tabsCacheKey(username: string) {
@@ -105,9 +105,9 @@ function tabsCacheKey(username: string) {
 
 function normalizeStickyNoteTabs(raw: unknown, fallback = ""): StickyNoteTabs {
   if (!raw || typeof raw !== "object") {
-    return {notes: [{id: "note-1", content: fallback}], activeNoteId: "note-1"};
+    return {notes: [{id: "note-1", content: fallback}], activeNoteId: "note-1", nextNoteNumber: 2};
   }
-  const source = raw as {notes?: unknown; activeNoteId?: unknown};
+  const source = raw as {notes?: unknown; activeNoteId?: unknown; nextNoteNumber?: unknown};
   const used = new Set<string>();
   const notes: StickyNoteTab[] = [];
   if (Array.isArray(source.notes)) {
@@ -122,7 +122,13 @@ function normalizeStickyNoteTabs(raw: unknown, fallback = ""): StickyNoteTabs {
   }
   if (!notes.length) notes.push({id:"note-1", content:fallback});
   const selected = String(source.activeNoteId || "");
-  return {notes, activeNoteId: notes.some(note => note.id === selected) ? selected : notes[0].id};
+  const minimumNext = Math.max(0, ...notes.map(note => Number(note.id.slice(5)) || 0)) + 1;
+  const storedNext = Number(source.nextNoteNumber);
+  return {
+    notes,
+    activeNoteId: notes.some(note => note.id === selected) ? selected : notes[0].id,
+    nextNoteNumber: Number.isSafeInteger(storedNext) && storedNext >= minimumNext ? storedNext : minimumNext,
+  };
 }
 
 export function readCachedStickyNotes(username: string): StickyNoteTabs {
@@ -158,7 +164,7 @@ export async function fetchStoredStickyNotes(username: string): Promise<StickyNo
     if (!snapshot.exists()) return cached;
     const data = snapshot.data();
     const remote = Array.isArray(data?.notes)
-      ? normalizeStickyNoteTabs({notes:data.notes, activeNoteId:data.activeNoteId},String(data.note || ""))
+      ? normalizeStickyNoteTabs({notes:data.notes, activeNoteId:data.activeNoteId, nextNoteNumber:data.nextNoteNumber},String(data.note || ""))
       : normalizeStickyNoteTabs(null,String(data?.note || ""));
     // Do not replace a pending browser-only edit with a stale empty remote note.
     const hasCachedContent = cached.notes.some(note => Boolean(note.content.trim()));
@@ -189,6 +195,7 @@ export async function saveStoredStickyNotes(username: string, value: StickyNoteT
           note: first.content,
           notes: data.notes,
           activeNoteId: data.activeNoteId,
+          nextNoteNumber: data.nextNoteNumber,
           updatedAt: new Date().toISOString(),
           updatedAtServer: serverTimestamp(),
         },
