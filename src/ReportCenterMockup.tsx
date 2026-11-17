@@ -270,8 +270,9 @@ export function buildReportWorkbook(rows: CanonicalReportCase[], kind: Kind, sco
   add("Topic Performance",topics.map(x=>({Topic:topicName(x.code),"Average Score":Number(x.average.toFixed(2)),"Maximum Score":Number(x.max.toFixed(2)),"Average %":Number(x.percent.toFixed(2)),Cases:x.cases})),[58,20,20,20,16]);
   add("Tag Analysis",tags.map(x=>({Tag:x.tag,"Cases Affected":x.cases,"Share %":Number(x.percent.toFixed(2))})),[57,19,20]);
   const detailed = expandCaseDetailComments(detailedRows(rows));
+  const detailHeaders = [...new Set(detailed.records.flatMap(record => Object.keys(record)))];
   add("Case Detail", detailed.records,
-    Object.keys(detailed.records[0] || {}).map(key =>
+    detailHeaders.map(key =>
       key === "Row Type" ? 35 : /Description|Comment/.test(key) ? 60 : /Agent|Intent/.test(key) ? 36 : 20
     ), detailed.heights);
   if(compareOptions?.unit==="week" && compareOptions.periods.length>1) {
