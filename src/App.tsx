@@ -838,7 +838,6 @@ function isCaseWorkspaceTabKey(value: unknown): value is CaseWorkspaceTabKey {
 
 function normalizeWorkspaceTabKey(value: unknown): WorkspaceTabKey | "" {
   const normalized = String(value || "").trim();
-  if (normalized === "report-center") return "dashboard";
   if (isCaseWorkspaceTabKey(normalized)) return normalized as CaseWorkspaceTabKey;
   return VALID_WORKSPACE_TAB_KEYS.has(normalized as AppTab | "case-detail")
     ? (normalized as AppTab | "case-detail")
@@ -4116,7 +4115,7 @@ export default function App() {
       const initialTab = normalizeAppTab(new URL(window.location.href).searchParams.get("tab"));
       const storedTab = normalizeAppTab(window.sessionStorage.getItem(ACTIVE_TAB_SESSION_STORAGE_KEY));
       const requestedTab = initialTab || storedTab || "dashboard";
-      return requestedTab === "summary" || requestedTab === "report-center" ? "dashboard" : requestedTab;
+      return requestedTab === "summary" ? "dashboard" : requestedTab;
     } catch {
       return "dashboard";
     }
@@ -4131,14 +4130,14 @@ export default function App() {
       const valid = Array.isArray(stored)
         ? stored.map(normalizeWorkspaceTabKey).filter(Boolean) as WorkspaceTabKey[]
         : [];
-      return ["dashboard", ...valid.filter((item) => item !== "dashboard" && item !== "summary" && item !== "report-center" && item !== "case-detail")];
+      return ["dashboard", ...valid.filter((item) => item !== "dashboard" && item !== "summary" && item !== "case-detail")];
     } catch {
       return ["dashboard"];
     }
   });
   const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<WorkspaceTabKey>(() => {
     const stored = normalizeWorkspaceTabKey(window.sessionStorage.getItem(ACTIVE_WORKSPACE_TAB_SESSION_STORAGE_KEY));
-    return stored && stored !== "summary" && stored !== "report-center" && stored !== "case-detail"
+    return stored && stored !== "summary" && stored !== "case-detail"
       ? stored
       : (activeTab as WorkspaceTabKey) || "dashboard";
   });
@@ -5085,9 +5084,8 @@ export default function App() {
     } = {}
   ) => {
     const unifiedTab = tab === "summary" ? "dashboard" : tab;
-    const restoredDashboardTab = unifiedTab === "report-center" ? "dashboard" : unifiedTab;
-    const blockedReason = getTabBlockedReason(restoredDashboardTab);
-    const nextTab = blockedReason ? "dashboard" : restoredDashboardTab;
+    const blockedReason = getTabBlockedReason(unifiedTab);
+    const nextTab = blockedReason ? "dashboard" : unifiedTab;
 
     if (blockedReason) {
       console.warn(`Navigation blocked for ${unifiedTab}: ${blockedReason}`);
@@ -5128,7 +5126,7 @@ export default function App() {
       normalizeAppTab(params.get("tab")) ||
       normalizeAppTab(window.sessionStorage.getItem(ACTIVE_TAB_SESSION_STORAGE_KEY)) ||
       "dashboard";
-    const requestedTab = requestedLegacyTab === "summary" || requestedLegacyTab === "report-center" ? "dashboard" : requestedLegacyTab;
+    const requestedTab = requestedLegacyTab === "summary" ? "dashboard" : requestedLegacyTab;
     const blockedReason = getTabBlockedReason(requestedTab);
     const nextTab = blockedReason ? "dashboard" : requestedTab;
 
@@ -5152,10 +5150,10 @@ export default function App() {
     applyRouteParams(nextTab, params);
 
     const urlTab = normalizeAppTab(params.get("tab"));
-    if (options.replace || !urlTab || blockedReason || requestedLegacyTab === "summary" || requestedLegacyTab === "report-center") {
+    if (options.replace || !urlTab || blockedReason || requestedLegacyTab === "summary") {
       writeWorkspaceRoute(nextTab, {
         replace: true,
-        params: blockedReason || requestedLegacyTab === "summary" || requestedLegacyTab === "report-center" ? {} : Object.fromEntries(params.entries()),
+        params: blockedReason || requestedLegacyTab === "summary" ? {} : Object.fromEntries(params.entries()),
       });
     }
   }, [applyRouteParams, getTabBlockedReason, writeWorkspaceRoute]);
@@ -5194,7 +5192,7 @@ export default function App() {
       return;
     }
 
-    if (workspaceKey === "case-detail" || workspaceKey === "summary" || workspaceKey === "report-center") {
+    if (workspaceKey === "case-detail" || workspaceKey === "summary") {
       setDashboardSubTab("overview");
       setSelectedDashboardCaseId("");
       navigateToTab("dashboard", {
@@ -7663,6 +7661,14 @@ export default function App() {
       description: "ภาพรวม วิเคราะห์ผล และตรวจรายละเอียดเคสในหน้าเดียว",
       items: [
         { key: "dashboard", label: "QA Dashboard", description: "ดู KPI วิเคราะห์แนวโน้ม ค้นหาเคสทุกเดือน และเปิด Case Detail ในพื้นที่เดียว", icon: "chart", allowed: true, active: activeTab === "dashboard", onClick: () => activateWorkspaceTab("dashboard") },
+      ],
+    },
+    {
+      id: "reports",
+      title: "Reports",
+      description: "ศูนย์กลางการสร้างและส่งออกรายงาน",
+      items: [
+        { key: "report-center", label: "Report Center", description: "Monthly, Yearly, Weekly, Compare, Case Detail, Payment และ PDF / Excel", icon: "chart", allowed: true, active: activeWorkspaceTab === "report-center", onClick: () => activateWorkspaceTab("report-center") },
       ],
     },
     {
