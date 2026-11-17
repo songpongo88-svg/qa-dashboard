@@ -838,6 +838,7 @@ function isCaseWorkspaceTabKey(value: unknown): value is CaseWorkspaceTabKey {
 
 function normalizeWorkspaceTabKey(value: unknown): WorkspaceTabKey | "" {
   const normalized = String(value || "").trim();
+  if (normalized === "report-center") return "dashboard";
   if (isCaseWorkspaceTabKey(normalized)) return normalized as CaseWorkspaceTabKey;
   return VALID_WORKSPACE_TAB_KEYS.has(normalized as AppTab | "case-detail")
     ? (normalized as AppTab | "case-detail")
@@ -5083,9 +5084,10 @@ export default function App() {
       workspaceKey?: WorkspaceTabKey;
     } = {}
   ) => {
-    const unifiedTab = tab === "summary" || tab === "report-center" ? "dashboard" : tab;
-    const blockedReason = getTabBlockedReason(unifiedTab);
-    const nextTab = blockedReason ? "dashboard" : unifiedTab;
+    const unifiedTab = tab === "summary" ? "dashboard" : tab;
+    const restoredDashboardTab = unifiedTab === "report-center" ? "dashboard" : unifiedTab;
+    const blockedReason = getTabBlockedReason(restoredDashboardTab);
+    const nextTab = blockedReason ? "dashboard" : restoredDashboardTab;
 
     if (blockedReason) {
       console.warn(`Navigation blocked for ${unifiedTab}: ${blockedReason}`);
@@ -5137,7 +5139,7 @@ export default function App() {
     window.sessionStorage.setItem(ACTIVE_TAB_SESSION_STORAGE_KEY, nextTab);
     setActiveTab(nextTab);
     const normalizedRouteWorkspaceTab = normalizeWorkspaceTabKey(params.get("workspace"));
-    const routeWorkspaceTab = normalizedRouteWorkspaceTab === "summary" || normalizedRouteWorkspaceTab === "report-center" || normalizedRouteWorkspaceTab === "case-detail"
+    const routeWorkspaceTab = normalizedRouteWorkspaceTab === "summary" || normalizedRouteWorkspaceTab === "case-detail"
       ? "dashboard"
       : normalizedRouteWorkspaceTab;
     const nextWorkspaceTab: WorkspaceTabKey = blockedReason
