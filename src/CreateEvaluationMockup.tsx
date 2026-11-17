@@ -42,10 +42,11 @@ import { fetchCachedStaticResponse } from "./staticFileCache";
 import { canonicalizeAgentName, JIRAPONG_AGENT_NAME } from "./lib/agentIdentity";
 import { withConsistentUserNames } from "./lib/userNames";
 import {
-  cacheStickyNote,
-  fetchStoredStickyNote,
-  readCachedStickyNote,
-  saveStoredStickyNote,
+  cacheStickyNotes,
+  fetchStoredStickyNotes,
+  readCachedStickyNotes,
+  saveStoredStickyNotes,
+  type StickyNoteTabs,
 } from "./stickyNoteStore";
 import {
   createEvaluationIssueTag,
@@ -1053,9 +1054,8 @@ export default function CreateEvaluationMockup({
   const [draftMessage, setDraftMessage] = useState(() => readEvaluateTabMemory()?.draftMessage || "");
   const inlineImageUploadsRef = useRef(0);
   const [inlineImageUploads, setInlineImageUploads] = useState(0);
-  const [stickyNote, setStickyNote] = useState(() => {
-    return readCachedStickyNote(stickyNoteOwner);
-  });
+  const [stickyNotes, setStickyNotes] = useState<StickyNoteTabs>(() => readCachedStickyNotes(stickyNoteOwner));
+  const stickyNote = stickyNotes.notes.find(note => note.id === stickyNotes.activeNoteId)?.content || "";
   const [stickyNoteMessage, setStickyNoteMessage] = useState("");
   const [stickyNoteOpen, setStickyNoteOpen] = useState(false);
   const [stickyNoteReady, setStickyNoteReady] = useState(false);
@@ -1313,15 +1313,13 @@ export default function CreateEvaluationMockup({
     let cancelled = false;
     stickyNoteDirtyRef.current = false;
     setStickyNoteReady(false);
+    const cached = readCachedStickyNotes(stickyNoteOwner);
+    setStickyNotes(cached);
+    setStickyNoteMessage("");
 
-    const cached = readCachedStickyNote(stickyNoteOwner);
-    setStickyNote(cached);
-
-    void fetchStoredStickyNote(stickyNoteOwner).then((storedNote) => {
+    void fetchStoredStickyNotes(stickyNoteOwner).then((stored) => {
       if (cancelled) return;
-      if (!stickyNoteDirtyRef.current && storedNote !== cached) {
-        setStickyNote(storedNote);
-      }
+      if (!stickyNoteDirtyRef.current) setStickyNotes(stored);
       setStickyNoteReady(true);
     });
 
@@ -1333,12 +1331,12 @@ export default function CreateEvaluationMockup({
   useEffect(() => {
     if (!stickyNoteReady || !stickyNoteDirtyRef.current) return;
     const timeoutId = window.setTimeout(() => {
-      void saveStoredStickyNote(stickyNoteOwner, stickyNote).then((backedUp) => {
+      void saveStoredStickyNotes(stickyNoteOwner, stickyNotes).then((backedUp) => {
         setStickyNoteMessage(backedUp ? "บันทึกอัตโนมัติแล้ว" : "บันทึกไว้ในเครื่องแล้ว");
       });
     }, 900);
     return () => window.clearTimeout(timeoutId);
-  }, [stickyNote, stickyNoteOwner, stickyNoteReady]);
+  }, [stickyNotes, stickyNoteOwner, stickyNoteReady]);
 
   useEffect(() => {
     if (workspaceView === "report") {
@@ -2181,18 +2179,44 @@ export default function CreateEvaluationMockup({
   }
 
   async function saveStickyNoteNow() {
-    cacheStickyNote(stickyNoteOwner, stickyNote);
+    cacheStickyNotes(stickyNoteOwner, stickyNotes);
     setStickyNoteMessage("กำลังบันทึก...");
-    const backedUp = await saveStoredStickyNote(stickyNoteOwner, stickyNote);
+    const backedUp = await saveStoredStickyNotes(stickyNoteOwner, stickyNotes);
     setStickyNoteMessage(backedUp ? "บันทึกแล้ว ข้อความจะกลับมาเมื่อเข้าใช้งานครั้งถัดไป" : "บันทึกไว้ในเครื่องแล้ว");
   }
 
-  function clearStickyNote() {
+  function updateStickyNotes(next: StickyNoteTabs) {
     stickyNoteDirtyRef.current = true;
-    cacheStickyNote(stickyNoteOwner, "");
-    setStickyNote("");
-    setStickyNoteMessage("ล้างข้อความแล้ว");
-    void saveStoredStickyNote(stickyNoteOwner, "");
+    cacheStickyNotes(stickyNoteOwner, next);
+    setStickyNotes(next);
+    setStickyNoteMessage("กำลังบันทึกอัตโนมัติ...");
+  }
+
+  function addStickyNoteTab() {
+    const nextNumber = Math.max(0, ...stickyNotes.notes.map(note => Number(note.id.replace("note-", "")) || 0)) + 1;
+    const id = `note-${nextNumber}`;
+    updateStickyNotes({
+      notes: [...stickyNotes.notes, {id, content: ""}],
+      activeNoteId: id,
+    });
+    setStickyNoteMessage(`สร้าง Note ${nextNumber} แล้ว`);
+  }
+
+  function selectStickyNoteTab(id: string) {
+    if (id === stickyNotes.activeNoteId) return;
+    updateStickyNotes({...stickyNotes, activeNoteId: id});
+    setStickyNoteMessage("");
+  }
+
+  function clearStickyNote() {
+    const next: StickyNoteTabs = {
+      ...stickyNotes,
+      notes: stickyNotes.notes.map(note =>
+        note.id === stickyNotes.activeNoteId ? {...note, content: ""} : note
+      ),
+    };
+    updateStickyNotes(next);
+    setStickyNoteMessage("ล้างข้อความเฉพาะ Note นี้แล้ว");
   }
 
   function updateWaitingTime(value: string) {
@@ -4422,22 +4446,59 @@ export default function CreateEvaluationMockup({
         ) : null}
       </div>
       {workspaceView === "form" ? <StickyNotePopup owner={stickyNoteOwner} onOpenChange={setStickyNoteOpen}>
-              <RichTextToolbar editorId="qa-evaluation-sticky-note" compact className="sticky top-0 z-10 mb-3 rounded-xl border border-slate-200" />
-              <div className="space-y-3">
-                <RichTextEditor
-                  id="qa-evaluation-sticky-note"
-                  value={stickyNote}
-                  onChange={(nextNote) => {
-                    stickyNoteDirtyRef.current = true;
-                    cacheStickyNote(stickyNoteOwner, nextNote);
-                    setStickyNote(nextNote);
-                    setStickyNoteMessage("กำลังบันทึกอัตโนมัติ...");
-                  }}
-                  minHeight={180}
-                  tone="amber"
-                  editorLabel="Sticky Note"
-                  placeholder="วางข้อความที่ใช้บ่อย หรือร่างคำตอบไว้ตรงนี้..."
-                />
+              <div className="mb-3 flex items-center gap-2 border-b border-amber-200 pb-3" data-sticky-note-tabs="true">
+                <div role="tablist" aria-label="Sticky Note Tabs" className="flex min-w-0 flex-1 gap-2 overflow-x-auto pb-1">
+                  {stickyNotes.notes.map(note => {
+                    const selected = note.id === stickyNotes.activeNoteId;
+                    return (
+                      <button
+                        type="button"
+                        role="tab"
+                        key={note.id}
+                        id={`sticky-tab-${note.id}`}
+                        aria-controls="sticky-note-editor-panel"
+                        aria-selected={selected}
+                        onClick={() => selectStickyNoteTab(note.id)}
+                        className={`shrink-0 rounded-t-xl border px-4 py-2.5 text-sm font-semibold transition ${selected
+                          ? "border-amber-400 bg-amber-100 text-amber-950 shadow-sm"
+                          : "border-slate-200 bg-slate-50 text-slate-600 hover:border-amber-200 hover:bg-amber-50"}`}
+                      >
+                        Note {note.id.replace("note-", "")}
+                      </button>
+                    );
+                  })}
+                </div>
+                <button
+                  type="button"
+                  onClick={addStickyNoteTab}
+                  aria-label="เพิ่ม Note ใหม่"
+                  title="เพิ่ม Note ใหม่"
+                  className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-amber-400 bg-amber-50 text-2xl font-semibold text-amber-900 transition hover:bg-amber-100"
+                >
+                  +
+                </button>
+              </div>
+              <div id="sticky-note-editor-panel" role="tabpanel" aria-labelledby={`sticky-tab-${stickyNotes.activeNoteId}`}>
+                <RichTextToolbar editorId="qa-evaluation-sticky-note" compact className="sticky top-0 z-10 mb-3 rounded-xl border border-slate-200" />
+                <div className="space-y-3">
+                  <RichTextEditor
+                    key={stickyNotes.activeNoteId}
+                    id="qa-evaluation-sticky-note"
+                    value={stickyNote}
+                    onChange={(nextNote) => {
+                      const next: StickyNoteTabs = {
+                        ...stickyNotes,
+                        notes: stickyNotes.notes.map(note =>
+                          note.id === stickyNotes.activeNoteId ? {...note, content: nextNote} : note
+                        ),
+                      };
+                      updateStickyNotes(next);
+                    }}
+                    minHeight={180}
+                    tone="amber"
+                    editorLabel={`Note ${stickyNotes.activeNoteId.replace("note-", "")}`}
+                    placeholder="วางข้อความที่ใช้บ่อย หรือร่างคำตอบไว้ตรงนี้..."
+                  />
                 <div className="flex flex-col gap-2 sm:flex-row">
                   <button
                     type="button"
@@ -4466,6 +4527,7 @@ export default function CreateEvaluationMockup({
                     {stickyNoteMessage}
                   </div>
                 ) : null}
+                </div>
               </div>
       </StickyNotePopup> : null}
       {submitPreview ? (
