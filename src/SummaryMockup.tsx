@@ -9530,6 +9530,23 @@ export default function SummaryMockup({
 
               <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-violet-50 px-3 py-2 text-[10px] font-medium text-slate-600">
                 <span>{isComparisonMode ? `Comparing: ${effectivePeriodLabels.join(" · ")}` : `Current view: ${effectivePeriodLabels[0] || "Current period"}`}</span>
+                <div className="flex flex-wrap items-center justify-end gap-2" data-dashboard-compare-export-restored="true">
+                  {isComparisonMode ? (
+                    <button type="button" onClick={() => {
+                      const lastPeriod = effectivePeriodKeys[effectivePeriodKeys.length - 1];
+                      setSelectedPeriods(lastPeriod ? [lastPeriod] : []);
+                    }} className="rounded-lg border border-violet-200 bg-white px-3 py-1.5 font-bold text-violet-700 hover:bg-violet-100">Exit Compare</button>
+                  ) : null}
+                  <button type="button" onClick={openAnalyticsCompare} className="rounded-lg border border-violet-400 bg-white px-3 py-1.5 font-bold text-violet-700 hover:bg-violet-100">Compare</button>
+                  <div className="relative">
+                    <button type="button" disabled={!analyticsCanExport} title={analyticsCanExport ? "Export current Analytics view" : "Missing Export PDF permission"} aria-expanded={analyticsExportOpen} onClick={() => setAnalyticsExportOpen(value => !value)} className="rounded-lg border border-violet-300 bg-violet-700 px-3 py-1.5 font-bold text-white hover:bg-violet-800 disabled:cursor-not-allowed disabled:opacity-40">Export PDF / Excel</button>
+                    {analyticsExportOpen && analyticsCanExport ? (
+                      <div className="absolute right-0 top-[calc(100%+8px)] z-[175] w-56 overflow-hidden rounded-xl border border-violet-200 bg-white p-1.5 text-sm shadow-xl">
+                        <button type="button" onClick={() => { setAnalyticsExportOpen(false); void generateSummaryReportPdf(); }} className="block w-full rounded-lg px-3 py-2 text-left text-slate-700 hover:bg-violet-50">Generate PDF</button>
+                        <button type="button" onClick={() => { setAnalyticsExportOpen(false); void exportCurrentAnalyticsExcel(); }} className="block w-full rounded-lg px-3 py-2 text-left text-slate-700 hover:bg-violet-50">Generate Excel</button>
+                      </div>
+                    ) : null}
+                  </div>
                 <button type="button" onClick={() => {
                   onResetCaseFilters?.();
                   setSummarySection("summary");
@@ -9538,6 +9555,7 @@ export default function SummaryMockup({
                   setSelectedTeam(analyticsCanSelectAllTeams ? "all" : currentUserTeamName || "all");
                   if (analyticsCanSelectAllAgents) selectAnalyticsAgent("all");
                 }} className="rounded-lg border border-violet-200 bg-white px-3 py-1.5 font-bold text-violet-700 hover:bg-violet-100">Reset</button>
+                </div>
               </div>
             </div>,
             dashboardControlTarget

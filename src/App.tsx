@@ -7664,14 +7664,6 @@ export default function App() {
       ],
     },
     {
-      id: "reports",
-      title: "Reports",
-      description: "ศูนย์กลางการสร้างและส่งออกรายงาน",
-      items: [
-        { key: "report-center", label: "Report Center", description: "Monthly, Yearly, Weekly, Compare, Case Detail, Payment และ PDF / Excel", icon: "chart", allowed: true, active: activeWorkspaceTab === "report-center", onClick: () => activateWorkspaceTab("report-center") },
-      ],
-    },
-    {
       id: "qa",
       title: "QA Work",
       description: "สร้างและบันทึกผลประเมิน QA",
@@ -8106,6 +8098,29 @@ export default function App() {
                   onSelectedYearChange={setCaseSelectedYear}
                 />
               ) : null}
+              reportGeneratorContent={(
+                <ReportCenterMockup
+                            currentUser={currentUser}
+                            roleScopedAgentNames={roleScopedAgentNames}
+                            canExport={analyticsAllowed && analyticsExportAllowed}
+                            canViewAllAgents={analyticsAllAgentsAllowed}
+                            canViewAllTeams={analyticsAllTeamsAllowed}
+                            canViewOwnTeam={analyticsOwnTeamAllowed}
+                            paymentContent={
+                              <SignatureCenterErrorBoundary>
+                                <SignatureCenterMockup currentUser={currentUser} accounts={effectiveUserAccounts} reportExportOnly />
+                              </SignatureCenterErrorBoundary>
+                            }
+                            slidesContent={
+                              <PresentationMockup
+                                currentUser={currentUser}
+                                roleScopedAgentNames={roleScopedAgentNames}
+                                dataRefreshKey={qaDataRefreshKey}
+                                reportExportOnly
+                              />
+                            }
+                          />
+              )}
               onSelectedAgentChange={setCaseSelectedAgent}
               onSelectedMonthKeyChange={setCaseSelectedMonth}
               onSelectedWeekChange={setCaseSelectedWeek}

@@ -6169,6 +6169,7 @@ export default function DashboardMockup({
   onRefreshData,
   dataCheckedAt = 0,
   analyticsContent,
+  reportGeneratorContent,
   onEffectiveCasesChange,
   onSelectedAgentChange,
   onSelectedMonthKeyChange,
@@ -6199,6 +6200,7 @@ export default function DashboardMockup({
   onRefreshData?: () => void;
   dataCheckedAt?: number;
   analyticsContent?: React.ReactNode;
+  reportGeneratorContent?: React.ReactNode;
   onEffectiveCasesChange?: (cases: any[]) => void;
   onSelectedAgentChange?: (agentName: string) => void;
   onSelectedMonthKeyChange?: (monthKey: string) => void;
@@ -6214,6 +6216,7 @@ export default function DashboardMockup({
   const currentMonthKey = getMonthKey(firstDayOfCurrentMonth);
 
   const evaluationActivity = useEvaluationActivity();
+  const [reportGeneratorOpen, setReportGeneratorOpen] = useState(false);
   const dashboardAccountScope = [
     String(currentUser?.username || "").trim().toLowerCase(),
     String(currentUser?.role || "").trim().toLowerCase(),
@@ -8142,6 +8145,9 @@ export default function DashboardMockup({
                   <div className="text-sm font-bold tracking-wide text-white">QA Dashboard</div>
                   <div className="mt-1 text-[11px] font-medium text-violet-100">คะแนน ผลงาน และรายการประเมินในพื้นที่ทำงานเดียว</div>
                 </div>
+                {canViewAnalytics && reportGeneratorContent ? (
+                  <button type="button" onClick={() => setReportGeneratorOpen(true)} className="rounded-xl border border-white/50 bg-white px-4 py-2.5 text-sm font-bold text-violet-800 shadow-sm transition hover:bg-violet-50">Generate Report</button>
+                ) : null}
               </div>
               {canViewAnalytics && analyticsContent ? (
                 <div id="qa-dashboard-control-center-performance-v163" className="mt-4 min-w-0" />
@@ -9494,6 +9500,18 @@ export default function DashboardMockup({
         </div>
       </div>
       </WeekdayDashboardLayout>
+      {reportGeneratorOpen && reportGeneratorContent ? createPortal(
+        <div role="dialog" aria-modal="true" aria-label="Generate QA Report" onKeyDown={(event) => { if (event.key === "Escape") setReportGeneratorOpen(false); }} className="fixed inset-0 z-[190] overflow-y-auto bg-slate-950/65 px-3 py-5 sm:px-6">
+          <div className="mx-auto max-w-[1220px] overflow-hidden rounded-[24px] bg-white shadow-2xl">
+            <div className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-violet-100 bg-white px-5 py-3 shadow-sm">
+              <div><div className="text-sm font-bold text-slate-900">Generate Report</div><div className="text-xs text-slate-500">สร้าง PDF หรือ Excel จาก QA Dashboard</div></div>
+              <button type="button" autoFocus onClick={() => setReportGeneratorOpen(false)} aria-label="Close report generator" className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-violet-50">Close ×</button>
+            </div>
+            {reportGeneratorContent}
+          </div>
+        </div>,
+        document.body
+      ) : null}
     </div>
   );
 }
