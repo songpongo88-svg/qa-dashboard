@@ -12,7 +12,7 @@
 } from "firebase/firestore";
 import { firebaseDb } from "./firebaseClient";
 import { fetchDashboardRevision } from "./dashboardRevision";
-import { assertFirestoreReadAllowed, isFirestoreQuotaError, noteFirestoreReadError, invalidateFirestoreReads } from "./firestoreReadPolicy";
+import { assertFirestoreReadAllowed, isFirestoreQuotaError, noteFirestoreReadError, invalidateFirestoreReads, recordFirestoreSnapshotDocs } from "./firestoreReadPolicy";
 import { canonicalizeAgentName } from "./lib/agentIdentity";
 import { checkAppealSourceCases } from "./appealCaseAvailability";
 import { fetchStoredEvaluationsForCases } from "./evaluationStore";
@@ -99,7 +99,10 @@ function recentAppealSnapshot(maxDocs: number, forceRefresh: boolean) {
     collection(firebaseDb, APPEAL_EVENTS_COLLECTION),
     orderBy("created_at", "desc"),
     firestoreLimit(maxDocs)
-  )).catch(error => {
+  )).then(snapshot => {
+    recordFirestoreSnapshotDocs("appeal:recent-collection", snapshot.docs.length);
+    return snapshot;
+  }).catch(error => {
     if (appealCollectionSnapshotCache.get(maxDocs)?.promise === request) appealCollectionSnapshotCache.delete(maxDocs);
     throw error;
   });
@@ -151,6 +154,33 @@ function normalizeFetchOptions(options: FetchOptions | undefined) {
 
 type InboxAppealSnapshot = { events: AppealLogEvent[]; discussions: AppealLogEvent[] };
 const inboxAppealSnapshots = new Map<string, { revision: string; promise: Promise<InboxAppealSnapshot> }>();
+// Session-scoped, role-scoped read-only UI cache. A fresh server revision is
+// always required before reuse; approval/submit flows never trust this cache.
+const INBOX_SESSION_KEY = "qa-dashboard:appeal-inbox-session:v1";
+const INBOX_SESSION_MAX_AGE_MS = 30 * 60_000;
+
+function readInboxSessionSnapshot(identity: string, revision: string): InboxAppealSnapshot | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const cached = JSON.parse(window.sessionStorage.getItem(INBOX_SESSION_KEY) || "null");
+    if (!cached || cached.identity !== identity || cached.revision !== revision ||
+        !Number.isFinite(cached.savedAt) || cached.savedAt > Date.now() ||
+        Date.now() - cached.savedAt > INBOX_SESSION_MAX_AGE_MS ||
+        !Array.isArray(cached.events) || !Array.isArray(cached.discussions)) return null;
+    return { events: cached.events, discussions: cached.discussions };
+  } catch { return null; }
+}
+
+function saveInboxSessionSnapshot(identity: string, revision: string, value: InboxAppealSnapshot): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.setItem(INBOX_SESSION_KEY, JSON.stringify({
+      identity, revision, savedAt: Date.now(), events: value.events, discussions: value.discussions,
+    }));
+  } catch {
+    // Storage can be disabled or too small; a full server fetch still works.
+  }
+}
 
 // Rebuild event projections only after a small revision query detects changes.
 // Evaluations are included in that revision so source-case deletion is noticed.
@@ -163,6 +193,14 @@ export async function fetchAppealInboxSnapshot(user: { username: string; role: s
   }
   const cached = inboxAppealSnapshots.get(identity);
   if (revision !== null && cached?.revision === revision) return cached.promise;
+  if (revision !== null) {
+    const saved = readInboxSessionSnapshot(identity, revision);
+    if (saved) {
+      const promise = Promise.resolve(saved);
+      inboxAppealSnapshots.set(identity, { revision, promise });
+      return promise;
+    }
+  }
   assertFirestoreReadAllowed();
   const promise = Promise.all([
     fetchAppealEvents([
@@ -172,7 +210,11 @@ export async function fetchAppealInboxSnapshot(user: { username: string; role: s
       "appeal_submission_edit_started", "appeal_submission_draft_saved", "appeal_submission_resubmitted",
     ], { limit: 2000, forceRefresh: true }),
     fetchAppealDiscussionInboxEvents(user),
-  ]).then(([events, discussions]) => ({ events, discussions })).catch(error => {
+  ]).then(([events, discussions]) => {
+    const result = { events, discussions };
+    if (revision !== null) saveInboxSessionSnapshot(identity, revision, result);
+    return result;
+  }).catch(error => {
     if (inboxAppealSnapshots.get(identity)?.promise === promise) inboxAppealSnapshots.delete(identity);
     noteFirestoreReadError(error);
     throw error;
@@ -185,6 +227,7 @@ export async function fetchAppealInboxSnapshot(user: { username: string; role: s
 }
 
 export function clearAppealEventReadCache() {
+  try { if (typeof window !== "undefined") window.sessionStorage.removeItem(INBOX_SESSION_KEY); } catch {}
   appealEventReadCache.clear();
   appealCollectionSnapshotCache.clear();
   inboxAppealSnapshots.clear();
