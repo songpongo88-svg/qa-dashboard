@@ -151,11 +151,33 @@ export function firestoreQuotaProtectionPatch() {
 
       const oldActivate = `  const activateUserSession = async (user: CurrentUser) => {\n    try {\n      const session = await createStoredUserSession(user);\n      const authenticatedUser: CurrentUser = {\n        ...user,\n        sessionId: session.sessionId,\n        sessionPolicyVersion: SESSION_POLICY_VERSION,\n        sessionExpiresAt: session.expiresAt,\n      };\n\n      currentUserWasRestoredRef.current = false;\n      restoredLoginLoggedRef.current = true;\n      lastSessionTouchRef.current = Date.now();\n      localStorage.setItem(STORAGE_KEY, JSON.stringify(authenticatedUser));\n      if (rememberLogin) {\n        localStorage.setItem(REMEMBERED_USERNAME_KEY, authenticatedUser.username);\n      } else {\n        localStorage.removeItem(REMEMBERED_USERNAME_KEY);\n      }\n      resetWorkspaceSessionState();\n      setCurrentUser(authenticatedUser);\n      return authenticatedUser;\n    } catch (error) {\n      console.error("Secure session creation failed", error);\n      setLoginError("Unable to create a secure session. Please try signing in again.");\n      return null;\n    }\n  };`;
       const newActivate = `  const activateUserSession = async (user: CurrentUser) => {\n    const finishLogin = (authenticatedUser: CurrentUser) => {\n      currentUserWasRestoredRef.current = false;\n      restoredLoginLoggedRef.current = true;\n      lastSessionTouchRef.current = Date.now();\n      localStorage.setItem(STORAGE_KEY, JSON.stringify(authenticatedUser));\n      if (rememberLogin) {\n        localStorage.setItem(REMEMBERED_USERNAME_KEY, authenticatedUser.username);\n      } else {\n        localStorage.removeItem(REMEMBERED_USERNAME_KEY);\n      }\n      resetWorkspaceSessionState();\n      setCurrentUser(authenticatedUser);\n      return authenticatedUser;\n    };\n\n    try {\n      const session = await createStoredUserSession(user);\n      return finishLogin({\n        ...user,\n        sessionId: session.sessionId,\n        sessionPolicyVersion: SESSION_POLICY_VERSION,\n        sessionExpiresAt: session.expiresAt,\n      });\n    } catch (error) {\n      // Do not block staff from working only because the session-control write is temporarily unavailable.\n      console.warn("Central session creation unavailable; using local protected session.", error);\n      const expiresAt = new Date(Date.now() + INACTIVITY_LIMIT_MS).toISOString();\n      return finishLogin({\n        ...user,\n        sessionId: \`local-\${user.username}-\${Date.now()}\`,\n        sessionPolicyVersion: SESSION_POLICY_VERSION,\n        sessionExpiresAt: expiresAt,\n      });\n    }\n  };`;
-      next = replaceOrThrow(this, next, oldActivate, newActivate, "login session fallback");
+      // Support both original direct storage writes and the quota-safe
+      // storage helper. Keep the existing guarded local-session fallback
+      // unchanged; quota exceptions from browser storage are unrelated to
+      // central Firestore session creation.
+      const oldActivateQuotaSafe = oldActivate
+        .replaceAll("localStorage.setItem(STORAGE_KEY, JSON.stringify(authenticatedUser));", "saveCurrentUserStorage(authenticatedUser);")
+        .replaceAll("localStorage.setItem(REMEMBERED_USERNAME_KEY, authenticatedUser.username);", "writeLocalStorageSafely(REMEMBERED_USERNAME_KEY, authenticatedUser.username);")
+        .replaceAll("localStorage.removeItem(REMEMBERED_USERNAME_KEY);", "writeLocalStorageSafely(REMEMBERED_USERNAME_KEY, null);");
+      const newActivateQuotaSafe = newActivate
+        .replaceAll("localStorage.setItem(STORAGE_KEY, JSON.stringify(authenticatedUser));", "saveCurrentUserStorage(authenticatedUser);")
+        .replaceAll("localStorage.setItem(REMEMBERED_USERNAME_KEY, authenticatedUser.username);", "writeLocalStorageSafely(REMEMBERED_USERNAME_KEY, authenticatedUser.username);")
+        .replaceAll("localStorage.removeItem(REMEMBERED_USERNAME_KEY);", "writeLocalStorageSafely(REMEMBERED_USERNAME_KEY, null);");
+      next = next.includes(oldActivateQuotaSafe)
+        ? replaceOrThrow(this, next, oldActivateQuotaSafe, newActivateQuotaSafe, "quota-safe login session fallback")
+        : replaceOrThrow(this, next, oldActivate, newActivate, "login session fallback");
 
       const oldRestoreCatch = `      } catch (error) {\n        console.error("Secure session restore failed", error);\n        localStorage.removeItem(STORAGE_KEY);\n        if (!cancelled) {\n          setCurrentUser(null);\n          setLoginError(\n            "The secure session could not be verified. Please sign in again."\n          );\n        }\n      } finally {`;
       const newRestoreCatch = `      } catch (error) {\n        // Firestore quota/network problems must not destroy a still-recent local work session.\n        console.warn("Central session restore unavailable; checking local session age.", error);\n        const loginAtMs = new Date(String(storedUser.loginAt || "")).getTime();\n        const localFallbackValid = Number.isFinite(loginAtMs) && Date.now() - loginAtMs < 12 * 60 * 60 * 1000;\n        if (localFallbackValid) {\n          if (!cancelled) {\n            lastSessionTouchRef.current = Date.now();\n            setCurrentUser(storedUser);\n            setLoginError("");\n          }\n        } else {\n          localStorage.removeItem(STORAGE_KEY);\n          if (!cancelled) {\n            setCurrentUser(null);\n            setLoginError("The secure session could not be verified. Please sign in again.");\n          }\n        }\n      } finally {`;
-      next = replaceOrThrow(this, next, oldRestoreCatch, newRestoreCatch, "session restore fail-open fallback");
+      const oldRestoreCatchQuotaSafe = oldRestoreCatch.replaceAll(
+        "localStorage.removeItem(STORAGE_KEY);", "clearCurrentUserStorage();"
+      );
+      const newRestoreCatchQuotaSafe = newRestoreCatch.replaceAll(
+        "localStorage.removeItem(STORAGE_KEY);", "clearCurrentUserStorage();"
+      );
+      next = next.includes(oldRestoreCatchQuotaSafe)
+        ? replaceOrThrow(this, next, oldRestoreCatchQuotaSafe, newRestoreCatchQuotaSafe, "quota-safe session restore fallback")
+        : replaceOrThrow(this, next, oldRestoreCatch, newRestoreCatch, "session restore fail-open fallback");
 
       next = replaceOrThrow(
         this,
