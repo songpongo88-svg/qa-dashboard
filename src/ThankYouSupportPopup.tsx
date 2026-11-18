@@ -12,9 +12,13 @@ export default function ThankYouSupportPopup({username,sessionId}:Props) {
   const [notice,setNotice]=useState<Notice|null>(null);
   const attempted=useRef(new Set<string>());
   const retryAfter=useRef(0);
+  const lastVisible=useRef(typeof document==="undefined" || document.visibilityState!=="hidden");
   const [checkTick,setCheckTick]=useState(0);
   useEffect(()=>{
     const check=()=>{
+      const nowVisible=document.visibilityState!=="hidden";
+      if(nowVisible && !lastVisible.current)setCheckTick(v=>v+1);
+      lastVisible.current=nowVisible;
       const next=thankYouSupportPhase();
       setPhase(current=>current===next?current:next);
       if(next && Date.now()>=retryAfter.current && retryAfter.current>0) {
