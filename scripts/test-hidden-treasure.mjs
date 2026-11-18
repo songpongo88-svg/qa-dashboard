@@ -4,7 +4,7 @@ import {readFile} from "node:fs/promises";
 
 const records=new Map(),versions=new Map();
 const initial=Date.now();
-let clock=initial,commitCount=0;
+let clock=initial,commitCount=0,discoveryRoll=0;
 const realNow=Date.now;
 Date.now=()=>clock;
 try{
@@ -24,7 +24,7 @@ try{
   currentMemberYear:()=>2026,
   spendableBalance:wallet=>wallet.balance||0,
   annualEarnedFromWallet:wallet=>wallet.memberYearEarned||0,
-  drawRandom:(...args)=>args.length===1?0:args[0],
+  drawRandom:(...args)=>args.length===1?(args[0]===100?discoveryRoll:0):args[0],
   firestoreRequest:async(endpoint,method,body)=>{
    if(endpoint===":beginTransaction")return {transaction:"test"};
    if(endpoint===":rollback")return {};
@@ -48,7 +48,7 @@ try{
  const started=await game.start({caseId:"AA334880"},actor);
  assert.ok(started.eligible&&started.visitId);
  await assert.rejects(()=>game.find({visitId:started.visitId},actor),/ต้องอ่านข้อมูล QA ก่อน/);
- clock+=31000;
+ clock+=10000;
  const found=await game.find({visitId:started.visitId},actor);
  assert.ok(found.found&&!found.alreadyClaimed&&found.offerId);
  assert.ok(!("amount" in found),"reward amount must remain hidden until opening");
@@ -96,8 +96,37 @@ try{
  const resumed=await game.start({caseId:"QA-NEXT"},secondUser);
  assert.equal(resumed.eligible,false);
  assert.equal(resumed.pendingOfferId,unopened.offerId,"unopened chest remains claimable without losing the reward");
+ // Fast discovery: exactly 10 seconds; 70% first visit, guaranteed on second.
+ discoveryRoll=70;
+ const unlucky={username:"unlucky",displayName:"Unlucky"};
+ const firstTry=await game.start({caseId:"AA340001"},unlucky);
+ assert.equal(firstTry.readSeconds,10,"discovery wait must be 10 seconds");
+ clock+=9000;
+ await assert.rejects(()=>game.find({visitId:firstTry.visitId},unlucky),/ต้องอ่านข้อมูล QA ก่อน/);
+ clock+=1000;
+ const missed=await game.find({visitId:firstTry.visitId},unlucky);
+ assert.equal(missed.found,false,"roll 70 must miss on the first search");
+ assert.equal(missed.searches,1);
+ discoveryRoll=99;
+ const secondTry=await game.start({caseId:"AA340002"},unlucky);
+ clock+=10000;
+ const guaranteed=await game.find({visitId:secondTry.visitId},unlucky);
+ assert.equal(guaranteed.found,true,"second completed search must always find a chest");
+ assert.equal(guaranteed.searches,2);
+ const secured=await game.open({offerId:guaranteed.offerId},unlucky);
+ assert.equal(secured.claimed,true);
+ assert.equal((await game.start({caseId:"AA340003"},unlucky)).reason,"already-claimed");
+ assert.equal((await game.open({offerId:guaranteed.offerId},unlucky)).alreadyClaimed,true);
+ discoveryRoll=69;
+ const lucky={username:"lucky",displayName:"Lucky"};
+ const luckyVisit=await game.start({caseId:"AA340004"},lucky);
+ clock+=10000;
+ assert.equal((await game.find({visitId:luckyVisit.visitId},lucky)).found,true,
+   "roll 69 must find a chest on the first search");
+ const frontend=await readFile("src/HiddenTreasure.tsx","utf8");
+ assert.match(frontend,/visibleSeconds<10\|\|checking/,"client must also check after 10 visible seconds");
  const api=await readFile("api/sparks-admin.js","utf8");
  assert.match(api,/\["treasure-state","treasure-start","treasure-find","treasure-open"\]/);
  assert.match(api,/const actor=await authorizeRewardUser\(body\)/);
- console.log("PASS QA Hidden Treasure: unlimited searching before payout, no cooldown, stop after reward, pending chest resume, atomic one-per-day wallet history");
+ console.log("PASS QA Hidden Treasure: 10-second wait, 70% first attempt, guaranteed second attempt, unlimited searches, no duplicate payout, pending chest resume, atomic wallet history");
 }finally{Date.now=realNow;}
