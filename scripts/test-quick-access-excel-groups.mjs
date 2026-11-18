@@ -27,7 +27,7 @@ assert.match(edge, /group_name=\$\{link\.groupName\}/);
 assert.match(css, /qa-quick-group-link/);
 console.log("PASS Quick Access Excel: six Items, ten exact source links, grouped choices, editable persisted group names");
 const processSvg = readFileSync(new URL("../public/quick-access/process-workflow.svg", import.meta.url), "utf8");
-assert.match(processSvg, /<svg[\\s>]/, "Process icon is a real bundled SVG");
+assert.match(processSvg, /<svg[\s>]/, "Process icon is a real bundled SVG");
 assert.match(ui, /group\.name === "Process"/, "Process should render a unique workflow icon");
 assert.match(ui, /qa-quick-tile-label/g, "All tile names share the same explicit class");
 assert.equal((ui.match(/className="qa-quick-tile-label"/g) || []).length, 2, "Both single links and folders use identical title markup");
