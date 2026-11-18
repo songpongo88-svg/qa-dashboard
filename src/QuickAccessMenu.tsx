@@ -39,6 +39,11 @@ function groupLinks(items: QuickLink[]): QuickGroup[] {
   });
 }
 function GroupIcon({ group }: { group: QuickGroup }) {
+  // Process is a workflow document, not the SharePoint application itself.
+  // Keep its own recognizable icon even though its destination is hosted in SharePoint.
+  if (group.name === "Process") return <span className="qa-quick-icon qa-quick-icon--large qa-quick-icon--process" aria-hidden="true">
+    <img src="/quick-access/process-workflow.svg" alt="" loading="lazy"/>
+  </span>;
   if (group.links.length === 1) return <LinkIcon link={group.links[0]}/>;
   const bundledIcon = group.name === "Admin Panel" ? "/robinhood-logo.png"
     : group.name === "Sheet Share Point" ? "/quick-access/sharepoint.svg" : "";
@@ -404,12 +409,13 @@ export default function QuickAccessMenu({ username, sessionId, canManage, onReau
           className={category === item.value ? "selected" : ""} onClick={() => setCategory(item.value)}>{item.label}</button>)}</div>
         <div className="qa-quick-grid" role="list">{visibleGroups.map(group =>
           group.links.length === 1 ? <a role="listitem" key={group.name} href={group.links[0].url} target="_blank" rel="noopener noreferrer"
-            className="qa-quick-tile" title={group.name + " · " + group.links[0].title}>
-            <GroupIcon group={group}/><span>{group.name}</span>
+            className={"qa-quick-tile" + (group.name === "Process" ? " qa-quick-tile--process" : "")} title={group.name + " · " + group.links[0].title}>
+            <GroupIcon group={group}/><span className="qa-quick-tile-label">{group.name}</span>
           </a> : <button role="listitem" type="button" key={group.name} className="qa-quick-tile"
             aria-label={"เปิดกลุ่ม " + group.name + " มี " + group.links.length + " ลิงก์"}
             onClick={() => { setActiveGroup(group.name); setMode("group"); }}>
-            <GroupIcon group={group}/><span>{group.name}</span><small>{group.links.length} ลิงก์</small>
+            <GroupIcon group={group}/><span className="qa-quick-tile-label">{group.name}</span>
+            <span className="qa-quick-tile-count" aria-hidden="true">{group.links.length}</span>
           </button>
         )}
           {!visibleGroups.length && <div className="qa-quick-empty">ไม่พบเมนูที่ค้นหา</div>}
