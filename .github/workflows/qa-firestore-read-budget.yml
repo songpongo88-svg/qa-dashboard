@@ -9,6 +9,7 @@ on:
       - "src/App.tsx"
       - "src/currentUserStorage.ts"
       - "build/usernameIdentityPolicyPatchV2.js"
+      - "build/firestoreQuotaProtectionPatch.js"
       - "scripts/test-login-storage-quota.mjs"
       - "src/AnnouncementHub.tsx"
       - "src/announcementStore.ts"
