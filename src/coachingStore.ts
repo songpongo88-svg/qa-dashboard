@@ -282,6 +282,8 @@ const COACHING_READ_TTL_MS = 5 * 60_000;
 let recentCoachingRecords: { rows: StoredCoachingRecord[]; expiresAt: number } | null = null;
 let pendingCoachingRead: Promise<StoredCoachingRecord[]> | null = null;
 let pendingCoachingForced = false;
+let lastCompleteCoachingReadAt = 0;
+const COACHING_FULL_RECHECK_MS = 6 * 60 * 60_000;
 
 // Only background summaries use this cheap check. Explicit editing and
 // conflict checks still load authoritative records.
@@ -317,7 +319,8 @@ export async function fetchStoredCoachingRecords(options: { allowCache?: boolean
       const reference = collection(firebaseDb, COACHING_COLLECTION);
       // Inbox/Coaching background checks must not read every historical row
       // when the count and newest mutation are unchanged.
-      if (!options.forceRefresh && options.allowCache !== false && recentCoachingRecords) {
+      if (!options.forceRefresh && options.allowCache !== false && recentCoachingRecords &&
+          lastCompleteCoachingReadAt && Date.now() - lastCompleteCoachingReadAt < COACHING_FULL_RECHECK_MS) {
         try {
           if (await coachingCollectionUnchanged(reference, recentCoachingRecords.rows)) {
             recentCoachingRecords.expiresAt = Date.now() + COACHING_READ_TTL_MS;
@@ -329,6 +332,7 @@ export async function fetchStoredCoachingRecords(options: { allowCache?: boolean
       }
       const snapshot = await (options.forceRefresh ? getDocsFromServer(reference) : getDocs(reference));
       recordFirestoreSnapshotDocs("coaching:full-collection", snapshot.docs.length);
+      lastCompleteCoachingReadAt = Date.now();
       const rows = snapshot.docs
         .map((item) => toRecord(item.data(), item.id))
         .filter((item) => item.id && item.agent && item.monthKey);
