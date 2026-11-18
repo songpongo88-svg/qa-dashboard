@@ -27,6 +27,7 @@ import "./dashboardShortcuts.css";
 import QuickAccessMenu from "./QuickAccessMenu";
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import ThankYouSupportPopup from "./ThankYouSupportPopup";
+import { readCurrentUserStorage, saveCurrentUserStorage, clearCurrentUserStorage, readLocalStorageSafely, writeLocalStorageSafely, writeSessionStorageSafely } from "./currentUserStorage";
 import { collection as firestoreCollection, doc, getDoc, getDocs, serverTimestamp, setDoc } from "firebase/firestore";
 import * as XLSX from "xlsx";
 import DashboardMockup from "./DashboardMockup";
@@ -378,7 +379,6 @@ const USER_ACCOUNTS: UserAccount[] = [
     status: "Active",
   },
 ];
-const STORAGE_KEY = "qa_current_user";
 const REMEMBERED_USERNAME_KEY = "qa_remembered_username";
 const PASSWORD_OVERRIDE_KEY = "qa_password_overrides";
 const PASSWORD_RECORD_KEY = "qa_password_records";
@@ -862,14 +862,14 @@ function getInitialDashboardMonthKey() {
   const storedSelectedMonth = window.sessionStorage.getItem(DASHBOARD_SELECTED_MONTH_SESSION_KEY) || "";
 
   if (storedCalendarMonth !== currentMonthKey) {
-    window.sessionStorage.setItem(DASHBOARD_CALENDAR_MONTH_SESSION_KEY, currentMonthKey);
-    window.sessionStorage.setItem(DASHBOARD_SELECTED_MONTH_SESSION_KEY, currentMonthKey);
-    window.sessionStorage.setItem("qa_case_selected_year_v163", currentMonthKey.slice(0, 4));
-    window.sessionStorage.setItem("qa_case_selected_week_v134", "all");
-    window.sessionStorage.setItem("qa_analytics_selected_month_v134", currentMonthKey);
-    window.sessionStorage.setItem("qa_analytics_selected_week_v134", "all");
-    window.sessionStorage.setItem("qa_analytics_mode_v134", "monthly");
-    window.sessionStorage.setItem("qa_analytics_periods_v134", "[]");
+    writeSessionStorageSafely(DASHBOARD_CALENDAR_MONTH_SESSION_KEY, currentMonthKey);
+    writeSessionStorageSafely(DASHBOARD_SELECTED_MONTH_SESSION_KEY, currentMonthKey);
+    writeSessionStorageSafely("qa_case_selected_year_v163", currentMonthKey.slice(0, 4));
+    writeSessionStorageSafely("qa_case_selected_week_v134", "all");
+    writeSessionStorageSafely("qa_analytics_selected_month_v134", currentMonthKey);
+    writeSessionStorageSafely("qa_analytics_selected_week_v134", "all");
+    writeSessionStorageSafely("qa_analytics_mode_v134", "monthly");
+    writeSessionStorageSafely("qa_analytics_periods_v134", "[]");
     return currentMonthKey;
   }
 
@@ -1652,7 +1652,7 @@ function formatSessionDuration(startedAt: string, now: Date) {
 
 function readStoredUser(): CurrentUser | null {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = readCurrentUserStorage();
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<CurrentUser>;
     if (
@@ -3948,7 +3948,7 @@ export default function App() {
     () => Boolean(storedUserCandidate)
   );
   const [username, setUsername] = useState(
-    () => window.localStorage.getItem(REMEMBERED_USERNAME_KEY) || ""
+    () => readLocalStorageSafely(REMEMBERED_USERNAME_KEY) || ""
   );
   const loginTheme = useLoginAppearance({
     authenticated: Boolean(currentUser),
@@ -3969,7 +3969,7 @@ export default function App() {
   >("idle");
   const [verifiedLoginDisplayName, setVerifiedLoginDisplayName] = useState("");
   const [rememberLogin, setRememberLogin] = useState(
-    () => Boolean(window.localStorage.getItem(REMEMBERED_USERNAME_KEY))
+    () => Boolean(readLocalStorageSafely(REMEMBERED_USERNAME_KEY))
   );
   const [loginSubmitting, setLoginSubmitting] = useState(false);
   const [temporaryLoginNotice, setTemporaryLoginNotice] = useState("");
@@ -4203,21 +4203,21 @@ export default function App() {
   );
 
   useEffect(() => {
-    window.sessionStorage.setItem("qa_case_selected_agent_v134", caseSelectedAgent);
-    window.sessionStorage.setItem(DASHBOARD_SELECTED_MONTH_SESSION_KEY, caseSelectedMonth);
-    window.sessionStorage.setItem(DASHBOARD_CALENDAR_MONTH_SESSION_KEY, getCurrentMonthKey());
-    window.sessionStorage.setItem("qa_case_selected_week_v134", caseSelectedWeek);
-    window.sessionStorage.setItem("qa_case_selected_year_v163", caseSelectedYear);
+    writeSessionStorageSafely("qa_case_selected_agent_v134", caseSelectedAgent);
+    writeSessionStorageSafely(DASHBOARD_SELECTED_MONTH_SESSION_KEY, caseSelectedMonth);
+    writeSessionStorageSafely(DASHBOARD_CALENDAR_MONTH_SESSION_KEY, getCurrentMonthKey());
+    writeSessionStorageSafely("qa_case_selected_week_v134", caseSelectedWeek);
+    writeSessionStorageSafely("qa_case_selected_year_v163", caseSelectedYear);
   }, [caseSelectedAgent, caseSelectedMonth, caseSelectedWeek, caseSelectedYear]);
 
   useEffect(() => {
-    window.sessionStorage.setItem("qa_dashboard_summary_selected_agent_v167", dashboardSummarySelectedAgent);
+    writeSessionStorageSafely("qa_dashboard_summary_selected_agent_v167", dashboardSummarySelectedAgent);
   }, [dashboardSummarySelectedAgent]);
 
   useEffect(() => {
-    window.sessionStorage.setItem("qa_analytics_selected_agent_v134", analyticsSelectedAgent);
-    window.sessionStorage.setItem("qa_analytics_selected_month_v134", analyticsSelectedMonth);
-    window.sessionStorage.setItem("qa_analytics_selected_week_v134", analyticsSelectedWeek);
+    writeSessionStorageSafely("qa_analytics_selected_agent_v134", analyticsSelectedAgent);
+    writeSessionStorageSafely("qa_analytics_selected_month_v134", analyticsSelectedMonth);
+    writeSessionStorageSafely("qa_analytics_selected_week_v134", analyticsSelectedWeek);
   }, [analyticsSelectedAgent, analyticsSelectedMonth, analyticsSelectedWeek]);
   const [selectedAppealCaseId, setSelectedAppealCaseId] = useState("");
   const [selectedDashboardCaseId, setSelectedDashboardCaseId] = useState("");
@@ -4271,21 +4271,21 @@ export default function App() {
     setCaseSelectedWeek("all");
     setAnalyticsSelectedMonth(currentDashboardMonth);
     setAnalyticsSelectedWeek("all");
-    window.sessionStorage.setItem(DASHBOARD_CALENDAR_MONTH_SESSION_KEY, currentDashboardMonth);
-    window.sessionStorage.setItem(DASHBOARD_SELECTED_MONTH_SESSION_KEY, currentDashboardMonth);
-    window.sessionStorage.setItem("qa_case_selected_year_v163", currentDashboardMonth.slice(0, 4));
-    window.sessionStorage.setItem("qa_case_selected_week_v134", "all");
-    window.sessionStorage.setItem("qa_analytics_selected_month_v134", currentDashboardMonth);
-    window.sessionStorage.setItem("qa_analytics_selected_week_v134", "all");
-    window.sessionStorage.setItem("qa_analytics_mode_v134", "monthly");
-    window.sessionStorage.setItem("qa_analytics_periods_v134", "[]");
+    writeSessionStorageSafely(DASHBOARD_CALENDAR_MONTH_SESSION_KEY, currentDashboardMonth);
+    writeSessionStorageSafely(DASHBOARD_SELECTED_MONTH_SESSION_KEY, currentDashboardMonth);
+    writeSessionStorageSafely("qa_case_selected_year_v163", currentDashboardMonth.slice(0, 4));
+    writeSessionStorageSafely("qa_case_selected_week_v134", "all");
+    writeSessionStorageSafely("qa_analytics_selected_month_v134", currentDashboardMonth);
+    writeSessionStorageSafely("qa_analytics_selected_week_v134", "all");
+    writeSessionStorageSafely("qa_analytics_mode_v134", "monthly");
+    writeSessionStorageSafely("qa_analytics_periods_v134", "[]");
 
-    window.sessionStorage.setItem(ACTIVE_TAB_SESSION_STORAGE_KEY, "dashboard");
-    window.sessionStorage.setItem(
+    writeSessionStorageSafely(ACTIVE_TAB_SESSION_STORAGE_KEY, "dashboard");
+    writeSessionStorageSafely(
       OPEN_WORKSPACE_TABS_SESSION_STORAGE_KEY,
       JSON.stringify(["dashboard"])
     );
-    window.sessionStorage.setItem(ACTIVE_WORKSPACE_TAB_SESSION_STORAGE_KEY, "dashboard");
+    writeSessionStorageSafely(ACTIVE_WORKSPACE_TAB_SESSION_STORAGE_KEY, "dashboard");
 
     const cleanUrl = new URL(window.location.href);
     cleanUrl.searchParams.set("tab", "dashboard");
@@ -4308,11 +4308,11 @@ export default function App() {
       currentUserWasRestoredRef.current = false;
       restoredLoginLoggedRef.current = true;
       lastSessionTouchRef.current = Date.now();
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(authenticatedUser));
+      saveCurrentUserStorage(authenticatedUser);
       if (rememberLogin) {
-        localStorage.setItem(REMEMBERED_USERNAME_KEY, authenticatedUser.username);
+        writeLocalStorageSafely(REMEMBERED_USERNAME_KEY, authenticatedUser.username);
       } else {
-        localStorage.removeItem(REMEMBERED_USERNAME_KEY);
+        writeLocalStorageSafely(REMEMBERED_USERNAME_KEY, null);
       }
       resetWorkspaceSessionState();
       setCurrentUser(authenticatedUser);
@@ -4345,7 +4345,7 @@ export default function App() {
           storedUser.sessionPolicyVersion !== SESSION_POLICY_VERSION
         ) {
           if (!isQualityAssurance) {
-            localStorage.removeItem(STORAGE_KEY);
+            clearCurrentUserStorage();
             if (!cancelled) {
               setCurrentUser(null);
               setLoginError(
@@ -4362,7 +4362,7 @@ export default function App() {
             sessionPolicyVersion: SESSION_POLICY_VERSION,
             sessionExpiresAt: migratedSession.expiresAt,
           };
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(restoredUser));
+          saveCurrentUserStorage(restoredUser);
         } else {
           const validation = await validateStoredUserSession(
             storedUser.sessionId,
@@ -4370,7 +4370,7 @@ export default function App() {
           );
 
           if (!validation.valid) {
-            localStorage.removeItem(STORAGE_KEY);
+            clearCurrentUserStorage();
             if (!cancelled) {
               setCurrentUser(null);
               setLoginError(
@@ -4395,7 +4395,7 @@ export default function App() {
         }
       } catch (error) {
         console.error("Secure session restore failed", error);
-        localStorage.removeItem(STORAGE_KEY);
+        clearCurrentUserStorage();
         if (!cancelled) {
           setCurrentUser(null);
           setLoginError(
@@ -5093,7 +5093,7 @@ export default function App() {
       console.warn(`Navigation blocked for ${unifiedTab}: ${blockedReason}`);
     }
 
-    window.sessionStorage.setItem(ACTIVE_TAB_SESSION_STORAGE_KEY, nextTab);
+    writeSessionStorageSafely(ACTIVE_TAB_SESSION_STORAGE_KEY, nextTab);
     setActiveTab(nextTab);
 
     const requestedSubTab = options.params?.subTab;
@@ -5136,7 +5136,7 @@ export default function App() {
       console.warn(`Navigation redirected from ${requestedTab}: ${blockedReason}`);
     }
 
-    window.sessionStorage.setItem(ACTIVE_TAB_SESSION_STORAGE_KEY, nextTab);
+    writeSessionStorageSafely(ACTIVE_TAB_SESSION_STORAGE_KEY, nextTab);
     setActiveTab(nextTab);
     const normalizedRouteWorkspaceTab = normalizeWorkspaceTabKey(params.get("workspace"));
     const routeWorkspaceTab = normalizedRouteWorkspaceTab === "summary" || normalizedRouteWorkspaceTab === "case-detail"
@@ -5161,16 +5161,16 @@ export default function App() {
   }, [applyRouteParams, getTabBlockedReason, writeWorkspaceRoute]);
 
   useEffect(() => {
-    window.sessionStorage.setItem(ACTIVE_TAB_SESSION_STORAGE_KEY, activeTab);
+    writeSessionStorageSafely(ACTIVE_TAB_SESSION_STORAGE_KEY, activeTab);
   }, [activeTab]);
 
   useEffect(() => {
-    window.sessionStorage.setItem(OPEN_WORKSPACE_TABS_SESSION_STORAGE_KEY, JSON.stringify(openWorkspaceTabs));
-    window.sessionStorage.setItem(ACTIVE_WORKSPACE_TAB_SESSION_STORAGE_KEY, activeWorkspaceTab);
+    writeSessionStorageSafely(OPEN_WORKSPACE_TABS_SESSION_STORAGE_KEY, JSON.stringify(openWorkspaceTabs));
+    writeSessionStorageSafely(ACTIVE_WORKSPACE_TAB_SESSION_STORAGE_KEY, activeWorkspaceTab);
   }, [openWorkspaceTabs, activeWorkspaceTab]);
 
   useEffect(() => {
-    window.sessionStorage.setItem(SIDEBAR_GROUPS_SESSION_STORAGE_KEY, JSON.stringify(sidebarGroupsOpen));
+    writeSessionStorageSafely(SIDEBAR_GROUPS_SESSION_STORAGE_KEY, JSON.stringify(sidebarGroupsOpen));
   }, [sidebarGroupsOpen]);
 
   useEffect(() => {
@@ -6415,7 +6415,7 @@ export default function App() {
   useEffect(() => {
     if (sessionValidationPending) return;
     if (currentUser) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(currentUser));
+      saveCurrentUserStorage(currentUser);
     }
   }, [currentUser, sessionValidationPending]);
 
@@ -6684,7 +6684,7 @@ export default function App() {
     resetWorkspaceSessionState();
     setShowSessionWarning(false);
     setCurrentUser(null);
-    const rememberedUsername = window.localStorage.getItem(REMEMBERED_USERNAME_KEY) || "";
+    const rememberedUsername = readLocalStorageSafely(REMEMBERED_USERNAME_KEY) || "";
     setUsername(rememberedUsername);
     setPassword("");
     setLoginStep("username");
@@ -6708,7 +6708,7 @@ export default function App() {
     setShowResetPasswordModal(false);
     resetChangePasswordState();
     resetPasswordModalState();
-    localStorage.removeItem(STORAGE_KEY);
+    clearCurrentUserStorage();
   };
 
   const endSessionEverywhere = (reason: "manual" | "inactivity") => {
@@ -6806,7 +6806,7 @@ export default function App() {
         ...verified, loginAt:new Date().toISOString(), sessionId:fresh.sessionId,
         sessionPolicyVersion:SESSION_POLICY_VERSION, sessionExpiresAt:fresh.expiresAt,
       };
-      localStorage.setItem(STORAGE_KEY,JSON.stringify(updated));
+      saveCurrentUserStorage(updated);
       lastSessionTouchRef.current=Date.now();
       setCurrentUser(updated);
       if (previousUser.sessionId && previousUser.sessionId !== fresh.sessionId) {
@@ -6974,7 +6974,7 @@ export default function App() {
       return;
     }
 
-    sessionStorage.setItem(marker, "1");
+    writeSessionStorageSafely(marker, "1");
     restoredLoginLoggedRef.current = true;
     void logUsageEvent(currentUser, "login", {
       tab: activeTab,
