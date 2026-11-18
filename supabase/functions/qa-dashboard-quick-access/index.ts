@@ -29,11 +29,13 @@ function normalizeLink(value: Record<string, unknown>) {
   const title = typeof value.title === "string" ? value.title.trim() : "";
   const category = value.category || "other";
   const icon = value.icon || "auto";
-  if (!title || title.length > 64 || !categories.has(String(category)) || !icons.has(String(icon))) throw new Error("INVALID_LINK");
-  return { title, url: normalizedUrl(value.url), category: String(category), icon: String(icon) };
+  const groupName = typeof value.groupName === "string" && value.groupName.trim() ? value.groupName.trim() : title;
+  if (!title || title.length > 180 || !groupName || groupName.length > 64 ||
+      !categories.has(String(category)) || !icons.has(String(icon))) throw new Error("INVALID_LINK");
+  return { title, url: normalizedUrl(value.url), category: String(category), icon: String(icon), groupName };
 }
 async function list() {
-  return await sql`select id, title, url, category, icon, sort_order as "sortOrder"
+  return await sql`select id, title, url, category, icon, group_name as "groupName", sort_order as "sortOrder"
     from qa_internal.quick_access_links order by sort_order asc, created_at asc, id asc limit 500`;
 }
 Deno.serve(async (request: Request) => {
@@ -61,14 +63,14 @@ Deno.serve(async (request: Request) => {
       const link = normalizeLink(body.link || {});
       const current = await sql`select count(*)::int as count from qa_internal.quick_access_links`;
       if (current[0].count >= 500) return send({ error: "LIMIT_REACHED" }, 409);
-      await sql`insert into qa_internal.quick_access_links (title,url,category,icon,sort_order,updated_by)
-        values (${link.title},${link.url},${link.category},${link.icon},
+      await sql`insert into qa_internal.quick_access_links (title,url,category,icon,group_name,sort_order,updated_by)
+        values (${link.title},${link.url},${link.category},${link.icon},${link.groupName},
         (select coalesce(max(sort_order),-1)+1 from qa_internal.quick_access_links), ${actorUsername})`;
     } else if (action === "update") {
       if (!uuid(body.id)) return send({ error: "INVALID_ID" }, 400);
       const link = normalizeLink(body.link || {});
       const result = await sql`update qa_internal.quick_access_links
-        set title=${link.title},url=${link.url},category=${link.category},icon=${link.icon},
+        set title=${link.title},url=${link.url},category=${link.category},icon=${link.icon},group_name=${link.groupName},
             updated_at=now(),updated_by=${actorUsername} where id=${body.id} returning id`;
       if (!result.length) return send({ error: "NOT_FOUND" }, 404);
     } else if (action === "delete") {
