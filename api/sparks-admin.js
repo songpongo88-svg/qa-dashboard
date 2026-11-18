@@ -2,6 +2,7 @@ import {appendKnownItemExpirations} from "../src/sparksItemHistory.mjs";
 import { createSign, createHash, randomUUID, timingSafeEqual } from "node:crypto";
 import { createFruitMatchService } from "../server/fruitMatchService.js";
 import { createAngelNumberService } from "../server/angelNumberService.js";
+import { createMiningService } from "../server/sparksMiningService.js";
 import { createSparkJourneyService } from "../server/sparkJourneyService.js";
 import { createQaLotteryService } from "../server/qaLotteryService.js";
 import { createQaRewardsService } from "../server/qaRewardsService.js";
@@ -1558,6 +1559,8 @@ async function adjustBalance(body, admin) {
   }
   fail("Concurrent Sparks change; please retry", 409);
 }
+const mining = createMiningService({firestoreRequest,readDoc,recordValue,path,updateWrite,createWrite,
+  walletDocumentPath,currentMemberYear,annualEarnedFromWallet,spendableBalance});
 const angelNumber = createAngelNumberService({firestoreRequest,readDoc,recordValue,path,updateWrite,createWrite,
   walletDocumentPath,currentMemberYear,annualEarnedFromWallet,spendableBalance,sparksAngelDirectory});
 const fruitMatch = createFruitMatchService({firestoreRequest,readDoc,recordValue,path,updateWrite,createWrite,
@@ -1591,7 +1594,7 @@ const CLOUD_PREVIEW_READ_ACTIONS = new Set([
   "sparks-cloud-wallet", "sparks-wallet-recovery", "get-truemoney-price",
   "list-my-truemoney", "qa-lottery-state", "qa-lottery-my-tickets",
   "special-rewards-mine", "announcement-shield-state", "treasure-state",
-  "fruit-match-data", "snakes-state", "auto-pass-state", "angel-state", "list-truemoney-tracker",
+  "fruit-match-data", "snakes-state", "auto-pass-state", "angel-state", "mining-state", "list-truemoney-tracker",
   "special-rewards-admin-list", "special-rewards-admin-receipt",
   "list-reward-queues", "list", "history",
 ]);
@@ -1769,6 +1772,13 @@ async function sparksHandler(req, res) {
         :body.action==="treasure-find"?await hiddenTreasure.find(body,actor)
         :await hiddenTreasure.open(body,actor);
       return res.status(200).json(result);
+    }
+    if (["mining-state","mining-dig"].includes(body.action)) {
+      if(process.env.SPARKS_DATA_BACKEND!=="supabase")
+        fail("Sparks Mining requires the Supabase wallet backend",423);
+      const actor=await authorizeRewardUser(body);
+      return res.status(200).json(body.action==="mining-state"
+        ?await mining.state(actor):await mining.dig(actor));
     }
     if (["angel-state","angel-open","angel-friends","angel-claim","angel-admin-create"].includes(body.action)) {
       if(process.env.SPARKS_DATA_BACKEND!=="supabase")
