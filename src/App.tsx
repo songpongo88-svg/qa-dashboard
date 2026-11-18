@@ -26,6 +26,7 @@ import "./themePickerCollections.css";
 import "./dashboardShortcuts.css";
 import QuickAccessMenu from "./QuickAccessMenu";
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import ThankYouSupportPopup from "./ThankYouSupportPopup";
 import { collection as firestoreCollection, doc, getDoc, getDocs, serverTimestamp, setDoc } from "firebase/firestore";
 import * as XLSX from "xlsx";
 import DashboardMockup from "./DashboardMockup";
@@ -8604,6 +8605,7 @@ export default function App() {
           }}
         />
       ) : null}
+      <ThankYouSupportPopup key={currentUser.username+":"+(currentUser.sessionId||"")} username={currentUser.username} sessionId={currentUser.sessionId||""}/>
       {import.meta.env?.VITE_SPARKS_CLOUD_READ_ONLY !== "1" ? <SparksEnabledOnly>
         <DailyCheckinLoginPrompt key={currentUser.username + ":" + (currentUser.sessionId || "")} username={currentUser.username} sessionId={currentUser.sessionId || ""} />
         <ProfileMakeoverAutoClaim key={currentUser.username} username={currentUser.username} sessionId={currentUser.sessionId || ""}/>

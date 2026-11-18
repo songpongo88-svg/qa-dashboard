@@ -19,6 +19,7 @@ import { issueSparksAdminReadGrant, verifySparksAdminReadGrant } from "../server
 import { auditQaCredentialSource } from "../server/sparksQaCredentialPreflight.js";
 import { migrateQaPasswordsFromTrustedSource } from "../server/sparksQaMigrationRunner.js";
 import { withSparksRequest, getSparksRequestActor, sparksActiveProfile, sparksActiveDirectory, sparksAngelDirectory, hasSparksEmailAuthCookie } from "../server/sparksSupabaseAuth.js";
+import { thankYouSupportAmount, thankYouSupportPhase, THANK_YOU_SUPPORT_ID } from "../src/thankYouSupport2026.mjs";
 
 // Use the same explicit Firebase project as src/firebaseClient.ts. VITE_* build
 // variables are not a reliable server-side source and may point elsewhere.
@@ -508,6 +509,87 @@ async function claimSparksFirstLoginCloud(actor,body){
     }
   }
   fail("Concurrent Sparks first-login claim. Retry.",409);
+}
+
+
+// Verify a real QA Dashboard session even when a recipient has NOT separately
+// signed into QA Sparks. An existing Supabase Sparks cookie (when present) must
+// validate instead of silently downgrading to legacy session authentication.
+async function authorizeThankYouSupportUser(body) {
+  const username = safeUsername(body.actorUsername);
+  if (!thankYouSupportAmount(username)) return null;
+  if (hasSparksEmailAuthCookie()) {
+    const actor = await getSparksRequestActor();
+    if (normalize(actor.username) !== username) fail("Account mismatch", 403);
+    return actor;
+  }
+  const sessionId = String(body.sessionId || "");
+  if (!/^[a-zA-Z0-9_-]{10,180}$/.test(sessionId)) fail("QA session required", 403);
+  const docSession = await readDoc(path("qa_user_sessions",sessionId));
+  if (!docSession) fail("QA session expired",403);
+  const session = recordValue(docSession);
+  if (normalize(session.username)!==username || session.status!=="active" ||
+      session.policyVersion!==SESSION_POLICY ||
+      !Number.isFinite(Date.parse(session.expiresAt||"")) ||
+      Date.parse(session.expiresAt)<=Date.now()) fail("QA session invalid",403);
+  const revoked = recordValue(await readDoc(path("qa_user_session_controls",username)));
+  const revokedAt=Date.parse(revoked.revokedBefore||"");
+  if (Number.isFinite(revokedAt) && Date.parse(session.createdAt||"")<=revokedAt)
+    fail("QA session revoked",403);
+  // Canonical QA User Management profiles are case-sensitive Firestore document
+  // IDs. Only point-read the exact expected IDs; never scan the user directory.
+  let profile=null;
+  for (const id of [username[0].toUpperCase()+username.slice(1),username]) {
+    const candidate=recordValue(await readDoc(path("qa_user_profiles",id)));
+    if (normalize(candidate.username)===username){profile=candidate;break;}
+  }
+  if (!profile || isSuspendedProfile(profile)) fail("QA account not active",403);
+  return {username,displayName:String(profile.displayName||session.displayName||username)};
+}
+
+// The points are credited once in the private Supabase runtime after the
+// production deployment is READY. This authenticated action only claims one
+// popup stage per account. It NEVER credits points on page view or on Nov 21/22.
+async function takeThankYouSupportPopup(body) {
+  const username=safeUsername(body.actorUsername);
+  const expected=thankYouSupportAmount(username);
+  if (!expected) return {ok:true,eligible:false,show:false};
+  if (process.env.SPARKS_DATA_BACKEND!=="supabase")
+    fail("Thank you Support requires the verified QA Sparks Supabase wallet",503);
+  const phase=thankYouSupportPhase(new Date());
+  if (!phase) return {ok:true,eligible:true,show:false};
+  const actor=await authorizeThankYouSupportUser(body);
+  if (!actor || actor.username!==username) fail("Thank you Support identity mismatch",403);
+  const walletPath=walletDocumentPath(username);
+  const historyPath=walletPath+"/history/thank-you-support-2026";
+  for (let attempt=0;attempt<4;attempt++) {
+    const begun=await firestoreRequest(":beginTransaction","POST",{options:{readWrite:{}}});
+    const transaction=begun?.transaction;
+    if (!transaction) fail("Sparks popup transaction unavailable",503);
+    try {
+      const [walletDoc,historyDoc]=await Promise.all([
+        readDoc(walletPath,transaction),readDoc(historyPath,transaction),
+      ]);
+      if (!walletDoc || !historyDoc) return {ok:true,eligible:true,show:false,creditPending:true};
+      const wallet=recordValue(walletDoc),receipt=recordValue(historyDoc);
+      if (receipt.source!==THANK_YOU_SUPPORT_ID || receipt.type!=="earn" ||
+          Number(receipt.amount)!==expected || receipt.username!==username)
+        fail("Thank you Support ledger mismatch — points unchanged",409);
+      const marked=wallet.thankYouSupportPopupSeen2026;
+      const seen=marked&&typeof marked==="object"&&!Array.isArray(marked)?marked:{};
+      if (seen[phase]) return {ok:true,eligible:true,creditConfirmed:true,show:false,phase,amount:expected};
+      const now=new Date().toISOString();
+      await firestoreRequest(":commit","POST",{transaction,writes:[
+        updateWrite(walletPath,{thankYouSupportPopupSeen2026:{...seen,[phase]:now}},walletDoc),
+      ]});
+      return {ok:true,eligible:true,creditConfirmed:true,show:true,phase,amount:expected,
+        creditAt:String(receipt.createdAt||"")};
+    }catch(error){
+      if (["ABORTED","FAILED_PRECONDITION"].includes(error?.firestoreStatus)&&attempt<3)continue;
+      throw error;
+    }
+  }
+  fail("Concurrent popup display. Try again.",409);
 }
 
 async function redeemTypingRelief(body, actor) {
@@ -1671,6 +1753,9 @@ async function sparksHandler(req, res) {
         error:"QA Sparks เวอร์ชันทดสอบ Supabase เปิดให้ดูข้อมูลอย่างเดียว ยังไม่อนุญาตให้เพิ่ม หัก แลก หรือยืนยันรางวัล",
         code:"SPARKS_CLOUD_PREVIEW_READ_ONLY",
       });
+    }
+    if (body.action === "thank-you-support-popup") {
+      return res.status(200).json(await takeThankYouSupportPopup(body));
     }
     if (["auto-pass-state","auto-pass-claim-free","auto-pass-buy","auto-pass-use"].includes(body.action)) {
       const actor=await authorizeRewardUser(body);
