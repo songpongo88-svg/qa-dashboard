@@ -54,7 +54,7 @@ export function createHiddenTreasureService({
      if(d.claimedAt)return {value:{eligible:false,claimed:true,reason:"already-claimed",day},writes:[]};
      // A previously discovered chest stays available even if its popup was dismissed.
      if(d.offerId)return {value:{eligible:false,pendingOfferId:d.offerId,day},writes:[]};
-     const visitId=randomUUID(),readSeconds=drawRandom(30,91);
+     const visitId=randomUUID(),readSeconds=10;
      const next={...d,username:actor.username,day,visitId,caseId,startedMs:now,readSeconds,updatedAt:new Date(now).toISOString()};
      return {value:{eligible:true,visitId,readSeconds,day},
        writes:[updateWrite(docPath,next,snap)]};
@@ -67,10 +67,11 @@ export function createHiddenTreasureService({
      const day=BKK_DAY(),docPath=dailyPath(actor.username,day),snap=await readDoc(docPath,transaction);
      const d=recordValue(snap),now=Date.now();
      if(d.visitId!==visitId||!d.caseId)fail("การอ่านเคสนี้สิ้นสุดแล้ว กรุณาเปิดเคสอีกครั้ง",409);
-     if(now-asInt(d.startedMs)<Math.max(30,Math.min(90,asInt(d.readSeconds)))*1000)fail("ต้องอ่านข้อมูล QA ก่อนเปิดหีบสมบัติ",409);
+     if(now-asInt(d.startedMs)<10*1000)fail("ต้องอ่านข้อมูล QA ก่อนเปิดหีบสมบัติ",409);
      if(now-asInt(d.startedMs)>15*60*1000)fail("การอ่านเคสหมดเวลา กรุณาเปิดเคสอีกครั้ง",409);
      if(d.claimedAt)return {value:{found:false,claimed:true,reason:"already-claimed",day},writes:[]};
-     const found=drawRandom(100)<35;
+     // First search: 70% chance; subsequent search: guaranteed discovery.
+     const found=asInt(d.searches)>=1||drawRandom(100)<70;
      const offerId=found?randomUUID():"";
      // Smaller awards are intentionally more common. Exactly 1-500 possible.
      const dice=drawRandom(1000);
