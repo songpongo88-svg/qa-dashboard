@@ -37,7 +37,7 @@ BEGIN
       ('songpon','Songpon Phothong',1000)
     ) AS recipients(username, expected_name, amount)
   LOOP
-    SELECT count(*),max(profile) INTO n_profiles,target_profile
+    SELECT count(*),(jsonb_agg(profile))->0 INTO n_profiles,target_profile
       FROM qa_migration.sparks_profile_reconciliation_v1
       WHERE lower(btrim(profile->>'username'))=item.username
         AND reviewed=true
