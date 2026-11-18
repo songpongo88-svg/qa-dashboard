@@ -3,24 +3,57 @@ import "./quickAccess.css";
 
 type Category = "work" | "document" | "report" | "other";
 type MenuIcon = "auto" | "chat" | "dashboard" | "bike" | "users" | "presentation" | "sheet" | "link" | "file" | "chart" | "book" | "globe";
-type QuickLink = { id: string; title: string; url: string; category: Category; icon: MenuIcon; sortOrder: number };
-type DraftLink = Pick<QuickLink, "title" | "url" | "category" | "icon">;
+type QuickLink = { id: string; title: string; url: string; category: Category; icon: MenuIcon; sortOrder: number; groupName?: string };
+type DraftLink = Pick<QuickLink, "title" | "url" | "category" | "icon"> & { groupName: string };
 
+// Source of truth for the six Excel "Grop" items and ten links. The server's
+// stored rows take precedence once the authenticated API responds.
 const INITIAL_LINKS: QuickLink[] = [
-  { id: "initial-oho", title: "Oho Chat", url: "https://app.oho.chat/", category: "work", icon: "chat", sortOrder: 0 },
-  { id: "initial-panel", title: "Admin Panel V2", url: "https://adminpanel-v2-prod.robinhood.in.th/login/", category: "work", icon: "dashboard", sortOrder: 1 },
-  { id: "initial-ops", title: "Rider OPS", url: "https://operations-portal.apps.prod.riderplatform.com/rider", category: "work", icon: "bike", sortOrder: 2 },
-  { id: "initial-consumer", title: "Consumer Profile", url: "https://adminpanel.robinhood.in.th/consumer/profile", category: "work", icon: "users", sortOrder: 3 },
-  { id: "initial-sharepoint", title: "SharePoint", url: "https://purpleventuresth-my.sharepoint.com/:p:/g/personal/phrommarin_robinhood_co_th/IQDHaQVM1m1OQrQlC10AIRAzAZYOMEYFO3DgserHGSo_rpM?e=6sVdyi", category: "document", icon: "presentation", sortOrder: 4 },
-  { id: "initial-sheets", title: "Google Sheets", url: "https://docs.google.com/spreadsheets/d/1a-ojTDu7Fj7Wbm99KYjTLtgKtGYsR04NQ4TZE33oIhY/edit", category: "report", icon: "sheet", sortOrder: 5 },
+  { id:"initial-oho", title:"Oho Chat", url:"https://app.oho.chat/", category:"work", icon:"chat", sortOrder:0, groupName:"Oho Chat" },
+  { id:"initial-process", title:"New Procees 2026", url:"https://purpleventuresth-my.sharepoint.com/:p:/g/personal/phrommarin_robinhood_co_th/IQDHaQVM1m1OQrQlC10AIRAzAZYOMEYFO3DgserHGSo_rpM?e=6sVdyi", category:"document", icon:"presentation", sortOrder:1, groupName:"Process" },
+  { id:"initial-admin-v2", title:"Admin Panel V2", url:"https://adminpanel-v2-prod.robinhood.in.th/login/", category:"work", icon:"dashboard", sortOrder:2, groupName:"Admin Panel" },
+  { id:"initial-admin-v1", title:"Admin Panel V1", url:"https://adminpanel.robinhood.in.th/", category:"work", icon:"dashboard", sortOrder:3, groupName:"Admin Panel" },
+  { id:"initial-ops", title:"Rider Portal", url:"https://operations-portal.apps.prod.riderplatform.com/rider", category:"work", icon:"bike", sortOrder:4, groupName:"Operations Portal" },
+  { id:"initial-shift", title:"Shift schedule 2026", url:"https://docs.google.com/spreadsheets/d/1a-ojTDu7Fj7Wbm99KYjTLtgKtGYsR04NQ4TZE33oIhY/edit?gid=709504718#gid=709504718", category:"document", icon:"sheet", sortOrder:5, groupName:"Sheet Share Point" },
+  { id:"initial-rider-test", title:"แบบทดสอบวัดความรู้ผู้เข้าอบรมคนขับใหม่ปี 2568 (ผู้สมัครใหม่กรุงเทพและปริมณฑล) ใหม่", url:"https://docs.google.com/spreadsheets/d/1AbgIhy9UNueWgF-ecrSAaM5HFsmUIG8AmUMJpoc_Y7o/edit?gid=473201267#gid=473201267", category:"document", icon:"sheet", sortOrder:6, groupName:"Sheet Share Point" },
+  { id:"initial-merchant-lead", title:"CS- Merchant Lead - Acquire 2026", url:"https://docs.google.com/spreadsheets/d/1u2VTy_V7zlFGgIXmvDWMkdVF1bNtZyADuaqvhT_uIn0/edit?gid=37513336#gid=37513336", category:"document", icon:"sheet", sortOrder:7, groupName:"Sheet Share Point" },
+  { id:"initial-oper", title:"ไฟล์โอนเงินตัดเงินทั้งหมด (OPER)", url:"https://purpleventuresth-my.sharepoint.com/:x:/g/personal/nichakarn_robinhood_co_th/IQCJXQuVegwFTId9y9Ru0NrOASKNFZN8sWess-PKjZ__YmQ?e=a3sLmM", category:"document", icon:"sheet", sortOrder:8, groupName:"Sheet Share Point" },
+  { id:"initial-promotion", title:"promotion-engine", url:"https://promotion-engine-management-web.robinhood.in.th/login/", category:"work", icon:"dashboard", sortOrder:9, groupName:"Promotion Check" },
 ];
+const GROUP_ORDER = ["Oho Chat", "Process", "Admin Panel", "Operations Portal", "Sheet Share Point", "Promotion Check"] as const;
+type QuickGroup = { name: string; links: QuickLink[]; category: Category; order: number };
+function groupLinks(items: QuickLink[]): QuickGroup[] {
+  const groups = new Map<string, QuickGroup>();
+  for (const item of [...items].sort((a,b) => a.sortOrder - b.sortOrder)) {
+    const name = (item.groupName || item.title).trim();
+    let group = groups.get(name);
+    if (!group) { group = { name, links: [], category: item.category, order: item.sortOrder }; groups.set(name, group); }
+    group.links.push(item);
+    group.order = Math.min(group.order, item.sortOrder);
+  }
+  return [...groups.values()].sort((a,b) => {
+    const aIndex = GROUP_ORDER.findIndex(name => name === a.name);
+    const bIndex = GROUP_ORDER.findIndex(name => name === b.name);
+    if (aIndex >= 0 || bIndex >= 0) return (aIndex < 0 ? 1000 : aIndex) - (bIndex < 0 ? 1000 : bIndex);
+    return a.order - b.order;
+  });
+}
+function GroupIcon({ group }: { group: QuickGroup }) {
+  if (group.links.length === 1) return <LinkIcon link={group.links[0]}/>;
+  const bundledIcon = group.name === "Admin Panel" ? "/robinhood-logo.png"
+    : group.name === "Sheet Share Point" ? "/quick-access/sharepoint.svg" : "";
+  if (bundledIcon) return <span className="qa-quick-icon qa-quick-icon--large qa-quick-icon--brand" aria-hidden="true">
+    <img src={bundledIcon} alt="" loading="lazy"/>
+  </span>;
+  return <LinkIcon link={group.links[0]}/>;
+}
 const CATEGORIES: Array<{ value: Category | "all"; label: string }> = [
   { value: "all", label: "ทั้งหมด" }, { value: "work", label: "ระบบงาน" },
   { value: "document", label: "เอกสาร" }, { value: "report", label: "รายงาน" },
   { value: "other", label: "อื่น ๆ" },
 ];
 const ICONS: MenuIcon[] = ["auto", "chat", "dashboard", "bike", "users", "presentation", "sheet", "link", "file", "chart", "book", "globe"];
-const EMPTY_DRAFT: DraftLink = { title: "", url: "", category: "other", icon: "auto" };
+const EMPTY_DRAFT: DraftLink = { title: "", url: "", category: "other", icon: "auto", groupName: "" };
 const safeUrl = (raw: string) => {
   try {
     const url = new URL(raw.trim());
@@ -173,7 +206,8 @@ export default function QuickAccessMenu({ username, sessionId, canManage, onReau
   onRenewSession: (password: string) => Promise<{ok:boolean;message?:string}>;
 }) {
   const [open, setOpen] = useState(false);
-  const [mode, setMode] = useState<"grid" | "manage" | "editor">("grid");
+  const [mode, setMode] = useState<"grid" | "group" | "manage" | "editor">("grid");
+  const [activeGroup, setActiveGroup] = useState("");
   const [links, setLinks] = useState<QuickLink[]>(INITIAL_LINKS);
   const [ready, setReady] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -252,10 +286,12 @@ export default function QuickAccessMenu({ username, sessionId, canManage, onReau
   }, [open]);
   const visible = useMemo(() => links
     .filter((link) => category === "all" || link.category === category)
-    .filter((link) => !search.trim() || (link.title + " " + link.url).toLowerCase().includes(search.trim().toLowerCase()))
+    .filter((link) => !search.trim() || (link.title + " " + link.url + " " + (link.groupName || "")).toLowerCase().includes(search.trim().toLowerCase()))
     .sort((a,b) => a.sortOrder - b.sortOrder), [links, category, search]);
+  const visibleGroups = useMemo(() => groupLinks(visible), [visible]);
+  const selectedGroup = useMemo(() => groupLinks(links).find(group => group.name === activeGroup), [links, activeGroup]);
   const edit = (link?: QuickLink) => {
-    setDraft(link ? { title: link.title, url: link.url, category: link.category, icon: link.icon } : { ...EMPTY_DRAFT });
+    setDraft(link ? { title: link.title, url: link.url, category: link.category, icon: link.icon, groupName: link.groupName || link.title } : { ...EMPTY_DRAFT });
     setEditingId(link?.id || null);
     setAutoTitle(!link);
     if (ready) setError("");
@@ -291,9 +327,11 @@ export default function QuickAccessMenu({ username, sessionId, canManage, onReau
     const url = safeUrl(draft.url);
     if (!url) { setError("กรุณาใช้ลิงก์ HTTPS ที่ถูกต้อง"); return; }
     const title = draft.title.trim() || suggestTitle(url);
-    if (!title || title.length > 64) { setError("ชื่อเมนูต้องมี 1–64 ตัวอักษร"); return; }
+    if (!title || title.length > 180) { setError("ชื่อเมนูต้องมี 1–180 ตัวอักษร"); return; }
+    const groupName = (draft.groupName.trim() || title);
+    if (groupName.length > 64) { setError("ชื่อ Item ต้องมี 1–64 ตัวอักษร"); return; }
     const success = await mutate(editingId ? "update" : "create", { ...(editingId ? { id: editingId } : {}),
-      link: { ...draft, title, url } });
+      link: { ...draft, title, url, groupName } });
     if (success) setMode("manage");
   };
   const remove = async (link: QuickLink) => {
@@ -330,12 +368,12 @@ export default function QuickAccessMenu({ username, sessionId, canManage, onReau
       <div className="qa-quick-head">
         <div className="qa-quick-head-left">
           {mode !== "grid" && <button type="button" className="qa-quick-plain" onClick={() => { setMode(mode === "editor" ? "manage" : "grid"); setError(""); }} aria-label="ย้อนกลับ"><Glyph name="back" size={19}/></button>}
-          <div><strong>{mode === "grid" ? "Quick Access" : mode === "manage" ? "จัดการเมนูลัด" : editingId ? "แก้ไขเมนูลัด" : "เพิ่มเมนูลัด"}</strong>
+          <div><strong>{mode === "grid" ? "Quick Access" : mode === "group" ? activeGroup : mode === "manage" ? "จัดการเมนูลัด" : editingId ? "แก้ไขเมนูลัด" : "เพิ่มเมนูลัด"}</strong>
             <small>External Links · QA Dashboard</small></div>
         </div>
         <button type="button" className="qa-quick-plain" onClick={() => setOpen(false)} aria-label="ปิด Quick Access"><Glyph name="close" size={19}/></button>
       </div>
-      {error && (mode === "grid" || ready) && <div className="qa-quick-alert" role="status">
+      {error && (mode === "grid" || mode === "group" || ready) && <div className="qa-quick-alert" role="status">
         <span>{error}</span>
         {!ready && <div className="qa-quick-alert-actions">
           <button type="button" disabled={loading} onClick={() => void refresh()}>ตรวจสอบอีกครั้ง</button>
@@ -364,18 +402,35 @@ export default function QuickAccessMenu({ username, sessionId, canManage, onReau
         <div className="qa-quick-search"><Glyph name="search" size={17}/><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="ค้นหาระบบหรือเอกสาร..." aria-label="ค้นหา Quick Access"/></div>
         <div className="qa-quick-categories" aria-label="ประเภทเมนู">{CATEGORIES.map(item => <button key={item.value} type="button" aria-pressed={category === item.value}
           className={category === item.value ? "selected" : ""} onClick={() => setCategory(item.value)}>{item.label}</button>)}</div>
-        <div className="qa-quick-grid" role="list">{visible.map(link => <a role="listitem" key={link.id} href={link.url} target="_blank" rel="noopener noreferrer"
-          className="qa-quick-tile" title={link.title + " · " + link.url}>
-          <LinkIcon link={link}/><span>{link.title}</span>
-        </a>)}
-          {!visible.length && <div className="qa-quick-empty">ไม่พบเมนูที่ค้นหา</div>}
+        <div className="qa-quick-grid" role="list">{visibleGroups.map(group =>
+          group.links.length === 1 ? <a role="listitem" key={group.name} href={group.links[0].url} target="_blank" rel="noopener noreferrer"
+            className="qa-quick-tile" title={group.name + " · " + group.links[0].title}>
+            <GroupIcon group={group}/><span>{group.name}</span>
+          </a> : <button role="listitem" type="button" key={group.name} className="qa-quick-tile"
+            aria-label={"เปิดกลุ่ม " + group.name + " มี " + group.links.length + " ลิงก์"}
+            onClick={() => { setActiveGroup(group.name); setMode("group"); }}>
+            <GroupIcon group={group}/><span>{group.name}</span><small>{group.links.length} ลิงก์</small>
+          </button>
+        )}
+          {!visibleGroups.length && <div className="qa-quick-empty">ไม่พบเมนูที่ค้นหา</div>}
         </div>
-        <div className="qa-quick-footer"><span>{loading ? "กำลังอัปเดต..." : links.length + " เมนูลัด"}</span>
+        <div className="qa-quick-footer"><span>{loading ? "กำลังอัปเดต..." : visibleGroups.length + " Items · " + links.length + " ลิงก์"}</span>
           <div className="qa-quick-footer-actions">
             <button type="button" className="qa-quick-text-btn" onClick={() => void refresh()} disabled={loading} title="อัปเดตเมนู">รีเฟรช</button>
             {canManage && <button type="button" className="qa-quick-text-btn" onClick={() => setMode("manage")}><Glyph name="settings" size={15}/> จัดการเมนู</button>}
           </div>
         </div>
+      </> : mode === "group" ? <>
+        <div className="qa-quick-group-list" role="list" aria-label={"ลิงก์ในกลุ่ม " + activeGroup}>
+          {(selectedGroup?.links || []).map(link => <a key={link.id} role="listitem" className="qa-quick-group-link"
+            href={link.url} target="_blank" rel="noopener noreferrer" title={link.url}>
+            <LinkIcon link={link} size="small"/>
+            <span className="qa-quick-group-name">{link.title}</span>
+            <Glyph name="link" size={16}/>
+          </a>)}
+          {!selectedGroup && <div className="qa-quick-empty">ไม่พบรายการในกลุ่ม กรุณากลับไปเลือก Item อีกครั้ง</div>}
+        </div>
+        <div className="qa-quick-footer"><span>{selectedGroup?.links.length || 0} ลิงก์ในกลุ่ม</span></div>
       </> : mode === "manage" ? <>
         {!ready && <div className="qa-quick-manage-unavailable" role="status">
           <strong>ยังแก้ไขรายการส่วนกลางไม่ได้</strong>
@@ -392,7 +447,7 @@ export default function QuickAccessMenu({ username, sessionId, canManage, onReau
             onDrop={(event) => { event.preventDefault(); void reorder(link.id); }}
             onDragEnd={() => { dragId.current = null; }}>
             <span className="qa-quick-drag" aria-hidden="true">⠿</span><LinkIcon link={link} size="small"/>
-            <div className="qa-quick-manage-name"><strong>{link.title}</strong><span>{new URL(link.url).hostname}</span></div>
+            <div className="qa-quick-manage-name"><strong>{link.title}</strong><span>{link.groupName || link.title} · {new URL(link.url).hostname}</span></div>
             <button type="button" disabled={!ready || saving} onClick={() => edit(link)} title={"แก้ไข " + link.title} aria-label={"แก้ไข " + link.title}><Glyph name="edit" size={17}/></button>
             <button type="button" disabled={!ready || saving} onClick={() => void remove(link)} title={"ลบ " + link.title} aria-label={"ลบ " + link.title}><Glyph name="trash" size={17}/></button>
           </div>)}
@@ -417,8 +472,13 @@ export default function QuickAccessMenu({ username, sessionId, canManage, onReau
             onChange={(event) => { const url = event.target.value; setDraft(previous => ({ ...previous, url, title: autoTitle ? suggestTitle(url) : previous.title })); }}/>
         </label>
         <label>ชื่อเมนู
-          <input required maxLength={64} value={draft.title} placeholder="ชื่อที่ต้องการแสดง"
+          <input required maxLength={180} value={draft.title} placeholder="ชื่อที่ต้องการแสดง"
             onChange={(event) => { setAutoTitle(false); setDraft(previous => ({ ...previous, title: event.target.value })); }}/>
+        </label>
+        <label>Item / กลุ่มหลัก (ตามคอลัมน์ Grop ใน Excel)
+          <input maxLength={64} list="qa-quick-group-options" value={draft.groupName} placeholder="เช่น Admin Panel"
+            onChange={(event) => setDraft(previous => ({ ...previous, groupName: event.target.value }))}/>
+          <datalist id="qa-quick-group-options">{GROUP_ORDER.map(name => <option key={name} value={name}/>)}</datalist>
         </label>
         <label>หมวดหมู่
           <select value={draft.category} onChange={(event) => setDraft(previous => ({ ...previous, category: event.target.value as Category }))}>
