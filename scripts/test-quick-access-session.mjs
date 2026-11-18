@@ -63,3 +63,12 @@ assert.match(quickUi,/editingId\?\.startsWith\("initial-"\)/);
 assert.match(quickUi,/ตรวจสอบการเชื่อมต่อใหม่/);
 assert.match(quickUi,/if \(ready\) setError\(" "\);|if \(ready\) setError\(" "\)/.source?new RegExp("if \\(ready\\) setError"):/if \(ready\) setError/);
 console.log("PASS Quick Access UI: stale initial IDs reconcile against Supabase, session errors remain visible, retry is available");
+
+const uiSource = readFileSync(new URL("../src/QuickAccessMenu.tsx",import.meta.url),"utf8");
+const appSource = readFileSync(new URL("../src/App.tsx",import.meta.url),"utf8");
+assert.match(uiSource,/class QuickAccessSessionError extends Error/);
+assert.match(uiSource,/sessionErrorCode && <button type="button" onClick={onReauthenticate}>เข้าสู่ระบบใหม่/);
+assert.match(appSource,/onReauthenticate=\{\(\) => \{/);
+for(const file of ["oho-chat.svg","sharepoint.svg","google-sheets.svg"])
+  assert.ok(readFileSync(new URL("../public/quick-access/"+file,import.meta.url),"utf8").includes("<svg"),"Bundled brand icon "+file);
+console.log("PASS Quick Access recovery: secure re-login CTA and local brand images");

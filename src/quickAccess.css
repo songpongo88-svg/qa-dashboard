@@ -97,3 +97,25 @@
   padding: 5px 10px;
 }
 .qa-quick-manage-unavailable button:disabled { opacity: 0.5; }
+
+/* Brand artwork is packaged with the Dashboard for private work portals. */
+.qa-quick-icon { position: relative; }
+.qa-quick-product-label {
+  position: absolute; right: 1px; bottom: 1px; min-width: 17px;
+  max-width: 95%; padding: 1px 3px; line-height: 1.2;
+  border: 1px solid #e9d5ff; border-radius: 5px;
+  background: #faf5ff; color: #6b21a8; font: 700 8px/1.25 system-ui,sans-serif;
+  text-align: center; overflow: hidden; white-space: nowrap;
+}
+.qa-quick-icon--small .qa-quick-product-label { font-size: 6px; min-width: 12px; padding: 1px 2px; }
+.qa-quick-recovery-actions, .qa-quick-alert-actions {
+  display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px;
+}
+.qa-quick-recovery-actions button, .qa-quick-alert-actions button {
+  flex: none; border: 1px solid #f59e0b; border-radius: 8px;
+  background: #fff7ed; color: #92400e; padding: 5px 9px; font: 700 11px/1.3 Kanit,sans-serif;
+}
+.qa-quick-recovery-actions button:last-child:not(:first-child),
+.qa-quick-alert-actions button:last-child:not(:first-child) {
+  background: #6d28d9; border-color: #6d28d9; color: white;
+}

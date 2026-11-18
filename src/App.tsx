@@ -8008,7 +8008,12 @@ export default function App() {
               </div>;
             })}
             </div>
-            <QuickAccessMenu username={currentUser.username} sessionId={currentUser.sessionId || ""} canManage={canAccessUserRoleAdmin(currentUser)} />
+            <QuickAccessMenu username={currentUser.username} sessionId={currentUser.sessionId || ""} canManage={canAccessUserRoleAdmin(currentUser)}
+              onReauthenticate={() => {
+                if (window.confirm("Session ของ Quick Access ไม่ถูกต้อง\nกรุณาบันทึกงานที่ยังไม่บันทึกก่อนออกจากระบบ\n\nต้องการออกจากระบบเพื่อ Login ใหม่หรือไม่?")) {
+                  handleLogout();
+                }
+              }} />
           </div>
         </div>
 

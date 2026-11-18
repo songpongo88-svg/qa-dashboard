@@ -81,17 +81,30 @@ function logoCandidates(rawUrl: string): string[] {
   const host = website.hostname.toLowerCase();
   const direct = website.origin + "/favicon.ico";
   const googleFavicon = "https://www.google.com/s2/favicons?domain=" + encodeURIComponent(host) + "&sz=128";
+
+  // Public, brand-specific images are bundled locally. Many private internal
+  // login pages return a blank favicon and cannot provide the correct icon.
+  if (host === "app.oho.chat") return ["/quick-access/oho-chat.svg", direct, googleFavicon];
   if (host === "docs.google.com" && website.pathname.startsWith("/spreadsheets/"))
     return ["/quick-access/google-sheets.svg", direct, googleFavicon];
   if (host.endsWith(".sharepoint.com") || host === "sharepoint.com")
-    return ["https://fastly.mwm-storage.mwmcdn.com/raw_files/54214a7c-c463-4fdd-bc80-f29203f2dd0c", direct, googleFavicon];
-  if (host === "app.oho.chat")
-    return [direct,
-      "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/ea/4d/90/ea4d9073-d781-245f-132f-76d0d6c4fa59/AppIcon-production-0-0-1x_U007emarketing-0-11-0-85-220.png/1200x630wa.png",
-      googleFavicon];
-  if (host.endsWith(".robinhood.in.th") || host === "operations-portal.apps.prod.riderplatform.com")
-    return [direct, "/robinhood-logo.png", googleFavicon];
+    return ["/quick-access/sharepoint.svg", direct, googleFavicon];
+  if (host === "adminpanel-v2-prod.robinhood.in.th" ||
+      host === "adminpanel.robinhood.in.th" ||
+      host === "operations-portal.apps.prod.riderplatform.com")
+    return ["/robinhood-logo.png", direct, googleFavicon];
+
+  // Other user-created links remain personalized to their real website.
   return [direct, googleFavicon];
+}
+function quickAccessProductLabel(rawUrl: string): string {
+  const href = safeUrl(rawUrl);
+  if (!href) return "";
+  const host = new URL(href).hostname.toLowerCase();
+  if (host === "adminpanel-v2-prod.robinhood.in.th") return "V2";
+  if (host === "operations-portal.apps.prod.riderplatform.com") return "OPS";
+  if (host === "adminpanel.robinhood.in.th") return "USER";
+  return "";
 }
 function LinkIcon({ link, size = "large" }: { link: QuickLink | DraftLink; size?: "large" | "small" }) {
   const [attempt, setAttempt] = useState(0);
@@ -99,6 +112,7 @@ function LinkIcon({ link, size = "large" }: { link: QuickLink | DraftLink; size?
   useEffect(() => setAttempt(0), [link.url]);
   const logoSrc = logos[attempt];
   const glyph = selectedIcon(link);
+  const productLabel = quickAccessProductLabel(link.url);
   return <span className={"qa-quick-icon qa-quick-icon--" + size + (logoSrc ? " qa-quick-icon--brand" : "")}
     data-icon-source={logoSrc ? "website" : "fallback"}
     style={{ background: logoSrc ? "#ffffff" : iconColors[glyph] }} aria-hidden="true">
@@ -106,7 +120,17 @@ function LinkIcon({ link, size = "large" }: { link: QuickLink | DraftLink; size?
       <img key={logoSrc} src={logoSrc} alt="" loading="lazy" referrerPolicy="no-referrer"
         onError={() => setAttempt(index => index + 1)} /> :
       <Glyph name={glyph} size={size === "small" ? 19 : 25} />}
+    {logoSrc && productLabel ? <span className="qa-quick-product-label" aria-hidden="true">{productLabel}</span> : null}
   </span>;
+}
+
+class QuickAccessSessionError extends Error {
+  readonly code: string;
+  constructor(message: string, code: string) {
+    super(message);
+    this.name = "QuickAccessSessionError";
+    this.code = code;
+  }
 }
 
 async function sendRequest(username: string, sessionId: string, action: string, payload: Record<string, unknown> = {}) {
@@ -118,22 +142,17 @@ async function sendRequest(username: string, sessionId: string, action: string, 
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     if (response.status === 401) {
-      const code = String(data.code || "");
-      if (code === "SESSION_EXPIRED")
-        throw new Error("Session สำหรับ Quick Access หมดอายุแล้ว กรุณาบันทึกงานที่ค้างอยู่ จากนั้น Sign Out และ Login QA Dashboard ใหม่");
-      if (code === "SESSION_REVOKED")
-        throw new Error("Session นี้ถูกยกเลิกจากระบบกลาง กรุณาบันทึกงานที่ค้างอยู่ แล้ว Login QA Dashboard ใหม่");
-      if (code === "SESSION_ID_MISSING")
-        throw new Error("Session ID ไม่ตรงรูปแบบ กรุณารีเฟรชหน้า หากยังไม่ได้ให้บันทึกงานแล้ว Login ใหม่");
-      if (code === "SESSION_NOT_FOUND")
-        throw new Error("ไม่พบ Session นี้ในระบบกลาง กรุณาบันทึกงานที่ค้างอยู่ แล้วออกจากระบบและ Login ใหม่");
-      if (code === "SESSION_MISMATCH")
-        throw new Error("Session และบัญชีที่ Login ไม่ตรงกัน กรุณาบันทึกงานที่ค้างอยู่ แล้ว Login ใหม่");
-      if (code === "SESSION_POLICY")
-        throw new Error("Session ใช้กติกาเก่า กรุณาบันทึกงานที่ค้างอยู่ แล้ว Login ใหม่");
-      if (code === "SESSION_INVALID")
-        throw new Error("ข้อมูลอายุ Session ไม่ถูกต้อง กรุณาบันทึกงาน แล้ว Login ใหม่");
-      throw new Error("ยืนยัน Session กับระบบกลางไม่สำเร็จ กรุณาบันทึกงานที่ค้างอยู่ แล้ว Login QA Dashboard ใหม่");
+      const code = String(data.code || "SESSION_INVALID");
+      const descriptions: Record<string,string> = {
+        SESSION_EXPIRED: "Session หมดอายุแล้ว กรุณาบันทึกงานค้างก่อนเข้าสู่ระบบใหม่",
+        SESSION_REVOKED: "Session นี้ถูกยกเลิกแล้ว กรุณาบันทึกงานค้างก่อนเข้าสู่ระบบใหม่",
+        SESSION_ID_MISSING: "ไม่พบรหัส Session ที่ถูกต้อง กรุณาเข้าสู่ระบบใหม่",
+        SESSION_NOT_FOUND: "ไม่พบ Session ในระบบกลาง กรุณาเข้าสู่ระบบใหม่",
+        SESSION_MISMATCH: "บัญชีและ Session ไม่ตรงกัน กรุณาเข้าสู่ระบบใหม่",
+        SESSION_POLICY: "Session ใช้นโยบายเก่า กรุณาเข้าสู่ระบบใหม่",
+        SESSION_INVALID: "Session นี้ไม่ถูกต้อง กรุณาเข้าสู่ระบบใหม่",
+      };
+      throw new QuickAccessSessionError(descriptions[code] || "Session ยืนยันตัวตนไม่สำเร็จ กรุณาเข้าสู่ระบบใหม่", code);
     }
     if (response.status === 403) throw new Error("บัญชีนี้ไม่มีสิทธิ์จัดการ Quick Access กรุณาติดต่อ Admin");
     if (response.status === 503 && data.code === "STORAGE_AUTH_UNAVAILABLE")
@@ -148,7 +167,9 @@ async function sendRequest(username: string, sessionId: string, action: string, 
   return data.links as QuickLink[];
 }
 
-export default function QuickAccessMenu({ username, sessionId, canManage }: { username: string; sessionId: string; canManage: boolean }) {
+export default function QuickAccessMenu({ username, sessionId, canManage, onReauthenticate }: {
+  username: string; sessionId: string; canManage: boolean; onReauthenticate: () => void;
+}) {
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<"grid" | "manage" | "editor">("grid");
   const [links, setLinks] = useState<QuickLink[]>(INITIAL_LINKS);
@@ -156,6 +177,7 @@ export default function QuickAccessMenu({ username, sessionId, canManage }: { us
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [sessionErrorCode, setSessionErrorCode] = useState("");
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<Category | "all">("all");
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -167,6 +189,7 @@ export default function QuickAccessMenu({ username, sessionId, canManage }: { us
   const refresh = async () => {
     setLoading(true);
     setError("");
+    setSessionErrorCode("");
     try {
       const updated = await sendRequest(username, sessionId, "list");
       setLinks(updated);
@@ -180,6 +203,7 @@ export default function QuickAccessMenu({ username, sessionId, canManage }: { us
       setReady(true);
     } catch (e) {
       setReady(false);
+      setSessionErrorCode(e instanceof QuickAccessSessionError ? e.code : "");
       setError(e instanceof Error ? e.message : "ไม่สามารถโหลด Quick Access ได้");
     } finally { setLoading(false); }
   };
@@ -216,6 +240,7 @@ export default function QuickAccessMenu({ username, sessionId, canManage }: { us
       setReady(true);
       return true;
     } catch (e) {
+      setSessionErrorCode(e instanceof QuickAccessSessionError ? e.code : "");
       setError(e instanceof Error ? e.message : "บันทึกไม่สำเร็จ");
       return false;
     } finally { setSaving(false); }
@@ -278,7 +303,13 @@ export default function QuickAccessMenu({ username, sessionId, canManage }: { us
         </div>
         <button type="button" className="qa-quick-plain" onClick={() => setOpen(false)} aria-label="ปิด Quick Access"><Glyph name="close" size={19}/></button>
       </div>
-      {error && <div className="qa-quick-alert" role="status">{error} {!ready && <button type="button" disabled={loading} onClick={() => void refresh()}>ลองใหม่</button>}</div>}
+      {error && <div className="qa-quick-alert" role="status">
+        <span>{error}</span>
+        {!ready && <div className="qa-quick-alert-actions">
+          <button type="button" disabled={loading} onClick={() => void refresh()}>ตรวจสอบอีกครั้ง</button>
+          {sessionErrorCode && <button type="button" onClick={onReauthenticate}>เข้าสู่ระบบใหม่</button>}
+        </div>}
+      </div>}
       {mode === "grid" ? <>
         <div className="qa-quick-search"><Glyph name="search" size={17}/><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="ค้นหาระบบหรือเอกสาร..." aria-label="ค้นหา Quick Access"/></div>
         <div className="qa-quick-categories" aria-label="ประเภทเมนู">{CATEGORIES.map(item => <button key={item.value} type="button" aria-pressed={category === item.value}
@@ -296,7 +327,14 @@ export default function QuickAccessMenu({ username, sessionId, canManage }: { us
           </div>
         </div>
       </> : mode === "manage" ? <>
-        {!ready && <div className="qa-quick-manage-unavailable" role="status"><strong>ยังแก้ไขรายการส่วนกลางไม่ได้</strong><span>เมนูนี้ยังแสดงลิงก์เริ่มต้นอยู่ กรุณาโหลดข้อมูลจาก Supabase ให้สำเร็จก่อนแก้ไขชื่อหรือเพิ่มลิงก์</span><button type="button" disabled={loading} onClick={() => void refresh()}>{loading ? "กำลังเชื่อมต่อ..." : "เชื่อมต่อใหม่"}</button></div>}
+        {!ready && <div className="qa-quick-manage-unavailable" role="status">
+          <strong>ยังแก้ไขรายการส่วนกลางไม่ได้</strong>
+          <span>{error || "ระบบกำลังตรวจสอบ Session ก่อนโหลดลิงก์จริงจากฐานข้อมูล"}</span>
+          <div className="qa-quick-recovery-actions">
+            <button type="button" disabled={loading} onClick={() => void refresh()}>{loading ? "กำลังเชื่อมต่อ..." : "ตรวจสอบอีกครั้ง"}</button>
+            {sessionErrorCode && <button type="button" onClick={onReauthenticate}>เข้าสู่ระบบใหม่</button>}
+          </div>
+        </div>}
         <div className="qa-quick-manage-toolbar"><span>ลากรายการเพื่อเปลี่ยนลำดับ</span><button type="button" disabled={saving} onClick={() => edit()}><Glyph name="plus" size={17}/> เพิ่มลิงก์</button></div>
         <div className="qa-quick-manage-list">{[...links].sort((a,b) => a.sortOrder - b.sortOrder).map(link =>
           <div key={link.id} className="qa-quick-manage-row" draggable={ready && !saving}
@@ -315,9 +353,12 @@ export default function QuickAccessMenu({ username, sessionId, canManage }: { us
         {!ready && <div className="qa-quick-manage-unavailable" role="status">
           <strong>{loading ? "กำลังตรวจสอบการเชื่อมต่อ..." : "ยังบันทึกเมนูไม่ได้"}</strong>
           <span>{error || "ระบบต้องตรวจสอบ Session กับเซิร์ฟเวอร์ก่อนบันทึก"}</span>
-          <button type="button" disabled={loading} onClick={() => void refresh()}>
-            {loading ? "กำลังเชื่อมต่อ..." : "ตรวจสอบการเชื่อมต่อใหม่"}
-          </button>
+          <div className="qa-quick-recovery-actions">
+            <button type="button" disabled={loading} onClick={() => void refresh()}>
+              {loading ? "กำลังเชื่อมต่อ..." : "ตรวจสอบการเชื่อมต่อใหม่"}
+            </button>
+            {sessionErrorCode && <button type="button" onClick={onReauthenticate}>เข้าสู่ระบบใหม่</button>}
+          </div>
         </div>}
         {ready && editingId?.startsWith("initial-") && <div className="qa-quick-manage-unavailable" role="alert">
           <strong>ยังไม่พบรหัสรายการจริงในฐานข้อมูล</strong>
