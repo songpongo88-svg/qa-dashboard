@@ -31,6 +31,7 @@ import { collection as firestoreCollection, doc, getDoc, getDocs, serverTimestam
 import * as XLSX from "xlsx";
 import DashboardMockup from "./DashboardMockup";
 import QASparks from "./QASparks";
+import SparksMining from "./SparksMining";
 import { syncSparksQaPasswordChange } from "./sparksQaPasswordLogin";
 import SparksAccessGate, { SparksEnabledOnly } from "./SparksAccessGate";
 import HiddenTreasure from "./HiddenTreasure";
@@ -8607,6 +8608,7 @@ export default function App() {
       ) : null}
       <ThankYouSupportPopup key={currentUser.username+":"+(currentUser.sessionId||"")} username={currentUser.username} sessionId={currentUser.sessionId||""}/>
       {import.meta.env?.VITE_SPARKS_CLOUD_READ_ONLY !== "1" ? <SparksEnabledOnly>
+        {dashboardShortcutsVisible ? <SparksMining key={currentUser.username} username={currentUser.username} sessionId={currentUser.sessionId || ""} active={dashboardShortcutsVisible} /> : null}
         <DailyCheckinLoginPrompt key={currentUser.username + ":" + (currentUser.sessionId || "")} username={currentUser.username} sessionId={currentUser.sessionId || ""} />
         <ProfileMakeoverAutoClaim key={currentUser.username} username={currentUser.username} sessionId={currentUser.sessionId || ""}/>
       </SparksEnabledOnly> : null}
