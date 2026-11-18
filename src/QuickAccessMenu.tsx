@@ -382,7 +382,6 @@ export default function QuickAccessMenu({ username, sessionId, canManage, onReau
           <span>{error || "ระบบกำลังตรวจสอบ Session ก่อนโหลดลิงก์จริงจากฐานข้อมูล"}</span>
           <div className="qa-quick-recovery-actions">
             <button type="button" disabled={loading} onClick={() => void refresh()}>{loading ? "กำลังเชื่อมต่อ..." : "ตรวจสอบอีกครั้ง"}</button>
-}
           </div>
         </div>}
         <div className="qa-quick-manage-toolbar"><span>ลากรายการเพื่อเปลี่ยนลำดับ</span><button type="button" disabled={!ready || saving} onClick={() => edit()}><Glyph name="plus" size={17}/> เพิ่มลิงก์</button></div>
@@ -407,7 +406,6 @@ export default function QuickAccessMenu({ username, sessionId, canManage, onReau
             <button type="button" disabled={loading} onClick={() => void refresh()}>
               {loading ? "กำลังเชื่อมต่อ..." : "ตรวจสอบการเชื่อมต่อใหม่"}
             </button>
-}
           </div>
         </div>}
         {ready && editingId?.startsWith("initial-") && <div className="qa-quick-manage-unavailable" role="alert">
