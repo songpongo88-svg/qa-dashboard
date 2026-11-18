@@ -6247,7 +6247,7 @@ export default function App() {
 
     void loadPasswordResetRequests();
     const timer = window.setInterval(() => {
-      void loadPasswordResetRequests();
+      void loadPasswordResetRequests(true);
     }, PASSWORD_RESET_POLL_INTERVAL_MS);
 
     return () => window.clearInterval(timer);
@@ -7492,8 +7492,8 @@ export default function App() {
     setResetResultMessage(`Password for ${targetName} has been reset to default. Temporary password: ${targetAccount.password}`);
   };
 
-  const loadPasswordResetRequests = async () => {
-    const requests = await fetchStoredPasswordResetRequests();
+  const loadPasswordResetRequests = async (background = false) => {
+    const requests = await fetchStoredPasswordResetRequests({ background });
     setPasswordResetRequests(requests);
   };
 
