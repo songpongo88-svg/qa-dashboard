@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import {readFile} from "node:fs/promises";
-import {THANK_YOU_SUPPORT_ID,THANK_YOU_SUPPORT_RECIPIENTS,thankYouSupportAmount,thankYouSupportPhase} from "../src/thankYouSupport2026.mjs";
+import {THANK_YOU_SUPPORT_ID,THANK_YOU_SUPPORT_RECIPIENTS,THANK_YOU_SUPPORT_ANNOUNCEMENT_ID,thankYouSupportAnnouncementFor,thankYouSupportAmount,thankYouSupportPhase} from "../src/thankYouSupport2026.mjs";
 assert.equal(THANK_YOU_SUPPORT_ID,"thank-you-support-2026");
 assert.equal(THANK_YOU_SUPPORT_RECIPIENTS.length,10);
 assert.equal(new Set(THANK_YOU_SUPPORT_RECIPIENTS.map(x=>x.username)).size,10);
@@ -32,3 +32,29 @@ assert.match(component,/creditConfirmed===true/);
 assert.match(component,/data-thank-you-support-popup/);
 assert.doesNotMatch(component,/action:\\s*["\x27](?:claim|redeem)|onClick\\s*=\\s*\\{\\s*claim/i, "popup must not submit a claim action");
 console.log("PASS Thank you Support: 10 accounts / 8,500 Sparks, deploy then Nov21/22 reminders, server-authenticated once-only popup.");
+
+const granted = THANK_YOU_SUPPORT_RECIPIENTS.map(item=>thankYouSupportAnnouncementFor(item.username));
+assert.equal(granted.length,10);
+assert.equal(THANK_YOU_SUPPORT_ANNOUNCEMENT_ID,"thank-you-support-2026-notice");
+for (const [i,notice] of granted.entries()) {
+  assert.equal(notice.id,THANK_YOU_SUPPORT_ANNOUNCEMENT_ID);
+  assert.deepEqual(notice.targetUsernames,[THANK_YOU_SUPPORT_RECIPIENTS[i].username]);
+  assert.equal(notice.targetAll,false);
+  assert.equal(notice.displayMode,"Mailbox Only","notice must not duplicate the existing reward popup");
+  assert.equal(notice.popupMode,"Mailbox Only");
+  assert.match(notice.body,/QA Sparks System/);
+  assert.match(notice.title,new RegExp(THANK_YOU_SUPPORT_RECIPIENTS[i].amount.toLocaleString("en-US")));
+  assert.match(notice.body,/ไม่มีการเพิ่มคะแนนซ้ำ/);
+}
+assert.equal(thankYouSupportAnnouncementFor("not-a-recipient"),null);
+assert.match(thankYouSupportAnnouncementFor("DARUNEE").body,/ทั้งหมด 500 Sparks/);
+assert.match(thankYouSupportAnnouncementFor("SONGPON").body,/วันละ 500 Sparks/);
+const hub=await readFile(new URL("../src/AnnouncementHub.tsx",import.meta.url),"utf8");
+assert.match(hub,/managementAnnouncements\.map/,"system announcement appears in management list");
+assert.match(hub,/thankYouSupportAnnouncementFor\(currentUsername\)/,"announcement stays user-scoped");
+assert.match(hub,/if \(item\.id === THANK_YOU_SUPPORT_ANNOUNCEMENT_ID\) return false;/,"announcement must not double-notify");
+const store=await readFile(new URL("../src/announcementStore.ts",import.meta.url),"utf8");
+assert.match(store,/fetchStoredAnnouncement\(id: string, username = ""\)/,"recipient-scoped deep link");
+const detail=await readFile(new URL("../src/AnnouncementDetail.tsx",import.meta.url),"utf8");
+assert.match(detail,/fetchStoredAnnouncement\(announcementId, currentUser\.username\)/,"detail uses viewer identity");
+console.log("PASS Thank you Support Announcement: targeted, personalized, searchable, read-only; no duplicated popup or award.");
