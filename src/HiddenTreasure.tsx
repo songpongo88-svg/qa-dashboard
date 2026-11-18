@@ -46,7 +46,7 @@ export default function HiddenTreasure({username,sessionId,caseId,active}:{
        const timer=window.setInterval(()=>{
          if(cancelled||id!==requestId.current){window.clearInterval(timer);return;}
          if(document.visibilityState==="visible"&&!document.hidden)visibleSeconds++;
-         if(visibleSeconds<Math.max(30,Math.min(90,Number(started.readSeconds)||30))||checking)return;
+         if(visibleSeconds<10||checking)return;
          checking=true;
          window.clearInterval(timer);
          void call("treasure-find",{visitId:started.visitId}).then(d=>{
