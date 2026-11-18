@@ -68,7 +68,7 @@ console.log("PASS Quick Access UI: stale initial IDs reconcile against Supabase,
 const uiSource = readFileSync(new URL("../src/QuickAccessMenu.tsx",import.meta.url),"utf8");
 const appSource = readFileSync(new URL("../src/App.tsx",import.meta.url),"utf8");
 assert.match(uiSource,/class QuickAccessSessionError extends Error/);
-assert.match(uiSource,/sessionErrorCode && <button type="button" onClick={onReauthenticate}>เข้าสู่ระบบใหม่/);
+assert.match(uiSource,/sessionErrorCode && <button type="button" onClick={onReauthenticate}>ออกจากระบบและ Login ใหม่/);
 assert.match(appSource,/onReauthenticate=\{\(\) => \{/);
 for(const file of ["oho-chat.svg","sharepoint.svg","google-sheets.svg"])
   assert.ok(readFileSync(new URL("../public/quick-access/"+file,import.meta.url),"utf8").includes("<svg"),"Bundled brand icon "+file);
