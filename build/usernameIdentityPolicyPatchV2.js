@@ -58,7 +58,18 @@ export function usernameIdentityPolicyPatchV2() {
 
         const restoreOld = `        if (\n          !storedUser.sessionId ||\n          storedUser.sessionPolicyVersion !== SESSION_POLICY_VERSION\n        ) {\n          if (!isQualityAssurance) {\n            localStorage.removeItem(STORAGE_KEY);\n            if (!cancelled) {\n              setCurrentUser(null);\n              setLoginError(\n                "The security session was updated. Please sign in again."\n              );\n            }\n            return;\n          }\n\n          const migratedSession = await createStoredUserSession(storedUser);\n          restoredUser = {\n            ...storedUser,\n            sessionId: migratedSession.sessionId,\n            sessionPolicyVersion: SESSION_POLICY_VERSION,\n            sessionExpiresAt: migratedSession.expiresAt,\n          };\n          localStorage.setItem(STORAGE_KEY, JSON.stringify(restoredUser));\n        } else {`;
         const restoreNew = `        if (\n          !storedUser.sessionId ||\n          storedUser.sessionPolicyVersion !== SESSION_POLICY_VERSION\n        ) {\n          localStorage.removeItem(STORAGE_KEY);\n          localStorage.removeItem(REMEMBERED_USERNAME_KEY);\n          if (!cancelled) {\n            setCurrentUser(null);\n            setUsername("");\n            setLoginError(\n              "Username policy was updated. Please sign in again using the exact Username shown in User Directory."\n            );\n          }\n          return;\n        } else {`;
-        next = replaceOrThrow(this, next, restoreOld, restoreNew, "forced session logout block");
+        // Older bundles wrote auth directly to localStorage. Newer bundles
+        // wrap the same operations to survive quota errors without bypassing
+        // the mandatory case-sensitive username migration logout.
+        const restoreOldQuotaSafe = restoreOld
+          .replaceAll("localStorage.removeItem(STORAGE_KEY);", "clearCurrentUserStorage();")
+          .replaceAll("localStorage.setItem(STORAGE_KEY, JSON.stringify(restoredUser));", "saveCurrentUserStorage(restoredUser);");
+        const restoreNewQuotaSafe = restoreNew
+          .replaceAll("localStorage.removeItem(STORAGE_KEY);", "clearCurrentUserStorage();")
+          .replaceAll("localStorage.removeItem(REMEMBERED_USERNAME_KEY);", "writeLocalStorageSafely(REMEMBERED_USERNAME_KEY, null);");
+        next = next.includes(restoreOldQuotaSafe)
+          ? replaceOrThrow(this, next, restoreOldQuotaSafe, restoreNewQuotaSafe, "quota-safe forced session logout block")
+          : replaceOrThrow(this, next, restoreOld, restoreNew, "forced session logout block");
 
         next = replaceOrThrow(
           this,
