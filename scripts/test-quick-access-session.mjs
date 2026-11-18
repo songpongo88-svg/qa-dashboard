@@ -101,5 +101,5 @@ assert.equal((await request("songpon.qa",adminId,"create")).status,401,"revoked 
 legacySession.status = "active";
 legacySession.expiresAt = new Date(Date.now()-1000).toISOString();
 assert.equal((await request("songpon.qa",adminId,"create")).status,401,"expired session must fail");
-assert.match(quickUi,/mode === "grid" \|\| ready/,"one status panel for management");
+assert.match(quickUi,/mode === "grid" \|\| mode === "group" \|\| ready/,"one status panel shared by grid and group management");
 console.log("PASS Quick Access legacy active-session compatibility, denial cases and single status alert");

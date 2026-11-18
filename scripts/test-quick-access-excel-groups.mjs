@@ -26,3 +26,15 @@ assert.match(edge, /group_name as "groupName"/);
 assert.match(edge, /group_name=\$\{link\.groupName\}/);
 assert.match(css, /qa-quick-group-link/);
 console.log("PASS Quick Access Excel: six Items, ten exact source links, grouped choices, editable persisted group names");
+const processSvg = readFileSync(new URL("../public/quick-access/process-workflow.svg", import.meta.url), "utf8");
+assert.match(processSvg, /<svg[\s>]/, "Process icon is a real bundled SVG");
+assert.match(ui, /group\.name === "Process"/, "Process should render a unique workflow icon");
+assert.match(ui, /qa-quick-tile-label/g, "All tile names share the same explicit class");
+assert.equal((ui.match(/className="qa-quick-tile-label"/g) || []).length, 2, "Both single links and folders use identical title markup");
+assert.match(ui, /qa-quick-tile-count/, "Folder counts are badges, not different-sized title text");
+assert.match(css, /grid-template-columns: repeat\(2,minmax\(0,1fr\)\)/, "Two equal columns prevent uneven wrapping");
+assert.match(css, /font: 600 12px\/17px/, "Tile title font size and line height must match");
+assert.doesNotMatch(css, /\.qa-quick-tile span:last-child/, "No descendant selector that accidentally targets folder count");
+assert.match(css, /\.qa-quick-icon--process img/, "Process icon should render independently of SharePoint favicon");
+console.log("PASS Quick Access presentation: balanced two-column tiles, equal text, badge counts and distinct Process SVG");
+
