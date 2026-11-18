@@ -11,6 +11,7 @@ import {
   setDoc,
 } from "firebase/firestore";
 import { firebaseDb } from "./firebaseClient";
+import { recordFirestoreSnapshotDocs } from "./firestoreReadPolicy";
 
 const ANNOUNCEMENT_COLLECTION = "qa_announcements";
 const RECEIPT_COLLECTION = "qa_announcement_receipts";
@@ -214,7 +215,10 @@ export function subscribeStoredAnnouncements(
 ) {
   return onSnapshot(
     collection(firebaseDb, ANNOUNCEMENT_COLLECTION),
-    (snapshot) => onChange(normalizeAnnouncementSnapshot(snapshot.docs)),
+    (snapshot) => {
+      recordFirestoreSnapshotDocs("announcement:listener-snapshot", snapshot.docs.length);
+      onChange(normalizeAnnouncementSnapshot(snapshot.docs));
+    },
     (error) => onError?.(error)
   );
 }
@@ -267,7 +271,10 @@ export function subscribeAnnouncementReceipts(
   const normalizedUsername = String(username || "").trim().toLowerCase();
   return onSnapshot(
     normalizedUsername ? query(receipts, where("username", "==", normalizedUsername)) : receipts,
-    (snapshot) => onChange(normalizeReceiptSnapshot(snapshot.docs)),
+    (snapshot) => {
+      recordFirestoreSnapshotDocs(normalizedUsername ? "announcement:personal-receipts" : "announcement:analytics-receipts", snapshot.docs.length);
+      onChange(normalizeReceiptSnapshot(snapshot.docs));
+    },
     (error) => onError?.(error)
   );
 }
