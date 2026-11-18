@@ -9,6 +9,7 @@ DECLARE
   item record;
   target_profile jsonb;
   prior_wallet jsonb;
+  wallet_exists boolean;
   prior_ledger jsonb;
   wallet_path text;
   receipt_path text;
@@ -67,6 +68,7 @@ BEGIN
       CONTINUE;
     END IF;
     SELECT fields INTO prior_wallet FROM sparks_runtime.documents WHERE source_path=wallet_path FOR UPDATE;
+    wallet_exists:=FOUND;
     prior_wallet:=coalesce(prior_wallet,'{}'::jsonb);
     current_balance:=case when coalesce((prior_wallet->'balanceYear'->>'integerValue')::integer,2026)=2026
       then coalesce((prior_wallet->'balance'->>'integerValue')::bigint,0) else 0 end;
@@ -86,9 +88,13 @@ BEGIN
       'thankYouSupportGrantedAt2026',jsonb_build_object('stringValue',award_at),
       'updatedAt',jsonb_build_object('stringValue',award_at)
     );
-    INSERT INTO sparks_runtime.documents(source_path,fields,create_time,update_time)
-      VALUES(wallet_path,next_fields,award_at,award_at)
-      ON CONFLICT(source_path) DO UPDATE SET fields=excluded.fields,update_time=excluded.update_time;
+    IF wallet_exists THEN
+      UPDATE sparks_runtime.documents SET fields=next_fields,update_time=award_at WHERE source_path=wallet_path;
+    ELSE
+      INSERT INTO sparks_runtime.documents(source_path,fields,create_time,update_time)
+        VALUES(wallet_path,next_fields,award_at,award_at) ON CONFLICT DO NOTHING;
+      IF NOT FOUND THEN RAISE EXCEPTION 'THANK_YOU_WALLET_CONCURRENT_CREATE: %',item.username; END IF;
+    END IF;
     receipt_fields:=jsonb_build_object(
       'createdAt',jsonb_build_object('stringValue',award_at),
       'username',jsonb_build_object('stringValue',item.username),
