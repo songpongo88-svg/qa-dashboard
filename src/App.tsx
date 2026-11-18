@@ -27,7 +27,7 @@ import "./dashboardShortcuts.css";
 import QuickAccessMenu from "./QuickAccessMenu";
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import ThankYouSupportPopup from "./ThankYouSupportPopup";
-import { readCurrentUserStorage, saveCurrentUserStorage, clearCurrentUserStorage, readLocalStorageSafely, writeLocalStorageSafely, writeSessionStorageSafely } from "./currentUserStorage";
+import { QA_CURRENT_USER_STORAGE_KEY, readCurrentUserStorage, saveCurrentUserStorage, clearCurrentUserStorage, readLocalStorageSafely, writeLocalStorageSafely, writeSessionStorageSafely } from "./currentUserStorage";
 import { collection as firestoreCollection, doc, getDoc, getDocs, serverTimestamp, setDoc } from "firebase/firestore";
 import * as XLSX from "xlsx";
 import DashboardMockup from "./DashboardMockup";
@@ -379,6 +379,7 @@ const USER_ACCOUNTS: UserAccount[] = [
     status: "Active",
   },
 ];
+const STORAGE_KEY = QA_CURRENT_USER_STORAGE_KEY;
 const REMEMBERED_USERNAME_KEY = "qa_remembered_username";
 const PASSWORD_OVERRIDE_KEY = "qa_password_overrides";
 const PASSWORD_RECORD_KEY = "qa_password_records";
@@ -4386,7 +4387,7 @@ export default function App() {
             ...storedUser,
             sessionExpiresAt: validation.session.expiresAt,
           };
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(restoredUser));
+          saveCurrentUserStorage(restoredUser);
         }
 
         if (!cancelled) {
