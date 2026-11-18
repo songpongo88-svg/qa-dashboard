@@ -72,3 +72,17 @@ assert.match(appSource,/onReauthenticate=\{\(\) => \{/);
 for(const file of ["oho-chat.svg","sharepoint.svg","google-sheets.svg"])
   assert.ok(readFileSync(new URL("../public/quick-access/"+file,import.meta.url),"utf8").includes("<svg"),"Bundled brand icon "+file);
 console.log("PASS Quick Access recovery: secure re-login CTA and local brand images");
+
+// A legacy session must be replaced only after validating the real password.
+// The editor remains present and is not silently allowed to write with an
+// unverified Session ID.
+const renewalApp=readFileSync(new URL("../src/App.tsx",import.meta.url),"utf8");
+assert.match(renewalApp,/const renewQuickAccessSession = async/);
+assert.match(renewalApp,/createStoredUserSession\(verified\)/);
+assert.match(renewalApp,/String\(profile.password\) !== typedPassword/);
+assert.match(renewalApp,/onRenewSession=\{renewQuickAccessSession\}/);
+assert.match(quickUi,/class QuickAccessSessionError extends Error/);
+assert.match(quickUi,/const renewCurrentSession = async/);
+assert.match(quickUi,/disabled=\{!ready \|\| saving\} onClick=\{\(\) => edit\(link\)\}/);
+assert.match(quickUi,/disabled=\{!ready \|\| saving\} onClick=\{\(\) => edit\(\)\}/);
+console.log("PASS Quick Access: password-gated session renewal, no phantom edit buttons");

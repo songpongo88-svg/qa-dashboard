@@ -119,3 +119,16 @@
 .qa-quick-alert-actions button:last-child:not(:first-child) {
   background: #6d28d9; border-color: #6d28d9; color: white;
 }
+
+/* Secure inline password re-verification, independent of the link edit draft. */
+.qa-quick-renew-form {
+  display:flex;flex-direction:column;gap:9px;max-height:260px;overflow-y:auto;
+  margin:11px 13px;padding:13px;border:1px solid #c4b5fd;border-radius:12px;
+  background:#faf5ff;color:#4c1d95;font-size:11px;
+}
+.qa-quick-renew-form strong{font-size:13px;}
+.qa-quick-renew-form span{line-height:1.5;}
+.qa-quick-renew-form label{display:flex;flex-direction:column;gap:5px;font-weight:700;}
+.qa-quick-renew-form input{height:35px;border:1px solid #c4b5fd;border-radius:8px;background:white;padding:6px 10px;color:#334155;}
+.qa-quick-renew-form p[role="alert"]{color:#be123c;font-size:11px;}
+.qa-quick-renew-form .qa-quick-recovery-actions button:last-child{background:#6d28d9;color:white;border-color:#6d28d9;}

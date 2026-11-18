@@ -167,8 +167,10 @@ async function sendRequest(username: string, sessionId: string, action: string, 
   return data.links as QuickLink[];
 }
 
-export default function QuickAccessMenu({ username, sessionId, canManage, onReauthenticate }: {
-  username: string; sessionId: string; canManage: boolean; onReauthenticate: () => void;
+export default function QuickAccessMenu({ username, sessionId, canManage, onReauthenticate, onRenewSession }: {
+  username: string; sessionId: string; canManage: boolean;
+  onReauthenticate: () => void;
+  onRenewSession: (password: string) => Promise<{ok:boolean;message?:string}>;
 }) {
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<"grid" | "manage" | "editor">("grid");
@@ -178,6 +180,10 @@ export default function QuickAccessMenu({ username, sessionId, canManage, onReau
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [sessionErrorCode, setSessionErrorCode] = useState("");
+  const [renewOpen, setRenewOpen] = useState(false);
+  const [renewPassword, setRenewPassword] = useState("");
+  const [renewBusy, setRenewBusy] = useState(false);
+  const [renewError, setRenewError] = useState("");
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<Category | "all">("all");
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -201,6 +207,9 @@ export default function QuickAccessMenu({ username, sessionId, canManage, onReau
         return matches.length === 1 ? matches[0].id : previous;
       });
       setReady(true);
+      setRenewOpen(false);
+      setRenewPassword("");
+      setRenewError("");
     } catch (e) {
       setReady(false);
       setSessionErrorCode(e instanceof QuickAccessSessionError ? e.code : "");
@@ -208,6 +217,29 @@ export default function QuickAccessMenu({ username, sessionId, canManage, onReau
     } finally { setLoading(false); }
   };
   useEffect(() => { void refresh(); }, [username, sessionId]);
+  const renewCurrentSession = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (renewBusy || !canManage || !renewPassword.trim()) return;
+    setRenewBusy(true);
+    setRenewError("");
+    try {
+      const result = await onRenewSession(renewPassword);
+      setRenewPassword("");
+      if (!result.ok) setRenewError(result.message || "ยืนยันตัวตนไม่สำเร็จ");
+      else {
+        // The parent supplies a new sessionId and refresh() reloads real link
+        // IDs. Do not discard an edited title or URL during re-verification.
+        setRenewOpen(false);
+        setRenewError("");
+        setError("ยืนยันตัวตนสำเร็จ กำลังตรวจสอบ Session ใหม่...");
+      }
+    } catch {
+      setRenewPassword("");
+      setRenewError("ไม่สามารถออก Session ใหม่ได้ กรุณาลองอีกครั้ง");
+    } finally {
+      setRenewBusy(false);
+    }
+  };
   useEffect(() => {
     if (!open) return;
     const outside = (event: PointerEvent) => {
@@ -307,9 +339,27 @@ export default function QuickAccessMenu({ username, sessionId, canManage, onReau
         <span>{error}</span>
         {!ready && <div className="qa-quick-alert-actions">
           <button type="button" disabled={loading} onClick={() => void refresh()}>ตรวจสอบอีกครั้ง</button>
-          {sessionErrorCode && <button type="button" onClick={onReauthenticate}>เข้าสู่ระบบใหม่</button>}
+          {sessionErrorCode && canManage && <button type="button" onClick={() => setRenewOpen(true)}>ยืนยันรหัสผ่านเพื่อแก้ไข</button>}
+          {sessionErrorCode && <button type="button" onClick={onReauthenticate}>ออกจากระบบและ Login ใหม่</button>}
         </div>}
       </div>}
+      {renewOpen && sessionErrorCode && canManage && <form onSubmit={(event) => void renewCurrentSession(event)}
+        className="qa-quick-renew-form" aria-label="ยืนยันรหัสผ่านเพื่อแก้ไข Quick Access">
+        <strong>ยืนยันตัวตนเพื่อแก้ไขเมนู</strong>
+        <span>กรอกรหัสผ่านของบัญชี {username} เพื่อเปิด Session ใหม่โดยไม่ปิดหน้างานที่กำลังทำอยู่</span>
+        <label>รหัสผ่านปัจจุบัน
+          <input type="password" autoComplete="current-password" value={renewPassword}
+            onChange={event => setRenewPassword(event.target.value)}
+            autoFocus required aria-label="รหัสผ่านปัจจุบันสำหรับ Quick Access"/>
+        </label>
+        {renewError && <p role="alert">{renewError}</p>}
+        <div className="qa-quick-recovery-actions">
+          <button type="button" disabled={renewBusy} onClick={() => {setRenewOpen(false);setRenewPassword("");setRenewError("");}}>ยกเลิก</button>
+          <button type="submit" disabled={renewBusy || !renewPassword.trim()}>
+            {renewBusy ? "กำลังยืนยัน..." : "ยืนยันและเปิดการแก้ไข"}
+          </button>
+        </div>
+      </form>}
       {mode === "grid" ? <>
         <div className="qa-quick-search"><Glyph name="search" size={17}/><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="ค้นหาระบบหรือเอกสาร..." aria-label="ค้นหา Quick Access"/></div>
         <div className="qa-quick-categories" aria-label="ประเภทเมนู">{CATEGORIES.map(item => <button key={item.value} type="button" aria-pressed={category === item.value}
@@ -332,10 +382,11 @@ export default function QuickAccessMenu({ username, sessionId, canManage, onReau
           <span>{error || "ระบบกำลังตรวจสอบ Session ก่อนโหลดลิงก์จริงจากฐานข้อมูล"}</span>
           <div className="qa-quick-recovery-actions">
             <button type="button" disabled={loading} onClick={() => void refresh()}>{loading ? "กำลังเชื่อมต่อ..." : "ตรวจสอบอีกครั้ง"}</button>
-            {sessionErrorCode && <button type="button" onClick={onReauthenticate}>เข้าสู่ระบบใหม่</button>}
+            {sessionErrorCode && canManage && <button type="button" onClick={() => setRenewOpen(true)}>ยืนยันรหัสผ่านเพื่อแก้ไข</button>}
+          {sessionErrorCode && <button type="button" onClick={onReauthenticate}>ออกจากระบบและ Login ใหม่</button>}
           </div>
         </div>}
-        <div className="qa-quick-manage-toolbar"><span>ลากรายการเพื่อเปลี่ยนลำดับ</span><button type="button" disabled={saving} onClick={() => edit()}><Glyph name="plus" size={17}/> เพิ่มลิงก์</button></div>
+        <div className="qa-quick-manage-toolbar"><span>ลากรายการเพื่อเปลี่ยนลำดับ</span><button type="button" disabled={!ready || saving} onClick={() => edit()}><Glyph name="plus" size={17}/> เพิ่มลิงก์</button></div>
         <div className="qa-quick-manage-list">{[...links].sort((a,b) => a.sortOrder - b.sortOrder).map(link =>
           <div key={link.id} className="qa-quick-manage-row" draggable={ready && !saving}
             onDragStart={() => { dragId.current = link.id; }}
@@ -344,7 +395,7 @@ export default function QuickAccessMenu({ username, sessionId, canManage, onReau
             onDragEnd={() => { dragId.current = null; }}>
             <span className="qa-quick-drag" aria-hidden="true">⠿</span><LinkIcon link={link} size="small"/>
             <div className="qa-quick-manage-name"><strong>{link.title}</strong><span>{new URL(link.url).hostname}</span></div>
-            <button type="button" disabled={saving} onClick={() => edit(link)} title={"แก้ไข " + link.title} aria-label={"แก้ไข " + link.title}><Glyph name="edit" size={17}/></button>
+            <button type="button" disabled={!ready || saving} onClick={() => edit(link)} title={"แก้ไข " + link.title} aria-label={"แก้ไข " + link.title}><Glyph name="edit" size={17}/></button>
             <button type="button" disabled={!ready || saving} onClick={() => void remove(link)} title={"ลบ " + link.title} aria-label={"ลบ " + link.title}><Glyph name="trash" size={17}/></button>
           </div>)}
         </div>
@@ -357,7 +408,8 @@ export default function QuickAccessMenu({ username, sessionId, canManage, onReau
             <button type="button" disabled={loading} onClick={() => void refresh()}>
               {loading ? "กำลังเชื่อมต่อ..." : "ตรวจสอบการเชื่อมต่อใหม่"}
             </button>
-            {sessionErrorCode && <button type="button" onClick={onReauthenticate}>เข้าสู่ระบบใหม่</button>}
+            {sessionErrorCode && canManage && <button type="button" onClick={() => setRenewOpen(true)}>ยืนยันรหัสผ่านเพื่อแก้ไข</button>}
+          {sessionErrorCode && <button type="button" onClick={onReauthenticate}>ออกจากระบบและ Login ใหม่</button>}
           </div>
         </div>}
         {ready && editingId?.startsWith("initial-") && <div className="qa-quick-manage-unavailable" role="alert">

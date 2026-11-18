@@ -6715,6 +6715,86 @@ export default function App() {
     endSessionEverywhere("manual");
   };
 
+  // Verify the current password against the same account records used by Login
+  // before replacing an older Quick Access session. Keep in-progress work open.
+  const renewQuickAccessSession = async (candidatePassword: string): Promise<{ok:boolean;message?:string}> => {
+    const previousUser = currentUser;
+    const username = String(previousUser?.username || "").trim();
+    const typedPassword = candidatePassword.trim();
+    if (!previousUser || !username || !typedPassword)
+      return {ok:false,message:"กรุณากรอกรหัสผ่านของบัญชีที่ใช้งานอยู่"};
+    try {
+      const candidateIds = [...new Set([
+        username, username.charAt(0).toUpperCase() + username.slice(1), username.toLowerCase()
+      ])];
+      let verified: CurrentUser | null = null;
+      let foundProfile = false;
+      for (const profileId of candidateIds) {
+        const snapshot = await getDoc(doc(firebaseDb, "qa_user_profiles", profileId));
+        if (!snapshot.exists()) continue;
+        foundProfile = true;
+        const profile = snapshot.data();
+        const profileUser = String(profile.username || profileId).trim();
+        if (profileUser.toLowerCase() !== username.toLowerCase() ||
+            isAccountSuspended(profile) ||
+            (String(profile.passwordExpiresAt || profile.accessExpiresAt || "") &&
+             isPastDate(String(profile.passwordExpiresAt || profile.accessExpiresAt))) ||
+            !profile.password || String(profile.password) !== typedPassword)
+          return {ok:false,message:"รหัสผ่านไม่ถูกต้อง บัญชีถูกระงับ หรือรหัสผ่านหมดอายุ"};
+        verified = {
+          ...previousUser,
+          username:profileUser,
+          displayName:String(profile.displayName || profile.agentName || profileUser),
+          agentName:String(profile.agentName || profile.displayName || profileUser),
+          role:normalizeRoleName(profile.role || "Admin Live Chat"),
+          email:String(profile.email || ""),
+        };
+        break;
+      }
+      if (!foundProfile) {
+        const accounts = await getCentralEffectiveUserAccounts();
+        const account = accounts.find(row => row.username.trim().toLowerCase() === username.toLowerCase());
+        if (!account || isAccountSuspended(account))
+          return {ok:false,message:"ไม่พบบัญชีที่เปิดใช้งานในระบบกลาง"};
+        const central = await getCentralPasswordRecordOnly(account.username);
+        const local = getLocalPasswordRecord(account.username);
+        const latest = getLatestPasswordRecord(central,local);
+        const actualPassword = latest?.password || getEffectivePassword(account);
+        if (!actualPassword || actualPassword !== typedPassword ||
+            (latest?.expiresAt && isPastDate(latest.expiresAt)))
+          return {ok:false,message:"รหัสผ่านไม่ถูกต้องหรือรหัสผ่านหมดอายุ"};
+        verified = {
+          ...previousUser,
+          username:account.username,
+          displayName:account.displayName,
+          agentName:account.agentName,
+          role:normalizeRoleName(account.role),
+          email:account.email || "",
+        };
+      }
+      if (!verified || !canAccessUserRoleAdmin(verified))
+        return {ok:false,message:"บัญชีนี้ไม่มีสิทธิ์ผู้ดูแล Quick Access"};
+      const fresh = await createStoredUserSession(verified);
+      const updated: CurrentUser = {
+        ...verified, loginAt:new Date().toISOString(), sessionId:fresh.sessionId,
+        sessionPolicyVersion:SESSION_POLICY_VERSION, sessionExpiresAt:fresh.expiresAt,
+      };
+      localStorage.setItem(STORAGE_KEY,JSON.stringify(updated));
+      lastSessionTouchRef.current=Date.now();
+      setCurrentUser(updated);
+      if (previousUser.sessionId && previousUser.sessionId !== fresh.sessionId) {
+        void setDoc(doc(firebaseDb,"qa_user_sessions",previousUser.sessionId),{
+          status:"revoked",revokedAt:new Date().toISOString(),
+          revokeReason:"replaced_after_password_reverification",updatedAtServer:serverTimestamp(),
+        },{merge:true}).catch(() => console.warn("Previous QA session revocation retry pending"));
+      }
+      return {ok:true};
+    } catch (error) {
+      console.warn("Quick Access password revalidation failed",error instanceof Error ? error.name : "unknown");
+      return {ok:false,message:"ไม่สามารถยืนยันรหัสผ่านกับระบบกลางได้ กรุณาตรวจสอบการเชื่อมต่อแล้วลองอีกครั้ง"};
+    }
+  };
+
   const handleInactivityLogout = () => {
     endSessionEverywhere("inactivity");
   };
@@ -8009,6 +8089,7 @@ export default function App() {
             })}
             </div>
             <QuickAccessMenu username={currentUser.username} sessionId={currentUser.sessionId || ""} canManage={canAccessUserRoleAdmin(currentUser)}
+              onRenewSession={renewQuickAccessSession}
               onReauthenticate={() => {
                 if (window.confirm("Session ของ Quick Access ไม่ถูกต้อง\nกรุณาบันทึกงานที่ยังไม่บันทึกก่อนออกจากระบบ\n\nต้องการออกจากระบบเพื่อ Login ใหม่หรือไม่?")) {
                   handleLogout();
