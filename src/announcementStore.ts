@@ -216,7 +216,8 @@ export function subscribeStoredAnnouncements(
   return onSnapshot(
     collection(firebaseDb, ANNOUNCEMENT_COLLECTION),
     (snapshot) => {
-      recordFirestoreSnapshotDocs("announcement:listener-snapshot", snapshot.docs.length);
+      recordFirestoreSnapshotDocs("announcement:listener-snapshot",
+        typeof snapshot.docChanges === "function" ? snapshot.docChanges().length : snapshot.docs.length);
       onChange(normalizeAnnouncementSnapshot(snapshot.docs));
     },
     (error) => onError?.(error)
@@ -272,7 +273,8 @@ export function subscribeAnnouncementReceipts(
   return onSnapshot(
     normalizedUsername ? query(receipts, where("username", "==", normalizedUsername)) : receipts,
     (snapshot) => {
-      recordFirestoreSnapshotDocs(normalizedUsername ? "announcement:personal-receipts" : "announcement:analytics-receipts", snapshot.docs.length);
+      recordFirestoreSnapshotDocs(normalizedUsername ? "announcement:personal-receipts" : "announcement:analytics-receipts",
+        typeof snapshot.docChanges === "function" ? snapshot.docChanges().length : snapshot.docs.length);
       onChange(normalizeReceiptSnapshot(snapshot.docs));
     },
     (error) => onError?.(error)
