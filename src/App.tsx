@@ -6119,11 +6119,24 @@ export default function App() {
 
   useEffect(() => {
     void loadMaintenanceState();
-    const timer = window.setInterval(() => {
+    let lastRequestedAt = Date.now();
+    const pollIfDue = () => {
+      // A hidden tab cannot display maintenance. Check immediately when it
+      // becomes visible again if the normal 5-minute window elapsed.
+      if (document.visibilityState !== "visible" || navigator.onLine === false) return;
+      const now = Date.now();
+      if (now - lastRequestedAt < MAINTENANCE_POLL_INTERVAL_MS) return;
+      lastRequestedAt = now;
       void loadMaintenanceState();
-    }, MAINTENANCE_POLL_INTERVAL_MS);
-
-    return () => window.clearInterval(timer);
+    };
+    const timer = window.setInterval(pollIfDue, MAINTENANCE_POLL_INTERVAL_MS);
+    window.addEventListener("focus", pollIfDue);
+    document.addEventListener("visibilitychange", pollIfDue);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", pollIfDue);
+      document.removeEventListener("visibilitychange", pollIfDue);
+    };
   }, []);
 
   useEffect(() => {
