@@ -113,6 +113,12 @@ try {
   assert.equal(calls, 2, "quota cooldown makes no extra remote display reads");
   clock += 300_001;
   assert.equal(await policy.sharedFirestoreRead("blocked", 0, load), 3);
+  window.sessionStorage.setItem("qa:firestore-read-metrics", "on");
+  policy.recordFirestoreSnapshotDocs("coaching:full-collection", 120);
+  policy.recordFirestoreSnapshotDocs("coaching:full-collection", 17);
+  assert.deepEqual(JSON.parse(window.sessionStorage.getItem("qa:firestore-read-metrics:summary"))["coaching:full-collection"],
+    { queries: 2, returnedDocuments: 137 }, "diagnostics measure returned document counts without recording private rows");
+  window.sessionStorage.removeItem("qa:firestore-read-metrics");
   console.log("PASS shared reads: concurrent dedup, TTL, invalidation and recoverable quota cooldown");
 
   resetFixture();
@@ -239,7 +245,23 @@ try {
   assert.equal(fixture.queries.length, initialQueries + 1, "QA event and discussion projections share the refreshed snapshot");
   inbox.clearAppealEventReadCache();await inbox.fetchAppealInboxSnapshot(qa);
   assert.equal(fixture.queries.length, initialQueries + 2);
-  console.log("PASS Inbox: unchanged revision reuses events, changed revision refreshes both projections, explicit invalidation refreshes");
+  const persisted = JSON.parse(window.sessionStorage.getItem("qa-dashboard:appeal-inbox-session:v1") || "null");
+  assert.equal(persisted?.revision, "v2", "a complete inbox projection may be recovered within this browser tab");
+  const reloadedInbox = await bundle("inbox-reload", 'export {fetchAppealInboxSnapshot,clearAppealEventReadCache} from "./appealStore";', {
+    dashboardRevision: `export async function fetchDashboardRevision(){const f=globalThis.__quotaControlFixture;f.probes++;return f.revision}`,
+    appealCaseAvailability: 'export const checkAppealSourceCases=async rows=>rows;',
+    evaluationStore: 'export const fetchStoredEvaluationsForCases=async()=>[];',
+    agentIdentity: 'export const canonicalizeAgentName=v=>v||"",canonicalAgentIdentityKey=v=>v||"";',
+    monthlyResultLockStore: 'export const monthlyResultScope=()=>({}),prepareMonthlyResultReferences=async()=>[],readMonthlyResultReferences=async()=>{},touchMonthlyResults=()=>{};export class MonthlyResultLockCheckError extends Error{}',
+  });
+  const beforeReloadQueries = fixture.queries.length;
+  assert.equal((await reloadedInbox.fetchAppealInboxSnapshot(qa)).events.length, 2);
+  assert.equal(fixture.queries.length, beforeReloadQueries,
+    "unchanged server revision reuses tab-scoped Inbox projection after JS reload");
+  reloadedInbox.clearAppealEventReadCache();
+  assert.equal(window.sessionStorage.getItem("qa-dashboard:appeal-inbox-session:v1"), null,
+    "an explicit appeal mutation invalidates both memory and tab-local data");
+  console.log("PASS Inbox: revision sharing, tab-reload cache, changed revision, and explicit invalidation");
 } finally {
   await act(async () => root.unmount());
   globalThis.fetch = originalFetch;Date.now = originalNow;dom.window.close();
