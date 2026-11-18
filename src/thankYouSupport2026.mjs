@@ -28,3 +28,53 @@ export function thankYouSupportPhase(now = new Date()) {
   if(day==="2026-11-22")return "nov22";
   return null;
 }
+
+export const THANK_YOU_SUPPORT_ANNOUNCEMENT_ID = "thank-you-support-2026-notice";
+export const THANK_YOU_SUPPORT_AWARDED_AT = "2026-11-18T08:18:24.700Z"; // Verified immutable Supabase ledger.
+export function thankYouSupportAnnouncementFor(username) {
+  const recipient = THANK_YOU_SUPPORT_RECIPIENTS.find(
+    (item) => item.username === String(username || "").trim().toLowerCase()
+  );
+  if (!recipient) return null;
+  const bonusExplanation = recipient.amount === 1000
+    ? "สำหรับช่วงวันที่ 21–22 พฤศจิกายน 2569 คิดเป็นวันละ 500 Sparks รวม 1,000 Sparks แต่ระบบได้มอบยอดทั้งหมดครั้งเดียวแล้วตั้งแต่หลัง Deploy"
+    : "สำหรับช่วงวันที่ 21–22 พฤศจิกายน 2569 คุณได้รับทั้งหมด 500 Sparks โดยระบบมอบคะแนนเต็มจำนวนครั้งเดียวหลัง Deploy";
+  return {
+    id: THANK_YOU_SUPPORT_ANNOUNCEMENT_ID,
+    title: "Thank you Support — ได้รับ " + recipient.amount.toLocaleString("en-US") + " Sparks",
+    body: [
+      "ขอบคุณสำหรับการสนับสนุน",
+      "QA Sparks System ได้เพิ่ม " + recipient.amount.toLocaleString("en-US") +
+        " Sparks เข้ากระเป๋าของคุณโดยอัตโนมัติเรียบร้อยแล้ว ไม่ต้องกดรับ",
+      bonusExplanation,
+      "วันที่ 21 และ 22 พฤศจิกายน 2569 ระบบจะแสดง Popup แจ้งเตือนอีกครั้งเท่านั้น ไม่มีการเพิ่มคะแนนซ้ำ",
+      "From: QA Sparks System",
+    ].join("\n\n"),
+    category: "QA Sparks",
+    priority: "Important",
+    popupMode: "Mailbox Only", // Existing three-stage reward popup is authoritative.
+    deliveryModel: "legacy",
+    showImmediately: false,
+    reminderEnabled: false,
+    reminderAt: "",
+    repeatMode: "once",
+    dailyStartTime: "",
+    dailyEndTime: "",
+    displayMode: "Mailbox Only",
+    tickerMode: "scroll",
+    tickerTextColor: "#33264B",
+    actionRequired: "Read Only",
+    startsAt: THANK_YOU_SUPPORT_AWARDED_AT,
+    endsAt: "",
+    targetAll: false,
+    targetRoles: [],
+    targetTeams: [],
+    targetUsernames: [recipient.username], // Person-specific award amount.
+    media: [],
+    createdBy: "qa-sparks-system",
+    createdByName: "QA Sparks System",
+    createdAt: THANK_YOU_SUPPORT_AWARDED_AT,
+    updatedAt: THANK_YOU_SUPPORT_AWARDED_AT,
+    archived: false,
+  };
+}

@@ -12,6 +12,7 @@ import {
 } from "firebase/firestore";
 import { firebaseDb } from "./firebaseClient";
 import { recordFirestoreSnapshotDocs } from "./firestoreReadPolicy";
+import { THANK_YOU_SUPPORT_ANNOUNCEMENT_ID, thankYouSupportAnnouncementFor } from "./thankYouSupport2026.mjs";
 
 const ANNOUNCEMENT_COLLECTION = "qa_announcements";
 const RECEIPT_COLLECTION = "qa_announcement_receipts";
@@ -190,8 +191,10 @@ export async function fetchStoredAnnouncements() {
   return normalizeAnnouncementSnapshot(snapshot.docs);
 }
 
-export async function fetchStoredAnnouncement(id: string): Promise<StoredAnnouncement | null> {
+export async function fetchStoredAnnouncement(id: string, username = ""): Promise<StoredAnnouncement | null> {
   if (!id.trim() || id.includes("/")) return null;
+  // Read-only system announcement; no redundant Firestore read on deep links.
+  if (id === THANK_YOU_SUPPORT_ANNOUNCEMENT_ID) return thankYouSupportAnnouncementFor(username) as StoredAnnouncement | null;
   const snapshot = await getDoc(doc(firebaseDb, ANNOUNCEMENT_COLLECTION, id));
   return snapshot.exists() ? normalizeAnnouncement(snapshot.data(), snapshot.id) : null;
 }

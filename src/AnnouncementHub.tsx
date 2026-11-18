@@ -17,6 +17,7 @@ import {
 } from "./announcementStore";
 import "./announcementTicker.css";
 import { SparkQuestAnnouncementPopup, SparkQuestAnnouncementInbox } from "./SparkQuestAnnouncement";
+import { THANK_YOU_SUPPORT_ANNOUNCEMENT_ID, thankYouSupportAnnouncementFor } from "./thankYouSupport2026.mjs";
 
 type HubUser = {
   username: string;
@@ -555,6 +556,7 @@ function emptyDraft(user: HubUser): StoredAnnouncement {
 }
 
 function canReadAnnouncementDetail(item: StoredAnnouncement, user: AnnouncementReaderUser) {
+  if (item.id === THANK_YOU_SUPPORT_ANNOUNCEMENT_ID) return !item.archived && matchesTarget(item, user);
   return canManageAnnouncements(user) || (!item.archived && matchesTarget(item, user));
 }
 
@@ -613,6 +615,12 @@ function AnnouncementWorkspace({
 
   const manageAllowed = canManageAnnouncements(currentUser);
   const currentUsername = normalize(currentUser.username);
+  const thankYouSupportAnnouncement = useMemo(() => thankYouSupportAnnouncementFor(currentUsername) as StoredAnnouncement | null, [currentUsername]);
+  // Built-in campaign notice is read-only: available in the inbox and the admin list
+  // without creating another Firestore listener or sending a second popup.
+  const managementAnnouncements = useMemo(() => thankYouSupportAnnouncement && !announcements.some(item => item.id === THANK_YOU_SUPPORT_ANNOUNCEMENT_ID)
+    ? [thankYouSupportAnnouncement, ...announcements] : announcements,
+    [thankYouSupportAnnouncement, announcements]);
   const [shieldEntitled,setShieldEntitled]=useState(false);
   const [shieldReady,setShieldReady]=useState(false);
   useEffect(()=>{
@@ -731,18 +739,19 @@ function AnnouncementWorkspace({
     return map;
   }, [receipts, currentUsername]);
 
-  const myAnnouncements = useMemo(
-    () =>
-      announcements
-        .filter((item) => matchesTarget(item, currentUser))
-        .filter((item) => announcementStatus(item) !== "Archived")
-        .sort(
-          (a, b) =>
-            new Date(b.startsAt || b.createdAt || 0).getTime() -
-            new Date(a.startsAt || a.createdAt || 0).getTime()
-        ),
-    [announcements, currentUser]
-  );
+  const myAnnouncements = useMemo(() => {
+    const targeted = announcements
+      .filter((item) => matchesTarget(item, currentUser));
+    // The special notice is personalized: don't leak 500/1,000-point amounts
+    // into the wrong user's inbox or generate another Firestore document.
+    const combined = thankYouSupportAnnouncement && !targeted.some(item => item.id === THANK_YOU_SUPPORT_ANNOUNCEMENT_ID)
+      ? [...targeted, thankYouSupportAnnouncement] : targeted;
+    return combined
+      .filter((item) => announcementStatus(item) !== "Archived")
+      .sort((a, b) =>
+        new Date(b.startsAt || b.createdAt || 0).getTime() -
+        new Date(a.startsAt || a.createdAt || 0).getTime());
+  }, [announcements, currentUser, thankYouSupportAnnouncement]);
 
   // Reuse the viewer-scoped announcement list; never expose untargeted
   // announcements through the title picker. myAnnouncements is latest first.
@@ -765,6 +774,8 @@ function AnnouncementWorkspace({
   const unreadAnnouncements = useMemo(
     () =>
       !personalReceiptsReady ? [] : myAnnouncements.filter((item) => {
+        // This archive notice is already delivered by the separate Sparks popup.
+        if (item.id === THANK_YOU_SUPPORT_ANNOUNCEMENT_ID) return false;
         const now = new Date();
         const receipt = myReceiptMap.get(item.id);
         if (item.deliveryModel === "immediate-reminder") {
@@ -1810,7 +1821,7 @@ function AnnouncementWorkspace({
                     {myAnnouncements.length ? (
                       myAnnouncements.map((item) => {
                         const receipt = myReceiptMap.get(item.id);
-                        const deliveryRead = isCurrentDeliveryRead(
+                        const deliveryRead = item.id === THANK_YOU_SUPPORT_ANNOUNCEMENT_ID || isCurrentDeliveryRead(
                           item,
                           receipt,
                           new Date()
@@ -2568,10 +2579,10 @@ function AnnouncementWorkspace({
                       รายการประกาศ
                     </div>
                     <div className="mt-1 text-xl font-black text-slate-950">
-                      ทั้งหมด {announcements.length} รายการ
+                      ทั้งหมด {managementAnnouncements.length} รายการ
                     </div>
                     <div className="mt-4 max-h-[720px] space-y-3 overflow-y-auto pr-1">
-                      {announcements.map((item) => (
+                      {managementAnnouncements.map((item) => (
                         <div
                           key={item.id}
                           className="rounded-[22px] border border-slate-200 bg-slate-50 p-4"
@@ -2597,7 +2608,11 @@ function AnnouncementWorkspace({
                           <div className="mt-3 line-clamp-3 text-xs leading-5 text-slate-600">
                             {item.body}
                           </div>
-                          <div className="mt-3 flex flex-wrap gap-2">
+                          {item.id === THANK_YOU_SUPPORT_ANNOUNCEMENT_ID ? (
+                            <div className="mt-3 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-medium text-violet-800">
+                              ประกาศระบบสำหรับผู้ได้รับ Sparks เท่านั้น · สร้างอัตโนมัติ ไม่สามารถแก้ไขหรือลบจากหน้านี้
+                            </div>
+                          ) : <div className="mt-3 flex flex-wrap gap-2">
                             <button
                               type="button"
                               onClick={() => editAnnouncement(item)}
@@ -2612,7 +2627,7 @@ function AnnouncementWorkspace({
                             >
                               ลบ
                             </button>
-                          </div>
+                          </div>}
                         </div>
                       ))}
                     </div>

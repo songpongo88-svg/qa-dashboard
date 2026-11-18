@@ -7,6 +7,12 @@ on:
     paths:
       - "src/useDashboardAutoRefresh.ts"
       - "src/App.tsx"
+      - "src/AnnouncementHub.tsx"
+      - "src/announcementStore.ts"
+      - "src/AnnouncementDetail.tsx"
+      - "src/thankYouSupport2026.mjs"
+      - "scripts/test-thank-you-support.mjs"
+      - "scripts/test-announcement-detail.mjs"
       - "src/DashboardMockup.tsx"
       - "src/themeUsageReadPolicy.ts"
       - "src/appealCaseEventsPartition.ts"
@@ -41,6 +47,8 @@ jobs:
         run: npm run test:firestore-quota
       - name: Thank you Support recipient, stage and audit safety
         run: node scripts/test-thank-you-support.mjs
+      - name: Announcement inbox and full-detail regression
+        run: node scripts/test-announcement-detail.mjs
       - name: Coaching regression
         run: npm run test:monthly-coaching
       - name: Compile QA Dashboard with required project prebuild patches

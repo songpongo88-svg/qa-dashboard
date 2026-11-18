@@ -39,7 +39,7 @@ export default function AnnouncementDetail({ announcementId, mediaId, currentUse
   useEffect(() => {
     let cancelled = false;
     setState({ loading: true, error: false, item: null });
-    void fetchStoredAnnouncement(announcementId).then(item => {
+    void fetchStoredAnnouncement(announcementId, currentUser.username).then(item => {
       if (!cancelled) setState({ loading: false, error: false, item });
     }).catch(() => { if (!cancelled) setState({ loading: false, error: true, item: null }); });
     return () => { cancelled = true; };
