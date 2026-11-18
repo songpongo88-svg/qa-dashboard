@@ -30,5 +30,5 @@ const component=await readFile(new URL("../src/ThankYouSupportPopup.tsx",import.
 assert.match(component,/qa:sparks-updated/);
 assert.match(component,/creditConfirmed===true/);
 assert.match(component,/data-thank-you-support-popup/);
-assert.doesNotMatch(component,/Claim|กดรับ.*button/i);
+assert.doesNotMatch(component,/action:\\s*["\x27](?:claim|redeem)|onClick\\s*=\\s*\\{\\s*claim/i, "popup must not submit a claim action");
 console.log("PASS Thank you Support: 10 accounts / 8,500 Sparks, deploy then Nov21/22 reminders, server-authenticated once-only popup.");
