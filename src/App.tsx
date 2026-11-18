@@ -6246,11 +6246,23 @@ export default function App() {
     }
 
     void loadPasswordResetRequests();
-    const timer = window.setInterval(() => {
+    let lastBackgroundCheck = Date.now();
+    const checkIfDue = () => {
+      if (document.visibilityState !== "visible" || navigator.onLine === false) return;
+      const now = Date.now();
+      if (now - lastBackgroundCheck < PASSWORD_RESET_POLL_INTERVAL_MS) return;
+      lastBackgroundCheck = now;
       void loadPasswordResetRequests(true);
-    }, PASSWORD_RESET_POLL_INTERVAL_MS);
+    };
+    const timer = window.setInterval(checkIfDue, PASSWORD_RESET_POLL_INTERVAL_MS);
+    window.addEventListener("focus", checkIfDue);
+    document.addEventListener("visibilitychange", checkIfDue);
 
-    return () => window.clearInterval(timer);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", checkIfDue);
+      document.removeEventListener("visibilitychange", checkIfDue);
+    };
   }, [currentUser, maintenanceBlocked, passwordResetShortcutAllowed]);
 
   // data-password-reset-badge-cleanup-v1
