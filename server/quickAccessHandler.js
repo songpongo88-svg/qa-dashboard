@@ -3,6 +3,21 @@ import { createSign } from "node:crypto";
 const PROJECT = "qa-dashboard-b0b5d";
 const FIRESTORE = "https://firestore.googleapis.com/v1/projects/" + PROJECT + "/databases/(default)/documents";
 const POLICY = "qa-session-policy-2026-07-15-v1";
+const INACTIVITY_MS = 2 * 60 * 60 * 1000;
+const CLOCK_SKEW_MS = 60 * 1000;
+// Accept an existing, active QA Dashboard session when it satisfies current
+// inactivity and revocation checks, even if the old policy label differs.
+function activeLegacySession(session, now = Date.now()) {
+  const created = Date.parse(session.createdAt);
+  const last = Date.parse(session.lastActivityAt);
+  const expires = Date.parse(session.expiresAt);
+  if (![created,last,expires].every(Number.isFinite)) return false;
+  if (created > now+CLOCK_SKEW_MS || last < created || last > now+CLOCK_SKEW_MS) return false;
+  if (now-last > INACTIVITY_MS) return false;
+  if (expires <= now || expires > last+INACTIVITY_MS+CLOCK_SKEW_MS) return false;
+  return true;
+}
+
 let googleToken = "";
 let googleTokenExpires = 0;
 const fail = (message, status = 403, code = "") => { throw Object.assign(new Error(message), { status, code }); };
@@ -61,7 +76,8 @@ async function verifyQaSession(username, sessionId, requireAdmin) {
   const session = await readDoc("qa_user_sessions/" + encodeURIComponent(sessionId), token);
   if (!session) fail("QA Dashboard session not found", 401, "SESSION_NOT_FOUND");
   if (safeName(session.username) !== username) fail("QA Dashboard session account mismatch", 401, "SESSION_MISMATCH");
-  if (session.policyVersion !== POLICY) fail("QA Dashboard session policy is outdated", 401, "SESSION_POLICY");
+  if (session.policyVersion !== POLICY && !activeLegacySession(session))
+    fail("QA Dashboard session policy is outdated or inactive", 401, "SESSION_POLICY");
   if (session.status !== "active") fail("QA Dashboard session is revoked", 401, "SESSION_REVOKED");
   const expiry = Date.parse(session.expiresAt);
   if (!Number.isFinite(expiry)) fail("QA Dashboard session expiry invalid", 401, "SESSION_INVALID");

@@ -13,9 +13,10 @@ process.env.SPARKS_SUPABASE_BRIDGE_TOKEN="test-secret-".repeat(8);
 const sessions = new Map(), profiles=new Map(), calls=[];
 const wrapped = (entry)=>({fields:Object.fromEntries(Object.entries(entry).map(([k,v])=>[k,typeof v==="boolean"?{booleanValue:v}:{stringValue:String(v)}]))});
 const expiry=new Date(Date.now()+60*60*1000).toISOString();
+const nowRecent = new Date(Date.now()-60*1000).toISOString();
 const newSession=(username,role="Quality Assurance")=>{
   const id=username+"-12345678-1234-4123-8123-123456789abc";
-  sessions.set(id,{username,role,displayName:"Songpon Phothong",policyVersion:"qa-session-policy-2026-07-15-v1",status:"active",expiresAt:expiry,createdAt:new Date(Date.now()-60000).toISOString()});
+  sessions.set(id,{username,role,displayName:"Songpon Phothong",policyVersion:"qa-session-policy-2026-07-15-v1",status:"active",expiresAt:expiry,createdAt:nowRecent,lastActivityAt:nowRecent});
   return id;
 };
 const adminId=newSession("songpon.qa");
@@ -86,3 +87,19 @@ assert.match(quickUi,/const renewCurrentSession = async/);
 assert.match(quickUi,/disabled=\{!ready \|\| saving\} onClick=\{\(\) => edit\(link\)\}/);
 assert.match(quickUi,/disabled=\{!ready \|\| saving\} onClick=\{\(\) => edit\(\)\}/);
 console.log("PASS Quick Access: password-gated session renewal, no phantom edit buttons");
+
+// Regression: a valid existing Admin session with a prior policy label may
+// edit. A stale, revoked or expired one must not.
+const legacySession = sessions.get(adminId);
+legacySession.policyVersion = "qa-session-policy-previous";
+assert.equal((await request("songpon.qa",adminId,"create")).status,200,"valid existing Admin session may save");
+legacySession.lastActivityAt = new Date(Date.now()-3*60*60*1000).toISOString();
+assert.equal((await request("songpon.qa",adminId,"create")).status,401,"stale session must fail");
+legacySession.lastActivityAt = nowRecent;
+legacySession.status = "revoked";
+assert.equal((await request("songpon.qa",adminId,"create")).status,401,"revoked session must fail");
+legacySession.status = "active";
+legacySession.expiresAt = new Date(Date.now()-1000).toISOString();
+assert.equal((await request("songpon.qa",adminId,"create")).status,401,"expired session must fail");
+assert.match(quickUi,/mode === "grid" \|\| ready/,"one status panel for management");
+console.log("PASS Quick Access legacy active-session compatibility, denial cases and single status alert");

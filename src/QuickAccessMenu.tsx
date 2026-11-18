@@ -335,7 +335,7 @@ export default function QuickAccessMenu({ username, sessionId, canManage, onReau
         </div>
         <button type="button" className="qa-quick-plain" onClick={() => setOpen(false)} aria-label="ปิด Quick Access"><Glyph name="close" size={19}/></button>
       </div>
-      {error && <div className="qa-quick-alert" role="status">
+      {error && (mode === "grid" || ready) && <div className="qa-quick-alert" role="status">
         <span>{error}</span>
         {!ready && <div className="qa-quick-alert-actions">
           <button type="button" disabled={loading} onClick={() => void refresh()}>ตรวจสอบอีกครั้ง</button>
@@ -382,8 +382,7 @@ export default function QuickAccessMenu({ username, sessionId, canManage, onReau
           <span>{error || "ระบบกำลังตรวจสอบ Session ก่อนโหลดลิงก์จริงจากฐานข้อมูล"}</span>
           <div className="qa-quick-recovery-actions">
             <button type="button" disabled={loading} onClick={() => void refresh()}>{loading ? "กำลังเชื่อมต่อ..." : "ตรวจสอบอีกครั้ง"}</button>
-            {sessionErrorCode && canManage && <button type="button" onClick={() => setRenewOpen(true)}>ยืนยันรหัสผ่านเพื่อแก้ไข</button>}
-          {sessionErrorCode && <button type="button" onClick={onReauthenticate}>ออกจากระบบและ Login ใหม่</button>}
+}
           </div>
         </div>}
         <div className="qa-quick-manage-toolbar"><span>ลากรายการเพื่อเปลี่ยนลำดับ</span><button type="button" disabled={!ready || saving} onClick={() => edit()}><Glyph name="plus" size={17}/> เพิ่มลิงก์</button></div>
@@ -408,8 +407,7 @@ export default function QuickAccessMenu({ username, sessionId, canManage, onReau
             <button type="button" disabled={loading} onClick={() => void refresh()}>
               {loading ? "กำลังเชื่อมต่อ..." : "ตรวจสอบการเชื่อมต่อใหม่"}
             </button>
-            {sessionErrorCode && canManage && <button type="button" onClick={() => setRenewOpen(true)}>ยืนยันรหัสผ่านเพื่อแก้ไข</button>}
-          {sessionErrorCode && <button type="button" onClick={onReauthenticate}>ออกจากระบบและ Login ใหม่</button>}
+}
           </div>
         </div>}
         {ready && editingId?.startsWith("initial-") && <div className="qa-quick-manage-unavailable" role="alert">
