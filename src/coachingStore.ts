@@ -1,5 +1,7 @@
 import { collection, doc, getDocs, getDocsFromServer, runTransaction, serverTimestamp, setDoc } from "firebase/firestore";
 import { firebaseDb } from "./firebaseClient";
+import * as FirestoreApi from "firebase/firestore";
+import { recordFirestoreSnapshotDocs } from "./firestoreReadPolicy";
 import { canonicalizeAgentName } from "./lib/agentIdentity";
 
 import { belongsToAgent, isAssignedCoach, coachingSaveRole, isCoachingAccepted, coachingResultError, coachingDeadline, mergeMonthlyCoachingSave, coachingSaveError, type CoachingAccount, type CoachingAppointment, type CoachingResult, type CoachingAction, type CoachingAttachment } from './monthlyCoachingModel';
@@ -281,6 +283,24 @@ let recentCoachingRecords: { rows: StoredCoachingRecord[]; expiresAt: number } |
 let pendingCoachingRead: Promise<StoredCoachingRecord[]> | null = null;
 let pendingCoachingForced = false;
 
+// Only background summaries use this cheap check. Explicit editing and
+// conflict checks still load authoritative records.
+async function coachingCollectionUnchanged(reference: ReturnType<typeof collection>, records: StoredCoachingRecord[]) {
+  const [count, latest] = await Promise.all([
+    FirestoreApi.getCountFromServer(reference),
+    FirestoreApi.getDocsFromServer(FirestoreApi.query(
+      reference, FirestoreApi.orderBy("updatedAt", "desc"), FirestoreApi.limit(1)
+    )),
+  ]);
+  recordFirestoreSnapshotDocs("coaching:revision-latest", latest.docs.length);
+  if (count.data().count !== records.length) return false;
+  if (!records.length) return latest.docs.length === 0;
+  const server = latest.docs[0];
+  if (!server) return false;
+  const matching = records.find((row) => row.id === server.id);
+  return Boolean(matching && matching.updatedAt && matching.updatedAt === String(server.data()?.updatedAt || ""));
+}
+
 function updateCoachingReadCache(rows: StoredCoachingRecord[]) {
   const sorted = sortRecords(rows);
   recentCoachingRecords = { rows: sorted, expiresAt: Date.now() + COACHING_READ_TTL_MS };
@@ -295,7 +315,20 @@ export async function fetchStoredCoachingRecords(options: { allowCache?: boolean
   const request = (async () => {
     try {
       const reference = collection(firebaseDb, COACHING_COLLECTION);
+      // Inbox/Coaching background checks must not read every historical row
+      // when the count and newest mutation are unchanged.
+      if (!options.forceRefresh && options.allowCache !== false && recentCoachingRecords) {
+        try {
+          if (await coachingCollectionUnchanged(reference, recentCoachingRecords.rows)) {
+            recentCoachingRecords.expiresAt = Date.now() + COACHING_READ_TTL_MS;
+            return recentCoachingRecords.rows;
+          }
+        } catch {
+          // On index/permission/offline errors preserve the full-read behavior.
+        }
+      }
       const snapshot = await (options.forceRefresh ? getDocsFromServer(reference) : getDocs(reference));
+      recordFirestoreSnapshotDocs("coaching:full-collection", snapshot.docs.length);
       const rows = snapshot.docs
         .map((item) => toRecord(item.data(), item.id))
         .filter((item) => item.id && item.agent && item.monthKey);
