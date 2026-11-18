@@ -1753,10 +1753,7 @@ function savePasswordOverride(username: string, newPassword: string) {
   let actorName = username;
 
   try {
-    const currentUserRaw =
-      localStorage.getItem(
-        STORAGE_KEY
-      );
+    const currentUserRaw = readCurrentUserStorage();
     const currentUser =
       currentUserRaw
         ? JSON.parse(currentUserRaw)
