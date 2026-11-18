@@ -74,6 +74,8 @@ function sortRequests(rows: StoredPasswordResetRequest[]) {
 // Background badge checks can verify a tiny revision before opening the full
 // request collection. Administrative approval/editing keeps full fresh reads.
 let recentPasswordRequests: StoredPasswordResetRequest[] | null = null;
+let lastCompletePasswordReadAt = 0;
+const PASSWORD_FULL_RECHECK_MS = 6 * 60 * 60_000;
 async function passwordRequestsUnchanged(reference: ReturnType<typeof collection>, rows: StoredPasswordResetRequest[]) {
   const [count, latest] = await Promise.all([
     FirestoreApi.getCountFromServer(reference),
@@ -93,7 +95,8 @@ async function passwordRequestsUnchanged(reference: ReturnType<typeof collection
 export async function fetchStoredPasswordResetRequests(options: { background?: boolean } = {}) {
   try {
     const reference = collection(firebaseDb, PASSWORD_RESET_REQUEST_COLLECTION);
-    if (options.background && recentPasswordRequests) {
+    if (options.background && recentPasswordRequests && lastCompletePasswordReadAt &&
+        Date.now() - lastCompletePasswordReadAt < PASSWORD_FULL_RECHECK_MS) {
       try {
         if (await passwordRequestsUnchanged(reference, recentPasswordRequests)) {
           return recentPasswordRequests;
@@ -104,6 +107,7 @@ export async function fetchStoredPasswordResetRequests(options: { background?: b
     }
     const snapshot = await getDocs(query(reference, orderBy("requestedAt", "desc")));
     recordFirestoreSnapshotDocs("password-reset:full-collection", snapshot.docs.length);
+    lastCompletePasswordReadAt = Date.now();
     const rows = snapshot.docs
       .map((item) => toResetRequest(item.data(), item.id))
       .filter((item) => item.requestId && item.username);
