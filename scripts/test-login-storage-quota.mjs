@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { build } from "esbuild";
@@ -65,7 +65,22 @@ try {
   assert.equal(restored.getItem(key),null);
   assert.equal(after.getItem(key),null);
   assert.equal(storage.readCurrentUserStorage(),null);
-  console.log("PASS QA Login: localStorage quota fallback, safe per-tab restore, no draft deletion, fail-open only after verified session, safe logout.");
+  const app = await readFile(new URL("../src/App.tsx", import.meta.url), "utf8");
+  assert.match(app,/saveCurrentUserStorage\(authenticatedUser\)/,
+    "successful server session creation persists through quota-safe helper");
+  assert.match(app,/const raw = readCurrentUserStorage\(\)/,
+    "reload restores from per-tab fallback before normal server validation");
+  assert.match(app,/validateStoredUserSession\(/,
+    "reload must revalidate secure session against server");
+  assert.match(app,/writeLocalStorageSafely\(REMEMBERED_USERNAME_KEY/,
+    "remembered username must not abort a verified login when browser quota is exceeded");
+  assert.match(app,/clearCurrentUserStorage\(\)/,
+    "logout and invalidated sessions clear both storage tiers");
+  assert.doesNotMatch(app,/localStorage\.setItem\(STORAGE_KEY/,
+    "no unguarded auth writes must survive");
+  assert.doesNotMatch(app,/window\.sessionStorage\.setItem\(/,
+    "UI preference writes must not crash a valid session in low-quota browser");
+  console.log("PASS QA Login: full browser quota, per-tab secure-session fallback, verified restore, no draft deletion, safe logout.");
 } finally {
   delete globalThis.window;
   await rm(temp,{recursive:true,force:true});
