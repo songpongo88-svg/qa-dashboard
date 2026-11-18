@@ -585,6 +585,9 @@ function AnnouncementWorkspace({
   );
   const [selectedMessage, setSelectedMessage] =
     useState<StoredAnnouncement | null>(null);
+  const [announcementPickerQuery, setAnnouncementPickerQuery] = useState("");
+  const [announcementPickerOpen, setAnnouncementPickerOpen] = useState(false);
+  const [announcementPickerIndex, setAnnouncementPickerIndex] = useState(0);
   const [popupMessage, setPopupMessage] =
     useState<StoredAnnouncement | null>(null);
   const [popupDeliveryKind, setPopupDeliveryKind] =
@@ -740,6 +743,24 @@ function AnnouncementWorkspace({
         ),
     [announcements, currentUser]
   );
+
+  // Reuse the viewer-scoped announcement list; never expose untargeted
+  // announcements through the title picker. myAnnouncements is latest first.
+  const announcementPickerResults = useMemo(() => {
+    const query = normalize(announcementPickerQuery);
+    if (!query) return myAnnouncements;
+    return myAnnouncements.filter((item) =>
+      normalize(item.title).includes(query) ||
+      normalize(formatDateTime(item.startsAt || item.createdAt)).includes(query)
+    );
+  }, [myAnnouncements, announcementPickerQuery]);
+
+  const chooseAnnouncementFromPicker = (item: StoredAnnouncement) => {
+    setSelectedMessage(item);
+    setAnnouncementPickerQuery(item.title);
+    setAnnouncementPickerIndex(0);
+    setAnnouncementPickerOpen(false);
+  };
 
   const unreadAnnouncements = useMemo(
     () =>
@@ -1681,6 +1702,110 @@ function AnnouncementWorkspace({
               {view === "inbox" ? (
                 <div className="grid gap-5 lg:grid-cols-[380px_minmax(0,1fr)]">
                   <div className="space-y-3">
+                    <div
+                      className="relative z-20 rounded-2xl border border-violet-200 bg-white p-3 shadow-sm"
+                      onBlur={(event) => {
+                        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                          setAnnouncementPickerOpen(false);
+                        }
+                      }}
+                    >
+                      <label htmlFor="qa-announcement-title-picker" className="mb-2 block text-xs font-bold text-slate-700">
+                        ค้นหาและเลือกประกาศ (ล่าสุดก่อน)
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          id="qa-announcement-title-picker"
+                          type="text"
+                          value={announcementPickerQuery}
+                          placeholder="พิมพ์ชื่อประกาศ หรือเลือกจากรายการ"
+                          autoComplete="off"
+                          role="combobox"
+                          aria-autocomplete="list"
+                          aria-expanded={announcementPickerOpen}
+                          aria-controls="qa-announcement-picker-results"
+                          onFocus={(event) => {
+                            event.currentTarget.select();
+                            setAnnouncementPickerOpen(true);
+                          }}
+                          onChange={(event) => {
+                            setAnnouncementPickerQuery(event.target.value);
+                            setAnnouncementPickerIndex(0);
+                            setAnnouncementPickerOpen(true);
+                          }}
+                          onKeyDown={(event) => {
+                            if (event.key === "Escape") {
+                              setAnnouncementPickerOpen(false);
+                            } else if (event.key === "ArrowDown") {
+                              event.preventDefault();
+                              setAnnouncementPickerOpen(true);
+                              setAnnouncementPickerIndex((index) => Math.min(index + 1, announcementPickerResults.length - 1));
+                            } else if (event.key === "ArrowUp") {
+                              event.preventDefault();
+                              setAnnouncementPickerOpen(true);
+                              setAnnouncementPickerIndex((index) => Math.max(0, index - 1));
+                            } else if (event.key === "Enter" && announcementPickerOpen && announcementPickerResults.length > 0) {
+                              event.preventDefault();
+                              chooseAnnouncementFromPicker(announcementPickerResults[Math.max(0, Math.min(announcementPickerIndex, announcementPickerResults.length - 1))]);
+                              event.currentTarget.blur();
+                            }
+                          }}
+                          className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-100"
+                        />
+                        {announcementPickerQuery ? (
+                          <button
+                            type="button"
+                            title="ล้างคำค้นหา"
+                            aria-label="ล้างคำค้นหาประกาศ"
+                            onClick={() => {
+                              setAnnouncementPickerQuery("");
+                              setAnnouncementPickerIndex(0);
+                              setAnnouncementPickerOpen(true);
+                              document.getElementById("qa-announcement-title-picker")?.focus();
+                            }}
+                            className="rounded-lg px-2 py-2 text-sm text-slate-500 hover:bg-slate-100"
+                          >
+                            ✕
+                          </button>
+                        ) : null}
+                        <button
+                          type="button"
+                          aria-label="แสดงรายชื่อประกาศ"
+                          aria-expanded={announcementPickerOpen}
+                          onClick={() => {
+                            setAnnouncementPickerOpen((open) => !open);
+                            setAnnouncementPickerIndex(0);
+                          }}
+                          className="rounded-xl border border-violet-200 bg-violet-50 px-3 py-2.5 text-xs font-bold text-violet-700"
+                        >
+                          ▾
+                        </button>
+                      </div>
+                      {announcementPickerOpen ? (
+                        <div
+                          id="qa-announcement-picker-results"
+                          role="listbox"
+                          aria-label="รายชื่อประกาศเรียงตามวันที่ล่าสุด"
+                          className="absolute left-0 right-0 top-full z-30 mt-1 max-h-72 overflow-y-auto rounded-2xl border border-violet-200 bg-white p-1 shadow-xl"
+                        >
+                          {announcementPickerResults.length ? announcementPickerResults.map((item, index) => (
+                            <button
+                              key={item.id}
+                              type="button"
+                              role="option"
+                              aria-selected={selectedMessage?.id === item.id}
+                              onClick={() => chooseAnnouncementFromPicker(item)}
+                              className={`flex w-full flex-col gap-1 rounded-xl px-3 py-2.5 text-left hover:bg-violet-50 focus:bg-violet-50 focus:outline-none ${index === announcementPickerIndex ? "bg-violet-50" : ""}`}
+                            >
+                              <span className="w-full truncate text-xs font-bold text-slate-800">{item.title}</span>
+                              <span className="text-[10px] text-slate-500">{formatDateTime(item.startsAt || item.createdAt)}</span>
+                            </button>
+                          )) : (
+                            <div className="px-3 py-5 text-center text-xs text-slate-500">ไม่พบประกาศที่ค้นหา</div>
+                          )}
+                        </div>
+                      ) : null}
+                    </div>
                     <SparkQuestAnnouncementInbox onJoin={() => { setHubOpen(false); onNavigateToSparks(); }}/>
                     {myAnnouncements.length ? (
                       myAnnouncements.map((item) => {
@@ -1696,9 +1821,11 @@ function AnnouncementWorkspace({
                             key={item.id}
                             onClick={() => openInboxMessage(item)}
                             className={`w-full rounded-[24px] border p-4 text-left transition hover:border-violet-300 ${
-                              deliveryRead
-                                ? "border-slate-200 bg-white"
-                                : "border-violet-300 bg-violet-50 shadow-md"
+                              selectedMessage?.id === item.id
+                                ? "border-violet-500 bg-violet-50 ring-2 ring-violet-200"
+                                : deliveryRead
+                                  ? "border-slate-200 bg-white"
+                                  : "border-violet-300 bg-violet-50 shadow-md"
                             }`}
                           >
                             <div className="flex items-start justify-between gap-3">
