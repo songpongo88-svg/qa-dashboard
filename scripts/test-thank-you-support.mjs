@@ -3,7 +3,7 @@ import {readFile} from "node:fs/promises";
 import {THANK_YOU_SUPPORT_ID,THANK_YOU_SUPPORT_RECIPIENTS,THANK_YOU_SUPPORT_ANNOUNCEMENT_ID,thankYouSupportAnnouncementFor,thankYouSupportAmount,thankYouSupportPhase} from "../src/thankYouSupport2026.mjs";
 assert.equal(THANK_YOU_SUPPORT_ID,"thank-you-support-2026");
 assert.equal(THANK_YOU_SUPPORT_RECIPIENTS.length,11);
-assert.equal(new Set(THANK_YOU_SUPPORT_RECIPIENTS.map(x=>x.username)).size,10);
+assert.equal(new Set(THANK_YOU_SUPPORT_RECIPIENTS.map(x=>x.username)).size,11);
 assert.equal(THANK_YOU_SUPPORT_RECIPIENTS.reduce((s,x)=>s+x.amount,0),9000);
 assert.equal(THANK_YOU_SUPPORT_RECIPIENTS.filter(x=>x.amount===1000).length,7);
 assert.equal(THANK_YOU_SUPPORT_RECIPIENTS.filter(x=>x.amount===500).length,4);
