@@ -132,3 +132,13 @@
 .qa-quick-renew-form input{height:35px;border:1px solid #c4b5fd;border-radius:8px;background:white;padding:6px 10px;color:#334155;}
 .qa-quick-renew-form p[role="alert"]{color:#be123c;font-size:11px;}
 .qa-quick-renew-form .qa-quick-recovery-actions button:last-child{background:#6d28d9;color:white;border-color:#6d28d9;}
+
+/* Excel groups: one tile per Item, with nested links shown only on selection. */
+.qa-quick-tile { appearance: none; background: transparent; font-family: inherit; cursor: pointer; }
+.qa-quick-tile small { font-size: 9px; font-weight: 500; color: #8b75b6; line-height: 1.2; margin-top: -3px; }
+.qa-quick-group-list { display: flex; flex-direction: column; gap: 8px; overflow-y: auto; min-height: 85px; max-height: 420px; padding: 14px; }
+.qa-quick-group-link { display: flex; align-items: center; gap: 11px; width: 100%; min-height: 60px; border: 1px solid #ece9f7; border-radius: 12px; background: #fff; padding: 9px 11px; text-decoration: none; color: #334155; transition: background .15s, border-color .15s; }
+.qa-quick-group-link:hover { background: #faf8ff; border-color: #d8cdf9; }
+.qa-quick-group-name { min-width: 0; flex: 1; overflow-wrap: anywhere; white-space: normal; font-size: 12px; line-height: 1.45; font-weight: 600; }
+.qa-quick-group-link > svg { flex: none; color: #8062c1; }
+.qa-quick-tile .qa-quick-icon { margin-bottom: 1px; }
