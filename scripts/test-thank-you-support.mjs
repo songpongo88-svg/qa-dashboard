@@ -2,12 +2,13 @@ import assert from "node:assert/strict";
 import {readFile} from "node:fs/promises";
 import {THANK_YOU_SUPPORT_ID,THANK_YOU_SUPPORT_RECIPIENTS,THANK_YOU_SUPPORT_ANNOUNCEMENT_ID,thankYouSupportAnnouncementFor,thankYouSupportAmount,thankYouSupportPhase} from "../src/thankYouSupport2026.mjs";
 assert.equal(THANK_YOU_SUPPORT_ID,"thank-you-support-2026");
-assert.equal(THANK_YOU_SUPPORT_RECIPIENTS.length,10);
-assert.equal(new Set(THANK_YOU_SUPPORT_RECIPIENTS.map(x=>x.username)).size,10);
-assert.equal(THANK_YOU_SUPPORT_RECIPIENTS.reduce((s,x)=>s+x.amount,0),8500);
+assert.equal(THANK_YOU_SUPPORT_RECIPIENTS.length,11);
+assert.equal(new Set(THANK_YOU_SUPPORT_RECIPIENTS.map(x=>x.username)).size,11);
+assert.equal(THANK_YOU_SUPPORT_RECIPIENTS.reduce((s,x)=>s+x.amount,0),9000);
 assert.equal(THANK_YOU_SUPPORT_RECIPIENTS.filter(x=>x.amount===1000).length,7);
-assert.equal(THANK_YOU_SUPPORT_RECIPIENTS.filter(x=>x.amount===500).length,3);
+assert.equal(THANK_YOU_SUPPORT_RECIPIENTS.filter(x=>x.amount===500).length,4);
 assert.equal(thankYouSupportAmount("SONGPON"),1000);
+assert.equal(thankYouSupportAmount("Chatkonnaphat"),500);
 assert.equal(thankYouSupportAmount("sarika"),1000);
 assert.equal(thankYouSupportAmount("outsider"),0);
 const at=(day,hour="12:00:00")=>new Date(day+"T"+hour+"+07:00");
@@ -31,10 +32,10 @@ assert.match(component,/qa:sparks-updated/);
 assert.match(component,/creditConfirmed===true/);
 assert.match(component,/data-thank-you-support-popup/);
 assert.doesNotMatch(component,/action:\\s*["\x27](?:claim|redeem)|onClick\\s*=\\s*\\{\\s*claim/i, "popup must not submit a claim action");
-console.log("PASS Thank you Support: 10 accounts / 8,500 Sparks, deploy then Nov21/22 reminders, server-authenticated once-only popup.");
+console.log("PASS Thank you Support: 11 accounts / 9,000 Sparks, deploy then Nov21/22 reminders, server-authenticated once-only popup.");
 
 const granted = THANK_YOU_SUPPORT_RECIPIENTS.map(item=>thankYouSupportAnnouncementFor(item.username));
-assert.equal(granted.length,10);
+assert.equal(granted.length,11);
 assert.equal(THANK_YOU_SUPPORT_ANNOUNCEMENT_ID,"thank-you-support-2026-notice");
 for (const [i,notice] of granted.entries()) {
   assert.equal(notice.id,THANK_YOU_SUPPORT_ANNOUNCEMENT_ID);
@@ -48,6 +49,8 @@ for (const [i,notice] of granted.entries()) {
 }
 assert.equal(thankYouSupportAnnouncementFor("not-a-recipient"),null);
 assert.match(thankYouSupportAnnouncementFor("DARUNEE").body,/ทั้งหมด 500 Sparks/);
+assert.deepEqual(thankYouSupportAnnouncementFor("chatkonnaphat").targetUsernames,["chatkonnaphat"]);
+assert.match(thankYouSupportAnnouncementFor("chatkonnaphat").body,/ทั้งหมด 500 Sparks/);
 assert.match(thankYouSupportAnnouncementFor("SONGPON").body,/วันละ 500 Sparks/);
 const hub=await readFile(new URL("../src/AnnouncementHub.tsx",import.meta.url),"utf8");
 assert.match(hub,/managementAnnouncements\.map/,"system announcement appears in management list");
@@ -58,3 +61,14 @@ assert.match(store,/fetchStoredAnnouncement\(id: string, username = ""\)/,"recip
 const detail=await readFile(new URL("../src/AnnouncementDetail.tsx",import.meta.url),"utf8");
 assert.match(detail,/fetchStoredAnnouncement\(announcementId, currentUser\.username\)/,"detail uses viewer identity");
 console.log("PASS Thank you Support Announcement: targeted, personalized, searchable, read-only; no duplicated popup or award.");
+
+const addendum=await readFile(new URL("../migration/sparks-only/thank-you-support-2026-chatkonnaphat-addendum.sql",import.meta.url),"utf8");
+assert.match(addendum,/\('chatkonnaphat','Chatkonnaphat Bhusomya',500\)/);
+assert.match(addendum,/pg_advisory_xact_lock/);
+assert.match(addendum,/THANK_YOU_LEDGER_CONFLICT/);
+assert.match(addendum,/BEGIN;/);
+assert.match(addendum,/COMMIT;/);
+for(const old of ["krivut","jureeporn","natcha","warrathanun","chachiya","darunee","nithikorn","suwadee","sarika","songpon"]){
+  assert.doesNotMatch(addendum,new RegExp("\\('"+old+"',"),"addendum cannot re-credit existing recipient "+old);
+}
+console.log("PASS one-user addendum: only Chatkonnaphat (+500), 10 originals untouched and ledger idempotent.");

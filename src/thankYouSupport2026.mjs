@@ -11,6 +11,7 @@ export const THANK_YOU_SUPPORT_RECIPIENTS = Object.freeze([
   {username:"suwadee",name:"Suwadee Dechpong",amount:500},
   {username:"sarika",name:"Sarika Leksung",amount:1000},
   {username:"songpon",name:"Songpon Phothong",amount:1000},
+  {username:"chatkonnaphat",name:"Chatkonnaphat Bhusomya",amount:500},
 ]);
 export const thankYouSupportAmount = (username) =>
   THANK_YOU_SUPPORT_RECIPIENTS.find((item) => item.username === String(username||"").trim().toLowerCase())?.amount || 0;
