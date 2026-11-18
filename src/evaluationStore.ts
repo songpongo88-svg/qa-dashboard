@@ -1,4 +1,4 @@
-import { assertFirestoreReadAllowed, isFirestoreQuotaError, noteFirestoreReadError } from "./firestoreReadPolicy";
+import { assertFirestoreReadAllowed, isFirestoreQuotaError, noteFirestoreReadError, recordFirestoreSnapshotDocs } from "./firestoreReadPolicy";
 ﻿import { initializeApp, getApps } from "firebase/app";
 import * as FirestoreApi from "firebase/firestore";
 import { collection, doc, documentId, getDocFromServer, getDocs, getDocsFromServer, getFirestore, limit as firestoreLimit, orderBy, query, runTransaction, startAfter, where, type QueryDocumentSnapshot } from "firebase/firestore";
@@ -1626,6 +1626,7 @@ export async function fetchStoredEvaluations(limit = DEFAULT_EVALUATION_LIMIT, o
                 source, where("updated_at", ">=", since), orderBy("updated_at", "asc"),
                 ...(deltaCursor ? [startAfter(deltaCursor)] : []), firestoreLimit(200),
               )), 30_000, "ตรวจสอบประวัติผลประเมินที่เปลี่ยนแปลงเกิน 30 วินาที");
+              recordFirestoreSnapshotDocs("evaluation:incremental-change-check", updated.docs.length);
               for (const doc of updated.docs) {
                 const item = toEvaluation({ ...doc.data(), id: doc.id });
                 if (isStoredEvaluationRecord(item)) {
@@ -1692,6 +1693,7 @@ export async function fetchStoredEvaluations(limit = DEFAULT_EVALUATION_LIMIT, o
             ? await withEvaluationReadDeadline(getDocsFromServer(pageQuery), 30_000,
               "โหลดประวัติผลประเมินหนึ่งหน้าเกิน 30 วินาที กรุณาลองอัปเดตข้อมูลอีกครั้ง")
             : await getDocs(pageQuery);
+          recordFirestoreSnapshotDocs(options.allMonths ? "evaluation:full-history-page" : "evaluation:recent-page", snapshot.docs.length);
           const converted = snapshot.docs.map((item) => toEvaluation({ ...item.data(), id: item.id }));
           const page = converted.filter(isStoredEvaluationRecord);
           invalidDocumentIds.push(...converted.filter(item => !isStoredEvaluationRecord(item)).map(item => item.id));
@@ -1726,6 +1728,7 @@ export async function fetchStoredEvaluations(limit = DEFAULT_EVALUATION_LIMIT, o
                 where("updated_at",">=",since),orderBy("updated_at","asc"),
                 ...(updatedCursor?[startAfter(updatedCursor)]:[]),firestoreLimit(100),
               )),30_000,"ตรวจสอบการเปลี่ยนแปลงคะแนนระหว่างกู้คืนไม่สำเร็จ");
+              recordFirestoreSnapshotDocs("evaluation:recovery-change-check", changed.docs.length);
               for(const doc of changed.docs){
                 const item=toEvaluation({...doc.data(),id:doc.id});
                 if(isStoredEvaluationRecord(item)){mergedRecords.set(doc.id,item);invalidIds.delete(doc.id);}

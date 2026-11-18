@@ -59,3 +59,25 @@ export function sharedFirestoreRead<T>(key: string, ttlMs: number, load: () => P
   }
   return pending;
 }
+
+
+// Opt-in, browser-session diagnostics for displayed document counts. This is
+// NOT Firebase billing telemetry (aggregation/index/listener reconnects can
+// charge differently). No document IDs, content, usernames or secrets stored.
+// Enable in DevTools: sessionStorage.setItem("qa:firestore-read-metrics", "on")
+export function recordFirestoreSnapshotDocs(operation: string, documentCount: number): void {
+  if (typeof window === "undefined") return;
+  try {
+    const storage = window.sessionStorage;
+    if (storage.getItem("qa:firestore-read-metrics") !== "on") return;
+    const key = "qa:firestore-read-metrics:summary";
+    const existing = JSON.parse(storage.getItem(key) || "{}") as Record<string, { queries: number; returnedDocuments: number }>;
+    const name = /^[a-z0-9:_-]{1,80}$/i.test(operation) ? operation : "other";
+    const previous = existing[name] || { queries: 0, returnedDocuments: 0 };
+    const count = Number.isFinite(documentCount) ? Math.max(0, Math.floor(documentCount)) : 0;
+    existing[name] = { queries: previous.queries + 1, returnedDocuments: previous.returnedDocuments + count };
+    if (Object.keys(existing).length <= 40) storage.setItem(key, JSON.stringify(existing));
+  } catch {
+    // Browsers can disable session storage; diagnostics must never affect QA.
+  }
+}

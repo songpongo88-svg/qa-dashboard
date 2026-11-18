@@ -6119,11 +6119,24 @@ export default function App() {
 
   useEffect(() => {
     void loadMaintenanceState();
-    const timer = window.setInterval(() => {
+    let lastRequestedAt = Date.now();
+    const pollIfDue = () => {
+      // A hidden tab cannot display maintenance. Check immediately when it
+      // becomes visible again if the normal 5-minute window elapsed.
+      if (document.visibilityState !== "visible" || navigator.onLine === false) return;
+      const now = Date.now();
+      if (now - lastRequestedAt < MAINTENANCE_POLL_INTERVAL_MS) return;
+      lastRequestedAt = now;
       void loadMaintenanceState();
-    }, MAINTENANCE_POLL_INTERVAL_MS);
-
-    return () => window.clearInterval(timer);
+    };
+    const timer = window.setInterval(pollIfDue, MAINTENANCE_POLL_INTERVAL_MS);
+    window.addEventListener("focus", pollIfDue);
+    document.addEventListener("visibilitychange", pollIfDue);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", pollIfDue);
+      document.removeEventListener("visibilitychange", pollIfDue);
+    };
   }, []);
 
   useEffect(() => {
@@ -6246,11 +6259,23 @@ export default function App() {
     }
 
     void loadPasswordResetRequests();
-    const timer = window.setInterval(() => {
-      void loadPasswordResetRequests();
-    }, PASSWORD_RESET_POLL_INTERVAL_MS);
+    let lastBackgroundCheck = Date.now();
+    const checkIfDue = () => {
+      if (document.visibilityState !== "visible" || navigator.onLine === false) return;
+      const now = Date.now();
+      if (now - lastBackgroundCheck < PASSWORD_RESET_POLL_INTERVAL_MS) return;
+      lastBackgroundCheck = now;
+      void loadPasswordResetRequests(true);
+    };
+    const timer = window.setInterval(checkIfDue, PASSWORD_RESET_POLL_INTERVAL_MS);
+    window.addEventListener("focus", checkIfDue);
+    document.addEventListener("visibilitychange", checkIfDue);
 
-    return () => window.clearInterval(timer);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", checkIfDue);
+      document.removeEventListener("visibilitychange", checkIfDue);
+    };
   }, [currentUser, maintenanceBlocked, passwordResetShortcutAllowed]);
 
   // data-password-reset-badge-cleanup-v1
@@ -7492,8 +7517,8 @@ export default function App() {
     setResetResultMessage(`Password for ${targetName} has been reset to default. Temporary password: ${targetAccount.password}`);
   };
 
-  const loadPasswordResetRequests = async () => {
-    const requests = await fetchStoredPasswordResetRequests();
+  const loadPasswordResetRequests = async (background = false) => {
+    const requests = await fetchStoredPasswordResetRequests({ background });
     setPasswordResetRequests(requests);
   };
 

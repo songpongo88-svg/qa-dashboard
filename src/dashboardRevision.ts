@@ -1,6 +1,6 @@
 import { collection, getCountFromServer, getDocs, limit, orderBy, query } from "firebase/firestore";
 import { firebaseDb } from "./firebaseClient";
-import { sharedFirestoreRead } from "./firestoreReadPolicy";
+import { sharedFirestoreRead, recordFirestoreSnapshotDocs } from "./firestoreReadPolicy";
 
 const env = import.meta.env;
 const evaluationCollection = String(env.VITE_FIREBASE_QA_EVALUATION_COLLECTION || env.VITE_QA_EVALUATION_TABLE || "qa_evaluations");
@@ -17,6 +17,7 @@ export async function fetchDashboardRevision(): Promise<string | null> {
         getDocs(query(source, orderBy("updated_at", "desc"), limit(1))),
         getCountFromServer(source),
       ]);
+      recordFirestoreSnapshotDocs("dashboard:revision-latest", latest.docs.length);
       const item = latest.docs[0];
       return [name, item?.id || "", item?.data().updated_at || "", count.data().count];
     }));
