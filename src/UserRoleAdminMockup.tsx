@@ -25,6 +25,8 @@ import {
   type StoredUserProfile,
 } from "./userRoleStore";
 
+import { buildRolePermissionPatches } from "./lib/rolePermissionIsolation.mjs";
+
 type UserRole = string;
 type UserStatus = "Active" | "Suspended";
 type RolePermissionKey =
@@ -428,6 +430,8 @@ function getDefaultRolePermissions(role: UserRole): RolePermissions {
   return {
     ...ROLE_PERMISSION_DEFAULTS["Admin Live Chat"],
     ...(ROLE_PERMISSION_DEFAULTS[normalizedRole] || {}),
+    // SKY CC is a separate head-office role, not a QA evaluation target.
+    ...(normalizedRole === "SKY CC" ? { qaEvaluationTarget: false } : {}),
   };
 }
 
@@ -435,6 +439,7 @@ function normalizeRoleName(value: unknown): UserRole {
   const roleName = String(value || "").trim();
   const normalized = roleName.toLowerCase().replace(/[-_]+/g, " ").replace(/\s+/g, " ");
   if (normalized === "agent" || normalized === "admin live chat") return "Admin Live Chat";
+  if (normalized === "sky cc") return "SKY CC";
   if (
     normalized === "head of operation and customer fulfillment" ||
     normalized === "department head"
@@ -1332,51 +1337,33 @@ export default function UserRoleAdminMockup({
   const saveRolePermissions = async () => {
     setSaving(true);
     setMessage("");
-    const permissionRows: Array<{ roleName: string; permissions: RolePermissions; updatedBy: string; updatedAt: string }> = [];
+    const permissionChanges = buildRolePermissionPatches(
+      roleDefinitions.map((role) => role.name),
+      permissionDrafts,
+      rolePermissions,
+      PERMISSION_KEYS,
+      getDefaultRolePermissions,
+      normalizeRoleName,
+    ) as Array<{
+      roleName: string;
+      permissions: Record<string, boolean>;
+      auditPermissions: RolePermissions;
+    }>;
+    if (!permissionChanges.length) {
+      setSaving(false);
+      setMessage("ไม่มีรายการสิทธิ์ที่เปลี่ยนแปลง");
+      return;
+    }
     const updatedAt = new Date().toISOString();
     const updatedBy = currentUser?.displayName || currentUser?.username || "";
-
-    for (const role of roleDefinitions) {
-      const roleName = normalizeRoleName(role.name);
-      const nextPermissions = {
-        ...getDefaultRolePermissions(roleName),
-        ...(permissionDrafts[role.name] || {}),
-        ...(permissionDrafts[roleName] || {}),
-      };
-      if (roleName === "Quality Assurance") {
-        nextPermissions.viewUserDirectory = true;
-        nextPermissions.viewAllTeams = true;
-        nextPermissions.viewOwnTeam = true;
-        nextPermissions.qaEvaluationTarget = false;
-        nextPermissions.manageUsers = true;
-        nextPermissions.manageTeams = true;
-        nextPermissions.manageRoles = true;
-        nextPermissions.manageMaintenance = true;
-      }
-      if (nextPermissions.manageUsers) {
-        nextPermissions.viewUserDirectory = true;
-      }
-      if (nextPermissions.manageTeams) {
-        nextPermissions.viewUserDirectory = true;
-        nextPermissions.viewAllTeams = true;
-        nextPermissions.viewOwnTeam = true;
-      }
-      permissionRows.push({
-        roleName,
-        permissions: nextPermissions,
-        updatedBy,
-        updatedAt,
-      });
-      await logUsageEventBestEffort(currentUser, "role_permissions_saved", {
-        tab: "user-roles",
-        details: {
-          roleName,
-          permissions: nextPermissions,
-          updatedBy,
-          updatedAt,
-        },
-      });
-    }
+    // Store only changed keys of changed roles. Firestore merge preserves other
+    // permissions, and unrelated roles are never re-written from stale drafts.
+    const permissionRows = permissionChanges.map(({ roleName, permissions }) => ({
+      roleName,
+      permissions,
+      updatedBy,
+      updatedAt,
+    }));
 
     try {
       await upsertStoredRolePermissions(permissionRows);
@@ -1385,10 +1372,22 @@ export default function UserRoleAdminMockup({
       setMessage("บันทึกสิทธิ์ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
       return;
     }
-
+    // Audit only after the write succeeds, using the complete effective role
+    // snapshot so existing log-based recovery remains backwards compatible.
+    for (const { roleName, auditPermissions } of permissionChanges) {
+      await logUsageEventBestEffort(currentUser, "role_permissions_saved", {
+        tab: "user-roles",
+        details: {
+          roleName,
+          permissions: auditPermissions,
+          updatedBy,
+          updatedAt,
+        },
+      });
+    }
     await onRolesChanged();
     setSaving(false);
-    setMessage("Saved role permission matrix. Menu access will update automatically.");
+    setMessage(`Saved changes for ${permissionChanges.map((item) => item.roleName).join(", ")}.`);
   };
 
   const saveMaintenanceMode = async (enabled: boolean) => {

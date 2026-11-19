@@ -1277,6 +1277,8 @@ function getDefaultRolePermissions(role: UserRole): RolePermissions {
   return {
     ...ROLE_PERMISSION_DEFAULTS["Admin Live Chat"],
     ...(ROLE_PERMISSION_DEFAULTS[normalizedRole] || {}),
+    // SKY CC is a separate head-office role, not a QA evaluation target.
+    ...(normalizedRole === "SKY CC" ? { qaEvaluationTarget: false } : {}),
   };
 }
 
@@ -1284,6 +1286,7 @@ function normalizeRoleName(value: unknown): UserRole {
   const roleName = String(value || "").trim();
   const normalized = roleName.toLowerCase().replace(/[-_]+/g, " ").replace(/\s+/g, " ");
   if (normalized === "agent" || normalized === "admin live chat") return "Admin Live Chat";
+  if (normalized === "sky cc") return "SKY CC";
   if (normalized === "virtual rider") return "Virtual Rider";
   if (normalized === "senior") return "Senior";
   if (normalized === "supervisor") return "Supervisor";

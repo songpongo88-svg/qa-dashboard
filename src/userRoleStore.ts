@@ -1,6 +1,7 @@
 import { collection, deleteDoc, doc, getDoc, getDocs, orderBy, query, setDoc, serverTimestamp } from "firebase/firestore";
 import { firebaseDb } from "./firebaseClient";
 import { getUserFullName } from "./lib/userNames";
+import { mergeCachedRolePermissionRows } from "./lib/rolePermissionIsolation.mjs";
 
 const USER_PROFILE_CACHE_KEY = "qa-dashboard:user-profiles-cache";
 const ROLE_DEFINITION_CACHE_KEY = "qa-dashboard:role-definitions-cache";
@@ -78,6 +79,7 @@ function normalizeRoleName(value: unknown) {
   const roleName = String(value || "").trim();
   const normalized = roleName.toLowerCase().replace(/[-_]+/g, " ").replace(/\s+/g, " ");
   if (normalized === "agent" || normalized === "admin live chat") return "Admin Live Chat";
+  if (normalized === "sky cc") return "SKY CC";
   if (normalized === "virtual rider") return "Virtual Rider";
   if (normalized === "senior") return "Senior";
   if (normalized === "supervisor") return "Supervisor";
@@ -459,7 +461,12 @@ export async function upsertStoredRolePermissions(rows: StoredRolePermission[]) 
       setDoc(doc(firebaseDb, ROLE_PERMISSION_COLLECTION, safeDocId(row.roleName)), fromRolePermission(row), { merge: true })
     )
   );
-  writeCache(ROLE_PERMISSION_CACHE_KEY, rows);
+  // A partial-role save must not evict cached permissions of other roles.
+  // Preserve existing keys because each Firestore setDoc uses merge: true.
+  writeCache(
+    ROLE_PERMISSION_CACHE_KEY,
+    mergeCachedRolePermissionRows(readCache<StoredRolePermission>(ROLE_PERMISSION_CACHE_KEY), rows, normalizeRoleName),
+  );
 }
 
 export async function fetchStoredMaintenanceState() {
