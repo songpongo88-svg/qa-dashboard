@@ -130,8 +130,8 @@ try {
   const beforeBlock = calls;
   await assert.rejects(policy.sharedFirestoreRead("quota-should-not-query", 0, load));
   assert.equal(calls, beforeBlock, "blocked display retry does not hit Firestore");
-  const persisted = JSON.parse(window.localStorage.getItem("qa-dashboard:firestore-display-read-backoff:v2"));
-  assert.ok(persisted.until > clock, "quota pause survives another browser tab reading localStorage");
+  const persistedReadBackoff = JSON.parse(window.localStorage.getItem("qa-dashboard:firestore-display-read-backoff:v2"));
+  assert.ok(persistedReadBackoff.until > clock, "quota pause survives another browser tab reading localStorage");
   clock += 300_001;
   await assert.rejects(policy.sharedFirestoreRead("quota-repeat-second", 0, async () => {
     throw {code:"resource-exhausted"};
