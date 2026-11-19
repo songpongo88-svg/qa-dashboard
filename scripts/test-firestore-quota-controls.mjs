@@ -119,6 +119,44 @@ try {
   assert.deepEqual(JSON.parse(window.sessionStorage.getItem("qa:firestore-read-metrics:summary"))["coaching:full-collection"],
     { queries: 2, returnedDocuments: 137 }, "diagnostics measure returned document counts without recording private rows");
   window.sessionStorage.removeItem("qa:firestore-read-metrics");
+  // A quota-exhausted tab must share its display-only pause with other tabs
+  // without clearing any draft keys or blocking authoritative writes.
+  const currentLocal = JSON.parse(window.localStorage.getItem("qa-dashboard:firestore-display-read-backoff:v2"));
+  assert.equal(currentLocal.failures, 0, "verified successful display reads reset quota backoff");
+  await assert.rejects(policy.sharedFirestoreRead("quota-repeat-first", 0, async () => {
+    throw {code:"resource-exhausted"};
+  }));
+  assert.ok(policy.firestoreReadWaitMs() >= 5 * 60_000);
+  const beforeBlock = calls;
+  await assert.rejects(policy.sharedFirestoreRead("quota-should-not-query", 0, load));
+  assert.equal(calls, beforeBlock, "blocked display retry does not hit Firestore");
+  const persistedReadBackoff = JSON.parse(window.localStorage.getItem("qa-dashboard:firestore-display-read-backoff:v2"));
+  assert.ok(persistedReadBackoff.until > clock, "quota pause survives another browser tab reading localStorage");
+  clock += 300_001;
+  await assert.rejects(policy.sharedFirestoreRead("quota-repeat-second", 0, async () => {
+    throw {code:"resource-exhausted"};
+  }));
+  assert.ok(policy.firestoreReadWaitMs() >= 10 * 60_000,
+    "repeated quota failure backs off instead of retrying every five minutes");
+  clock += 600_001;
+  assert.equal(await policy.sharedFirestoreRead("resume-after-quota", 0, load), beforeBlock + 1);
+  assert.equal(policy.firestoreReadWaitMs(), 0, "verified display read resumes normal behavior");
+
+  const appReadPolicy=await readFile(new URL("../src/App.tsx",import.meta.url),"utf8");
+  const dashboardReadPolicy=await readFile(new URL("../src/DashboardMockup.tsx",import.meta.url),"utf8");
+  assert.match(appReadPolicy,/if \(firestoreReadWaitMs\(\) > 0\) return;/,
+    "non-authoritative Inbox polling pauses during shared quota exhaustion");
+  assert.match(appReadPolicy,/themes:decorative-profile-summary/,
+    "Theme profile collection reads are individually measured");
+  assert.match(dashboardReadPolicy,/assertFirestoreReadAllowed\(\);/,
+    "read-only recovery must not accidentally claim an old snapshot is live");
+  assert.match(dashboardReadPolicy,/data-firestore-read-pause/,
+    "Dashboard visibly explains why retry is paused");
+  assert.match(dashboardReadPolicy,/data-firestore-read-diagnostics/,
+    "QA can identify heavy read paths without sensitive data or new Firestore reads");
+  assert.match(dashboardReadPolicy,/disabled=\{isLoading \|\| quotaReadWaitMs > 0\}/,
+    "manual refresh cannot bypass the shared display-read cooldown");
+  console.log("PASS Firestore quota: cross-tab bounded backoff, no repeated display reads, UI recovery and per-route diagnostics");
   console.log("PASS shared reads: concurrent dedup, TTL, invalidation and recoverable quota cooldown");
 
   resetFixture();
@@ -225,6 +263,10 @@ try {
   stop();assert.equal(fixture.listeners.size, 0);
   console.log("PASS QA Access: production patches, owner-scoped listeners/reads, canonical plus legacy IDs, remove and detach");
 
+  // Next fixture models a separate healthy browser after the simulated
+  // Spark-admin quota incident; quota cooldown is intentionally browser-wide
+  // in production, so reset only this test fixture's mock localStorage.
+  window.localStorage.removeItem("qa-dashboard:firestore-display-read-backoff:v2");
   resetFixture();
   fixture.documents.set("qa_appeal_events/a", { event_type: "appeal_request_submitted", created_at: "2026-11-05", details: { requestId: "request-1" } });
   fixture.documents.set("qa_appeal_events/b", { event_type: "appeal_internal_message", created_at: "2026-11-05", details: { requestId: "request-1", seniorUsername: "Senior" } });

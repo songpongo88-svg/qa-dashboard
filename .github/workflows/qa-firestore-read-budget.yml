@@ -6,6 +6,9 @@ on:
   pull_request:
     paths:
       - "src/useDashboardAutoRefresh.ts"
+      - "src/firestoreReadPolicy.ts"
+      - "src/evaluationStore.ts"
+      - "scripts/test-firestore-quota-controls.mjs"
       - "src/App.tsx"
       - "src/currentUserStorage.ts"
       - "build/usernameIdentityPolicyPatchV2.js"

@@ -1,4 +1,4 @@
-import { assertFirestoreReadAllowed, isFirestoreQuotaError, noteFirestoreReadError, recordFirestoreSnapshotDocs } from "./firestoreReadPolicy";
+import { assertFirestoreReadAllowed, isFirestoreQuotaError, noteFirestoreReadError, noteFirestoreDisplayReadSuccess, recordFirestoreSnapshotDocs } from "./firestoreReadPolicy";
 ﻿import { initializeApp, getApps } from "firebase/app";
 import * as FirestoreApi from "firebase/firestore";
 import { collection, doc, documentId, getDocFromServer, getDocs, getDocsFromServer, getFirestore, limit as firestoreLimit, orderBy, query, runTransaction, startAfter, where, type QueryDocumentSnapshot } from "firebase/firestore";
@@ -222,7 +222,10 @@ async function cachedRemoteEvaluations(limit: number, request: () => Promise<Sto
   const promise = withEvaluationReadDeadline(request(), options.allMonths ? 120_000 : 20_000,
     options.allMonths
       ? "โหลดประวัติผลประเมินทุกเดือนเกิน 2 นาที กรุณาลองอัปเดตข้อมูลอีกครั้ง"
-      : "โหลดผลประเมินเกิน 20 วินาที กรุณาลองอัปเดตข้อมูลอีกครั้ง").catch((error) => {
+      : "โหลดผลประเมินเกิน 20 วินาที กรุณาลองอัปเดตข้อมูลอีกครั้ง").then(value => {
+      noteFirestoreDisplayReadSuccess();
+      return value;
+    }).catch((error) => {
     noteFirestoreReadError(error);
     if (remoteEvaluationReadCache.get(cacheKey)?.promise === promise) remoteEvaluationReadCache.delete(cacheKey);
     throw error;
