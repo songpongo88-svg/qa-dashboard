@@ -66,6 +66,7 @@ import { upsertStoredEvaluation, isTestCaseEvaluation, invalidateStoredEvaluatio
 import { useDeletedEvaluationRecovery } from "./useDeletedEvaluationRecovery";
 import { useDashboardAutoRefresh } from "./useDashboardAutoRefresh";
 import { fetchDashboardRevision } from "./dashboardRevision";
+import { firestoreReadWaitMs, noteFirestoreReadError, recordFirestoreSnapshotDocs } from "./firestoreReadPolicy";
 import PageHero from "./PageHero";
 import TeamChatMockup, { ChatAttachment, ChatMessage, OnlineUser, WebRtcSignal } from "./TeamChatMockup";
 import CallHistoryMockup from "./CallHistoryMockup";
@@ -3661,10 +3662,11 @@ function ThemePickerModal({
   const refreshThemeUsage = useCallback(async (force = false) => {
     // Decorative collection-use percentages may reuse a fresh display cache;
     // permission, suspension, and login reads still use authoritative data.
-    if (themeUsageRefreshInFlight.current || (!force && isCachedThemeUsageFresh())) return;
+    if (firestoreReadWaitMs() > 0 || themeUsageRefreshInFlight.current || (!force && isCachedThemeUsageFresh())) return;
     themeUsageRefreshInFlight.current = true;
     try {
       const snapshot = await getDocs(firestoreCollection(firebaseDb, "qa_user_profiles"));
+      recordFirestoreSnapshotDocs("themes:decorative-profile-summary", snapshot.docs.length);
       const activeProfiles = snapshot.docs
         .map((item) => item.data())
         .filter((row: any) => String(row?.status || "Active") !== "Suspended");
@@ -3697,6 +3699,7 @@ function ThemePickerModal({
       setThemeUsageReady(true);
     } catch (error) {
       // Keep the last cached percentage visible. Do not show loading/error text in the picker.
+      noteFirestoreReadError(error);
       console.warn("Theme usage summary unavailable", error);
     } finally {
       themeUsageRefreshInFlight.current = false;
@@ -5471,6 +5474,9 @@ export default function App() {
       setInboxTasks([]);
       return;
     }
+    // Inbox is a display projection, not an access/approval authority.
+    // Preserve the current badge when Firestore reports quota exhaustion.
+    if (firestoreReadWaitMs() > 0) return;
 
     try {
       const [logs, passwordRecord, appealInbox] = await Promise.all([
@@ -7518,6 +7524,7 @@ export default function App() {
   };
 
   const loadPasswordResetRequests = async (background = false) => {
+    if (background && firestoreReadWaitMs() > 0) return;
     const requests = await fetchStoredPasswordResetRequests({ background });
     setPasswordResetRequests(requests);
   };
