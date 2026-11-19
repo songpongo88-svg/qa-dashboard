@@ -263,6 +263,10 @@ try {
   stop();assert.equal(fixture.listeners.size, 0);
   console.log("PASS QA Access: production patches, owner-scoped listeners/reads, canonical plus legacy IDs, remove and detach");
 
+  // Next fixture models a separate healthy browser after the simulated
+  // Spark-admin quota incident; quota cooldown is intentionally browser-wide
+  // in production, so reset only this test fixture's mock localStorage.
+  window.localStorage.removeItem("qa-dashboard:firestore-display-read-backoff:v2");
   resetFixture();
   fixture.documents.set("qa_appeal_events/a", { event_type: "appeal_request_submitted", created_at: "2026-11-05", details: { requestId: "request-1" } });
   fixture.documents.set("qa_appeal_events/b", { event_type: "appeal_internal_message", created_at: "2026-11-05", details: { requestId: "request-1", seniorUsername: "Senior" } });
