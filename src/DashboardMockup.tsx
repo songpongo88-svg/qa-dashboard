@@ -1,4 +1,4 @@
-import { isFirestoreQuotaError } from "./firestoreReadPolicy";
+import { isFirestoreQuotaError, firestoreReadWaitMs, assertFirestoreReadAllowed, isFirestoreReadDiagnosticsEnabled, setFirestoreReadDiagnosticsEnabled, getFirestoreReadDiagnostics } from "./firestoreReadPolicy";
 import { readDashboardRecoverySnapshot, readDashboardRecoverySnapshotForView, saveDashboardRecoverySnapshot } from "./dashboardRecoveryCache";
 import { useEvaluationActivity, EvaluationActivityUnavailable } from "./EvaluationActivityContext";
 import { evaluationCaseBlocked, withEvaluationActivity, evaluationScopeHold } from "./evaluationActivity";
@@ -6268,6 +6268,21 @@ export default function DashboardMockup({
   const [readOnlyRecovery, setReadOnlyRecovery] = useState(false);
   const [lastLoadedAt, setLastLoadedAt] = useState(() => initialDashboardCache?.cachedAt || 0);
   const [loadRetryNonce, setLoadRetryNonce] = useState(0);
+  const [quotaReadWaitMs, setQuotaReadWaitMs] = useState(() => firestoreReadWaitMs());
+  const [readDiagnosticsOpen, setReadDiagnosticsOpen] = useState(false);
+  const [readDiagnosticsEnabled, setReadDiagnosticsEnabled] = useState(() => isFirestoreReadDiagnosticsEnabled());
+  const [readDiagnostics, setReadDiagnostics] = useState(() => getFirestoreReadDiagnostics());
+  useEffect(() => {
+    // Local UI clock only. Does not query Firestore or keep hidden tabs alive.
+    const refresh = () => {
+      setQuotaReadWaitMs(firestoreReadWaitMs());
+      if (readDiagnosticsOpen) setReadDiagnostics(getFirestoreReadDiagnostics());
+    };
+    refresh();
+    const timer = window.setInterval(refresh, 15_000);
+    window.addEventListener("storage", refresh);
+    return () => { window.clearInterval(timer); window.removeEventListener("storage", refresh); };
+  }, [readDiagnosticsOpen]);
   const loadRetriesRef = useRef({ key: dataRefreshKey, count: 0 });
   useEffect(() => {
     const deadline = nextAppealScoreDeadline(allCases);
@@ -6630,6 +6645,10 @@ export default function DashboardMockup({
               auditDateObj:item.auditDateObj?new Date(String(item.auditDateObj)):null})),
           };
         }
+        // If any tab has already hit the shared display-read quota, do not
+        // treat a fresh local snapshot as live or open another full-history scan.
+        // The catch path below restores account-scoped read-only data.
+        assertFirestoreReadAllowed();
         const result = cached && cached.accountScope === dashboardAccountScope && cached.cacheKey === cacheKey && cached.cases.length && Date.now() - cached.cachedAt < 5 * 60_000
           ? cached : await loadCanonicalReportData();
         if (cancelled) return;
@@ -6648,6 +6667,7 @@ export default function DashboardMockup({
         setAppealMergeCount(result.appealMergeCount);
         setLastLoadedAt(cachedAt);
         setReadOnlyRecovery(false);
+        setQuotaReadWaitMs(firestoreReadWaitMs());
         loadRetriesRef.current.count = 0;
       } catch (error: any) {
         if (cancelled) return;
@@ -6656,6 +6676,7 @@ export default function DashboardMockup({
           ? "Firestore จำกัดการอ่านข้อมูลชั่วคราว · หลีกเลี่ยงการกดอัปเดตซ้ำ และตรวจสอบโควตาที่ Firebase Console"
           : "อัปเดตข้อมูลไม่สำเร็จ กรุณาตรวจการเชื่อมต่อแล้วลองอีกครั้ง");
         setReadOnlyRecovery(true);
+        setQuotaReadWaitMs(firestoreReadWaitMs());
         // Preserve a complete mounted snapshot first. A fresh tab can recover
         // its own persisted copy, or display official workbooks without reads
         // to Firestore. Legacy unscoped evaluation caches are QA-only.
@@ -8015,9 +8036,46 @@ export default function DashboardMockup({
   const refreshStatus = (
     <div data-dashboard-refresh-state={isLoading ? "loading" : loadError ? "error" : "idle"} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-sky-200 bg-white px-4 py-2 text-xs text-slate-600">
       <span role="status" aria-live="polite">
-        {isLoading ? "กำลังอัปเดตข้อมูล · แสดงข้อมูลล่าสุดที่โหลดสำเร็จ" : loadError ? `${loadError}${sourceCases.length ? " · ยังแสดงข้อมูลเดิมอยู่ (ข้อมูลสำรอง ไม่ใช่ข้อมูลสด) · ดูอย่างเดียว อาจยังไม่ครบล่าสุด" : ""}${lastLoadedAt ? " · สำเนาวันที่ " + new Date(lastLoadedAt).toLocaleString("th-TH", {timeZone:"Asia/Bangkok"}) : ""}` : `ตรวจข้อมูลล่าสุด ${Math.max(lastLoadedAt, dataCheckedAt) ? new Intl.DateTimeFormat("th-TH", { timeZone: "Asia/Bangkok", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }).format(Math.max(lastLoadedAt, dataCheckedAt)) : "—"} · ตรวจอัปเดตอัตโนมัติทุก 5 นาที`}
+        {isLoading ? "กำลังอัปเดตข้อมูล · แสดงข้อมูลล่าสุดที่โหลดสำเร็จ" : loadError ? `${loadError}${sourceCases.length ? " · ยังแสดงข้อมูลเดิมอยู่ (ข้อมูลสำรอง ไม่ใช่ข้อมูลสด) · ดูอย่างเดียว อาจยังไม่ครบล่าสุด" : ""}${lastLoadedAt ? " · สำเนาวันที่ " + new Date(lastLoadedAt).toLocaleString("th-TH", {timeZone:"Asia/Bangkok"}) : ""}` : `ตรวจข้อมูลล่าสุด ${Math.max(lastLoadedAt, dataCheckedAt) ? new Intl.DateTimeFormat("th-TH", { timeZone: "Asia/Bangkok", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }).format(Math.max(lastLoadedAt, dataCheckedAt)) : "—"} · ตรวจอัปเดตอัตโนมัติทุก 15 นาที`}
       </span>
-      <button type="button" disabled={isLoading} onClick={() => { loadRetriesRef.current.count = 0; if (onRefreshData) onRefreshData(); else setLoadRetryNonce((value) => value + 1); }} className="rounded-lg border border-sky-200 px-3 py-1.5 font-bold text-sky-700 disabled:opacity-50">อัปเดตข้อมูล</button>
+      <div className="flex flex-wrap items-center gap-2">
+        {quotaReadWaitMs > 0 ? (
+          <span data-firestore-read-pause="true" className="rounded-lg bg-amber-50 px-2 py-1 text-amber-800">
+            พักการอ่านข้อมูลเพื่อประหยัดโควต้า · ลองใหม่ได้ในอีกประมาณ {Math.max(1,Math.ceil(quotaReadWaitMs/60_000))} นาที
+          </span>
+        ) : null}
+        {isQualityAssuranceRole(currentUser?.role) ? (
+          <button type="button" onClick={() => { setReadDiagnosticsOpen(value => !value); setReadDiagnostics(getFirestoreReadDiagnostics()); }}
+            className="rounded-lg border border-slate-200 px-3 py-1.5 font-bold text-slate-700">ตรวจ Reads</button>
+        ) : null}
+        <button type="button" disabled={isLoading || quotaReadWaitMs > 0}
+          title={quotaReadWaitMs > 0 ? "พักการอ่านข้อมูลขณะ Firestore จำกัดโควต้า" : "ตรวจข้อมูลล่าสุดจากระบบ"}
+          onClick={() => { loadRetriesRef.current.count = 0; if (onRefreshData) onRefreshData(); else setLoadRetryNonce((value) => value + 1); }}
+          className="rounded-lg border border-sky-200 px-3 py-1.5 font-bold text-sky-700 disabled:opacity-50">อัปเดตข้อมูล</button>
+      </div>
+      {readDiagnosticsOpen && isQualityAssuranceRole(currentUser?.role) ? (
+        <div data-firestore-read-diagnostics="true" className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs">
+          <div className="flex flex-wrap items-center gap-2">
+            <strong>ตรวจ Reads เฉพาะแท็บนี้</strong>
+            <button type="button" className="rounded-md border border-slate-300 bg-white px-2 py-1 font-bold"
+              onClick={() => { const enabled = setFirestoreReadDiagnosticsEnabled(!readDiagnosticsEnabled); setReadDiagnosticsEnabled(enabled); setReadDiagnostics(getFirestoreReadDiagnostics()); }}>
+              {readDiagnosticsEnabled ? "หยุดเก็บสถิติ" : "เริ่มเก็บสถิติ"}
+            </button>
+            <button type="button" className="rounded-md border border-slate-300 bg-white px-2 py-1 font-bold"
+              onClick={() => setReadDiagnostics(getFirestoreReadDiagnostics())}>รีเฟรชตัวเลข</button>
+          </div>
+          <p className="mt-2 text-slate-600">นับเอกสารที่ Query/Listener ส่งกลับในเบราว์เซอร์นี้เท่านั้น ไม่ใช่ยอด Reads ที่ Firebase คิดโควต้าจริง และไม่รวมการใช้งานจากเครื่องอื่น</p>
+          <div className="mt-2 max-h-44 overflow-auto">
+            {Object.entries(readDiagnostics).sort((a,b)=>b[1].returnedDocuments-a[1].returnedDocuments).map(([name, value]) => (
+              <div key={name} className="flex justify-between gap-3 border-b border-slate-200 py-1">
+                <span className="break-all">{name}</span>
+                <span className="shrink-0 tabular-nums">{value.queries} ครั้ง / {value.returnedDocuments} เอกสาร</span>
+              </div>
+            ))}
+            {!Object.keys(readDiagnostics).length ? <p className="py-2 text-slate-500">ยังไม่มีข้อมูล · กดเริ่มเก็บสถิติ แล้วใช้งาน Dashboard ตามปกติ</p> : null}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 
