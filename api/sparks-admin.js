@@ -2142,8 +2142,11 @@ async function sparksHandler(req, res) {
       return res.status(200).json(await claimProfileMakeover(actor));
     }
     if (body.action === "get-member-card") {
-      const actor=await authorizeRewardUser(body);
-      return res.status(200).json(await issueMemberCard(actor));
+      if(process.env.SPARKS_DATA_BACKEND!=="supabase")fail("ระบบบัตรสมาชิกใช้ Supabase เท่านั้น",423);
+      const actor=await getSparksRequestActor();
+      if(safeUsername(body.actorUsername)!==actor.username)fail("บัญชีสมาชิกไม่ตรงกับผู้เข้าสู่ระบบ",403);
+      const card=await sparksTransferV2("card-state",{});
+      return res.status(200).json({ok:true,memberCardNumber:card.cardNumber||null,cardActive:card.cardActive===true});
     }
     if (body.action === "save-member-birthday" || body.action === "claim-member-birthday") {
       const actor = await authorizeRewardUser(body);
