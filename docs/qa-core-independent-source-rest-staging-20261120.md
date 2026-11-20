@@ -57,3 +57,22 @@ guarantees from a point-in-time snapshot or a matched document hash.
 Do **not** rerun the bulk Firestore scan, enable a timer, add an API route,
 merge/deploy this draft as live replication, promote the candidate,
 alter QA scores or start failover. **`QA_FAILOVER=OFF`.**
+
+## Validation evidence
+
+GitHub Actions run [#44703105085](https://github.com/songpongo88-svg/qa-dashboard/actions/runs/44703105085)
+on code commit `5f8c9817156c3de824582b2db70124adf538ff26`:
+
+- `no-network-unit` — **success**, including the single-document mocked
+  REST reader cases.
+- `isolated-postgres` — **success**, including the composed private QA
+  evidence candidate and persistent budget fixture. A synthetic 2031-01-14
+  budget date intentionally isolates this fixture from earlier CI tests;
+  it is **not a real future scheduled read**.
+- No real Firestore GET or Google billing activity was initiated; the
+  Stage code has no default network client.
+- Test failures during development were caused by fixture count expectations
+  and shared CI schema/budget collisions; the final isolated run passed.
+
+Production direct-browser QA writes remain unchanged, no Windows listener
+was started and no commit-ready delivery to Windows has been implemented.
