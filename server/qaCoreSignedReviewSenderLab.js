@@ -25,7 +25,12 @@ function fingerprintFor(key){
 function verifiedCandidate(r,e){
  if(!r||r.project_id!==PROJECT||r.operation_id!==e.operationId||
     r.collection_name!==e.collection||r.document_path!==e.documentPath||
-    r.operation!=='upsert'||r.source_state!=='pending'||
+    r.operation!=='upsert'||!object(r.intent_document_json)||
+    !object(r.intent_document_json.fields)||
+    !HASH.test(r.intent_payload_sha256||'')||
+    qaCanonicalDocumentHash(r.intent_document_json)!==r.intent_payload_sha256||
+    qaCanonicalDocumentHash({fields:r.intent_document_json.fields})!==r.field_hash||
+    r.source_state!=='pending'||
     r.delivery_state!=='waiting'||
     r.review_status!=='review_required'||
     r.delivery_eligible!==false||r.source_continuity_certified!==false||
@@ -72,7 +77,8 @@ export async function stageQaCoreSignedReviewEnvelope({
    ' v.document_path,v.observed_revision,v.document_json,'+
    ' v.field_hash,v.document_hash,v.review_status,'+
    ' v.delivery_eligible,v.source_continuity_certified,'+
-   ' o.operation,o.source_state,o.delivery_state'+
+   ' o.operation,o.document_json AS intent_document_json,'+
+   ' o.payload_sha256 AS intent_payload_sha256,o.source_state,o.delivery_state'+
    ' FROM qa_core_replication_stage.source_verification_candidates v'+
    ' INNER JOIN qa_core_replication_stage.change_outbox o'+
    ' ON o.operation_id=v.operation_id'+
