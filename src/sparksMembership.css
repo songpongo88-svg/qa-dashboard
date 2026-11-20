@@ -239,3 +239,16 @@
 @media (prefers-reduced-motion:reduce) {
   .qa-sparks-membership .qa-member-card { transition:none; }
 }
+
+/* Birthday benefit is a separate panel; the existing member cards stay unchanged. */
+.qa-birthday-gift {font-family:"Kanit",sans-serif;max-width:100%;margin:16px 0 24px;padding:22px 26px;border:1px solid #e9deee;border-radius:20px;background:linear-gradient(120deg,#fffefa,#fcf6ff);box-shadow:0 12px 25px -20px #34204666;color:#37283f}
+.qa-birthday-gift h3 {font-size:19px;font-weight:600;margin:4px 0 7px}
+.qa-birthday-gift p {font-size:13px;line-height:1.75;margin:5px 0;color:#645569}
+.qa-birthday-gift .qa-birthday-kicker {font-size:10px;letter-spacing:1.5px;font-weight:600;color:#8054aa}
+.qa-birthday-gift .qa-birthday-actions {display:flex;align-items:flex-end;flex-wrap:wrap;gap:10px;margin-top:16px}
+.qa-birthday-gift label {display:block;flex-basis:100%;font-size:12px}
+.qa-birthday-gift input {font:inherit;font-size:13px;background:#fff;border:1px solid #d9cce1;padding:9px 11px;border-radius:10px;color:#37283f}
+.qa-birthday-gift button {font:inherit;font-size:13px;color:#fff;background:#71449c;border:0;border-radius:10px;padding:10px 16px;cursor:pointer;margin-top:10px}
+.qa-birthday-gift button:disabled {opacity:.5;cursor:not-allowed}
+.qa-birthday-gift button:focus-visible,.qa-birthday-gift input:focus-visible {outline:3px solid #b78add;outline-offset:3px}
+.qa-birthday-gift .qa-birthday-saved,.qa-birthday-gift .qa-birthday-claimed {font-weight:500;color:#65468b}
