@@ -28,6 +28,10 @@ export function createMiningService(db,{clock=()=>Date.now(),draw=weightedMining
   const {firestoreRequest,readDoc,recordValue,path,updateWrite,createWrite,walletDocumentPath,
     currentMemberYear,annualEarnedFromWallet,spendableBalance}=db;
   const boostOwned = wallet => count(wallet.miningBoostOwned);
+  // Purchased units are fungible. Keep tracked IDs to make future refunds exact.
+  // Pre-existing balances have no per-purchase IDs; consume those legacy units first.
+  const tracked = wallet => Array.isArray(wallet.miningBoostAvailablePurchaseIds)
+    ? wallet.miningBoostAvailablePurchaseIds.filter(id=>typeof id==="string"&&/^mining-boost-buy-\d{4}-\d{2}-\d{2}-[12]$/.test(id)): [];
   const purchaseCount = (wallet,day) => wallet.miningBoostBoughtDay===day?count(wallet.miningBoostBoughtCount):0;
   const historyPath = (username,day) =>
     path("qa_sparks_wallets",encodeURIComponent(username),"history","mining-"+day);
@@ -57,12 +61,12 @@ export function createMiningService(db,{clock=()=>Date.now(),draw=weightedMining
         const year=currentMemberYear(),balance=spendableBalance(wallet,year);
         if(balance<25)fail("Sparks ไม่เพียงพอสำหรับซื้อ Item");
         const owned=boostOwned(wallet),after=balance-25,iso=new Date(now).toISOString();
-        const itemPath=path("qa_sparks_wallets",encodeURIComponent(actor.username),"history",
-          "mining-boost-buy-"+local.day+"-"+(bought+1));
+        const purchaseId="mining-boost-buy-"+local.day+"-"+(bought+1);
+        const itemPath=path("qa_sparks_wallets",encodeURIComponent(actor.username),"history",purchaseId);
         await firestoreRequest(":commit","POST",{transaction,writes:[
           updateWrite(walletPath,{username:actor.username,balance:after,balanceYear:year,
             totalSpent:count(wallet.totalSpent)+25,rewardOrders:count(wallet.rewardOrders)+1,
-            miningBoostOwned:owned+1,miningBoostBoughtDay:local.day,
+            miningBoostOwned:owned+1,miningBoostAvailablePurchaseIds:[...tracked(wallet),purchaseId],miningBoostBoughtDay:local.day,
             miningBoostBoughtCount:bought+1,updatedAt:iso},walletDoc),
           createWrite(itemPath,{createdAt:iso,type:"spend",source:"mining-boost-purchase",
             rewardId:"mining-lucky-boost",title:"Mining Lucky Boost +40% · ซื้อ Item",
@@ -103,6 +107,9 @@ export function createMiningService(db,{clock=()=>Date.now(),draw=weightedMining
         }
         const boosted=useBoost===true;
         if(boosted && boostOwned(wallet)<1)fail('ไม่มี Mining Lucky Boost พร้อมใช้งาน');
+        const queue=tracked(wallet);
+        const legacyOwned=boostOwned(wallet)-queue.length;
+        const usedPurchaseId=boosted&&legacyOwned<=0?queue[0]||"": "";
         const amount=draw(boosted);
         if(!Number.isSafeInteger(amount)||amount<1||amount>1500)
           fail("Mining reward generator rejected invalid amount",500);
@@ -119,13 +126,16 @@ export function createMiningService(db,{clock=()=>Date.now(),draw=weightedMining
             totalEarned:totalEarned+amount,memberYear:year,
             memberYearEarned:earned+amount,
             miningLastDay:local.day,miningLastAmount:amount,
-            ...(boosted?{miningBoostOwned:boostOwned(wallet)-1}:{}),updatedAt:iso,
+            ...(boosted?{
+              miningBoostOwned:boostOwned(wallet)-1,
+              miningBoostAvailablePurchaseIds:usedPurchaseId?queue.slice(1):queue,
+            }:{}),updatedAt:iso,
           },walletDoc),
           createWrite(entryPath,{
             createdAt:iso,type:"earn",source:"mini-game-mining",
             title:"Sparks Mining · ขุดเหมืองแร่",
             detail:"ขุดเหมืองประจำวันที่ "+local.day+" รับ "+amount+" Sparks",
-            day:local.day,amount,boostUsed:boosted,boostRate:boosted?40:0,balanceAfter:balance+amount,
+            day:local.day,amount,boostUsed:boosted,boostPurchaseId:usedPurchaseId,boostRate:boosted?40:0,balanceAfter:balance+amount,
             performedBy:actor.username,status:"Completed",
           }),
         ];
