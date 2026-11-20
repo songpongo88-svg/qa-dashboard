@@ -252,3 +252,5 @@
 .qa-birthday-gift button:disabled {opacity:.5;cursor:not-allowed}
 .qa-birthday-gift button:focus-visible,.qa-birthday-gift input:focus-visible {outline:3px solid #b78add;outline-offset:3px}
 .qa-birthday-gift .qa-birthday-saved,.qa-birthday-gift .qa-birthday-claimed {font-weight:500;color:#65468b}
+
+.qa-sparks-membership .qa-mcard-number {display:block;margin-top:2px;color:var(--muted-ink);font-size:clamp(8px,2.35cqi,11px);line-height:1.15;letter-spacing:.045em;font-weight:500;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
