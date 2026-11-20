@@ -93,8 +93,7 @@ try{
  const firstPacket=same.find(x=>!x.replay);
  assert.equal(firstPacket.envelope.sequence,1);
  assert.ok(same.every(x=>!x.deliveryAuthorized&&!x.deliveryAcknowledged&&!x.failoverReady));
- assert.equal((await windows.query('SELECT count(*)::int AS n FROM '+receiver)).rows[0].n,3);
- // Earlier receiver fixture saved 3 unrelated rows; no stream-scoped data yet.
+ // Earlier receiver fixture might have other test rows; only inspect our stream.
  assert.equal((await windows.query('SELECT count(*)::int AS n FROM '+receiver+
   ' WHERE stream_id=$1',[streamId])).rows[0].n,0);
  assert.equal((await receive(firstPacket)).status,'SIGNED_REVIEW_EVENT_STAGED');
