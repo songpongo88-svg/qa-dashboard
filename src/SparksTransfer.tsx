@@ -74,11 +74,13 @@ export default function SparksTransfer({username,sessionId,active}:{username:str
   void run("sparks-transfer-submit",{recipientCard,amount:Number(amount),pin,requestId:id},async result=>{
    setNotice("ส่ง "+result.amount+" Sparks สำเร็จ · รอผู้รับกดรับภายใน 72 ชั่วโมง");
    setRecipientCard("");setRecipientName("");setAmount("");setRequestId("");setConfirmSend(false);
-   await refresh();window.dispatchEvent(new Event("qa:sparks-updated"));
+   try{await refresh();}catch{setNotice("ส่งสำเร็จแล้ว แต่ยังโหลดรายการล่าสุดไม่ได้ กรุณาปิดและเปิด Item ใหม่");}
+   window.dispatchEvent(new Event("qa:sparks-updated"));
   });};
  const accept=(id:string)=>void run("sparks-transfer-accept",{transferId:id},async()=>{
    setNotice("รับ Sparks สำเร็จ คะแนนเข้ากระเป๋าแล้ว");
-   await refresh();window.dispatchEvent(new Event("qa:sparks-updated"));
+   try{await refresh();}catch{setNotice("รับ Sparks สำเร็จแล้ว แต่ยังโหลดรายการล่าสุดไม่ได้ กรุณาเปิด Item ใหม่");}
+   window.dispatchEvent(new Event("qa:sparks-updated"));
   });
  const change=()=>void run("member-pin-change",{pin:oldPin,newPin,confirmPin},()=>{
    setPin("");setOldPin("");setNewPin("");setConfirmPin("");setScreen("gate");setNotice("เปลี่ยน PIN สำเร็จ กรุณาเข้าสู่ระบบด้วย PIN ใหม่");
