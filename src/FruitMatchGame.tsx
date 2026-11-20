@@ -28,6 +28,7 @@ export default function FruitMatchGame({username,sessionId}:{username:string;ses
   const [snapshot,setSnapshot]=useState({deck:PREVIEW,open:new Set(PREVIEW.map((_,index)=>index)),matched:new Set<number>(),remaining:RULES.durationMs,moves:0,phase:"ready"});
   const round=useRef<Round|null>(null),mounted=useRef(false),busy=useRef(false),requestId=useRef("");
   const hideDelay=useRef<number>();
+  const dataRequest=useRef(0);
   const theme=round.current?.phase==="playing"||round.current?.phase==="saving"||round.current?.phase==="error"?round.current.theme:todayTheme;
   const themeInfo=MATCH_THEMES[theme as keyof typeof MATCH_THEMES]||MATCH_THEMES.fruit;
   const numbers=round.current?.numbers?.length?round.current.numbers:[49,80,32,64,17,90,25,91,58,43,76,12];
@@ -41,10 +42,13 @@ export default function FruitMatchGame({username,sessionId}:{username:string;ses
   },[username,sessionId]);
   const refreshData=useCallback(async()=>{
     if(!username||!sessionId)return;
+    const requestNo=++dataRequest.current;
     setLoading(true);setError("");
-    try{const next=await request("fruit-match-data",{theme:viewTheme});if(mounted.current)setData(next);}
-    catch(reason){if(mounted.current)setError(reason instanceof Error?reason.message:"โหลดสถิติไม่สำเร็จ");}
-    finally{if(mounted.current)setLoading(false);}
+    setData(previous=>({...previous,leaderboard:[],stats:EMPTY,week:undefined}));
+    try{const next=await request("fruit-match-data",{theme:viewTheme});
+      if(mounted.current&&requestNo===dataRequest.current)setData(next);}
+    catch(reason){if(mounted.current&&requestNo===dataRequest.current)setError(reason instanceof Error?reason.message:"โหลดสถิติไม่สำเร็จ");}
+    finally{if(mounted.current&&requestNo===dataRequest.current)setLoading(false);}
   },[username,sessionId,request,viewTheme]);
   const show=useCallback(()=>{
     const current=round.current;if(!current)return;
@@ -61,7 +65,7 @@ export default function FruitMatchGame({username,sessionId}:{username:string;ses
     try{
       const saved=await request("fruit-match-finish",{token:current.token,trace:current.trace});
       if(!mounted.current||round.current!==current)return;
-      current.phase="complete";setResult(saved.result);setViewTheme(current.theme as "fruit"|"number"|"color"|"cat");setData({stats:saved.stats,leaderboard:saved.leaderboard,week:saved.week});
+      current.phase="complete";dataRequest.current++;setLoading(false);setResult(saved.result);setViewTheme(current.theme as "fruit"|"number"|"color"|"cat");setData({stats:saved.stats,leaderboard:saved.leaderboard,week:saved.week});
       if(saved.result.earned>0)window.dispatchEvent(new Event("qa:sparks-updated"));
     }catch(reason){
       if(!mounted.current||round.current!==current)return;
