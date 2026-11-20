@@ -1732,7 +1732,7 @@ const CLOUD_PREVIEW_READ_ACTIONS = new Set([
   "special-rewards-mine", "announcement-shield-state", "treasure-state",
   "fruit-match-data", "puzzle15-data", "snakes-state", "auto-pass-state", "angel-state", "mining-state", "list-truemoney-tracker",
   "special-rewards-admin-list", "special-rewards-admin-receipt",
-  "list-reward-queues", "list", "history",
+  "list-reward-queues", "list", "history", "sparks-transfer-state", "sparks-transfer-recipients",
 ]);
 function sparksCloudReadOnlyEnabled() {
   return process.env.SPARKS_DATA_BACKEND==="supabase" && process.env.SPARKS_CLOUD_READ_ONLY==="1";
