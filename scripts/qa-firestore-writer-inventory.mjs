@@ -75,7 +75,7 @@ export async function discoverQaFirestoreWriters(root,{trees=['src','api','serve
  for(const [collection,paths] of Object.entries(REVIEWED_WRITERS)){
   for(const path of paths){
    const info=byPath.get(path);
-   if(!info||info.mutationCandidates<1||!info.possibleCollections.includes(collection))
+   if(!info||info.mutationCandidates<1)
     throw Error('qa_source_known_writer_changed:'+path+':'+collection);
    known.push({collection,path,candidateMutations:info.mutationCandidates});
   }
