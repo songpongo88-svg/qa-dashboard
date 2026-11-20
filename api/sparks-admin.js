@@ -1914,7 +1914,7 @@ async function sparksHandler(req, res) {
     }
     if (["fruit-match-data","fruit-match-start","fruit-match-finish"].includes(body.action)) {
       const actor = await authorizeRewardUser(body);
-      const result = body.action === "fruit-match-data" ? await fruitMatch.data(actor)
+      const result = body.action === "fruit-match-data" ? await fruitMatch.data(actor,body.theme)
         : body.action === "fruit-match-start" ? await fruitMatch.start(body,actor) : await fruitMatch.finish(body,actor);
       return res.status(200).json(result);
     }
