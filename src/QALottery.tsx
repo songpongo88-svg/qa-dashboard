@@ -206,7 +206,7 @@ export default function QALottery({username,sessionId,balance,loaded}:{username:
                 <div>
                   <button type="button" className="ql-cancel" disabled={busy} onClick={()=>setConfirmNumber("")}>กลับไปแก้ไข</button>
                   <button type="button" className="ql-confirm-buy" disabled={busy} onClick={()=>void buy()}>
-                    {busy?"กำลังบันทึก...":"ยืนยันหัก 120 Sparks"}
+                    {busy?"กำลังบันทึก...":"ยืนยันหัก "+data.price+" Sparks"}
                   </button>
                 </div>
               </div>:null}
