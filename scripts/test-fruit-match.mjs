@@ -61,6 +61,12 @@ try{
   assert.throws(()=>replayFruitRound(round.deck,[{card:0,at:100},{card:1,at:101}]));
   clock+=6000;conflict=true;
   let r=await invoke("fruit-match-finish",{token:round.token,trace});assert.equal(r.status,200,JSON.stringify(r.body));assert.equal(r.body.result.won,true);assert.equal(r.body.result.pairs,12);assert.equal(r.body.result.moves,12);assert.equal(wallet().balance,219);assert.equal(wallet().memberYearEarned,220);assert.equal(r.body.leaderboard.length,1);
+  const numberView=await invoke("fruit-match-data",{theme:"number"});
+  const fruitView=await invoke("fruit-match-data",{theme:"fruit"});
+  assert.equal(numberView.body.leaderboard.length,1,"number leaderboard contains its own win");
+  assert.equal(fruitView.body.leaderboard.length,0,"fruit leaderboard cannot show number results");
+  assert.equal(numberView.body.stats.wins,1);
+  assert.equal(fruitView.body.stats.wins,0,"per-game stats never include another theme");
   const applied=commits;clock+=200000;r=await invoke("fruit-match-finish",{token:round.token,trace});assert.equal(r.status,200);assert.equal(r.body.alreadyApplied,true);assert.equal(commits,applied);assert.equal(wallet().balance,219);
   let r2=await win(5000);assert.equal(r2.body.result.earned,20);assert.equal(wallet().balance,238);
   assert.equal(r2.body.stats.dailyPlayCount,2);
@@ -73,7 +79,7 @@ try{
   clock=OriginalDate.parse("2026-11-06T17:00:01Z");
   wallet().memberYearEarned=599980;r=await win();assert.equal(r.body.result.earned,20);assert.equal(wallet().memberYearEarned,600000,"earning continues beyond LV.10");
   assert.equal(wallet().balanceYear,2026);
-  const timeout=await start();clock+=FRUIT_MATCH.durationMs;r=await invoke("fruit-match-finish",{token:timeout.token,trace:[]});assert.equal(r.status,200);assert.equal(r.body.result.won,false);assert.equal(r.body.result.earned,0);assert.equal(r.body.result.pairs,0);
+  const timeout=await start();clock+=FRUIT_MATCH.durationMs+8000;r=await invoke("fruit-match-finish",{token:timeout.token,trace:[]});assert.equal(r.status,200);assert.equal(r.body.result.won,false);assert.equal(r.body.result.earned,0);assert.equal(r.body.result.pairs,0);
   assert.equal((await invoke("fruit-match-start",{requestId:"fruit-limit-after-loss"})).status,409,"a timed-out round counts toward 2 daily plays");
   clock=OriginalDate.parse("2026-11-07T17:00:01Z");
   const old=await start();clock+=1200;await start();clock+=6000;r=await invoke("fruit-match-finish",{token:old.token,trace:traceFor(old.deck)});assert.equal(r.status,409,"a superseded round cannot grant rewards");
