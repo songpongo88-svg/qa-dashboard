@@ -24,7 +24,7 @@ export default function MiningBoostCard({username,sessionId,mode="reward"}:{user
     finally{setBusy(false);}
   };
   return <>
-    <button type="button" className="qa-sparks-mini-item qa-mining-boost-card" data-reward-item="mining-lucky-boost"
+    <button type="button" className="qa-sparks-mini-item qa-mining-boost-card" data-reward-item="mining-lucky-boost" style={mode==="reward"?{order:-25}:undefined}
       onClick={()=>setOpen(true)} aria-haspopup="dialog" aria-expanded={open}>
       <span className="qa-sparks-mini-art" style={{display:"grid",placeItems:"center",background:"linear-gradient(135deg,#f4e5ff,#dab7f5)"}}>
         <svg viewBox="0 0 160 125" width="100%" height="100%" role="img" aria-label="อุปกรณ์ขุดแร่ทองคำกับคริสตัลสีม่วง">
