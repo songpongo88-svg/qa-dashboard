@@ -89,7 +89,30 @@ try{
   assert.equal(modal.querySelectorAll(".qa-sparks-checkin-day:not(:disabled)").length,0);
   await act(async()=>modal.querySelector(".qa-sparks-checkin-close").dispatchEvent(new MouseEvent("click",{bubbles:true})));
   assert.equal(document.querySelector(".qa-sparks-checkin-modal"),null);
-  console.log("PASS Quest UI: 14-cell calendar, future lock, active day only, click-to-claim, missed dates and saved stamps");
+  // Midnight 23 Nov moves the active event to Phase 2 without affecting Phase 1.
+  fakeTime="2026-11-22T17:00:00.000Z";
+  await act(async()=>card.dispatchEvent(new MouseEvent("click",{bubbles:true})));
+  const secondModal=document.querySelector(".qa-sparks-checkin-modal");
+  assert.ok(secondModal);
+  assert.ok(secondModal.textContent.includes("Phase 2"));
+  assert.equal(secondModal.querySelectorAll(".qa-sparks-checkin-day").length,8);
+  assert.equal(secondModal.querySelectorAll(".qa-sparks-checkin-day:not(:disabled)").length,1);
+  assert.ok(secondModal.textContent.includes("400 Sparks"));
+  await act(async()=>secondModal.querySelector(".qa-sparks-checkin-day.today")
+    .dispatchEvent(new MouseEvent("click",{bubbles:true})));
+  assert.equal(calls.at(-1).questDate,"2026-11-23");
+  assert.equal(secondModal.querySelectorAll(".qa-sparks-checkin-day.claimed").length,1);
+  assert.equal(secondModal.querySelectorAll(".qa-sparks-checkin-day:not(:disabled)").length,0);
+  const phase1Tab=secondModal.querySelector('.qa-sparks-checkin-phase-switch button[aria-pressed="false"]');
+  assert.ok(phase1Tab);
+  await act(async()=>phase1Tab.dispatchEvent(new MouseEvent("click",{bubbles:true})));
+  assert.equal(secondModal.querySelectorAll(".qa-sparks-checkin-day").length,14,"Phase 1 remains separately viewable");
+  assert.ok(secondModal.textContent.includes("700 Sparks"));
+  const phase2Tab=secondModal.querySelector('.qa-sparks-checkin-phase-switch button[aria-pressed="false"]');
+  await act(async()=>phase2Tab.dispatchEvent(new MouseEvent("click",{bubbles:true})));
+  assert.equal(secondModal.querySelectorAll(".qa-sparks-checkin-day.claimed").length,1,"Phase 2 rewards must survive phase switching");
+  await act(async()=>secondModal.querySelector(".qa-sparks-checkin-close").dispatchEvent(new MouseEvent("click",{bubbles:true})));
+  console.log("PASS Quest UI: original 14-cell Phase 1 and independent 8-cell Phase 2, 50/day, 400 total, midnight boundary, reward and phase switching");
 } finally{
   await act(async()=>root.unmount());
   globalThis.Date=RealDate;globalThis.fetch=oldFetch;

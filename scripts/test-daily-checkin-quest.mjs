@@ -175,7 +175,42 @@ try {
   assert.equal(wallet().totalEarned,700);
   assert.deepEqual(wallet().dailyCheckin202611Days,Array.from({length:14},(_,i)=>i+9));
   assert.equal(getClaims().length,14);
-  console.log("PASS Daily Check-in: 14 days × 50 = 700; +Member Level, History, exact dates, missed dates and duplicate lock");
+  console.log("PASS Daily Check-in Phase 1: 14 days × 50 = 700; +Member Level, History, exact dates, missed dates and duplicate lock");
+
+  // Phase 2 starts immediately after Phase 1, but keeps separate wallet field,
+  // campaign ID and 8-day counter. The 700 Sparks earned in Phase 1 remain.
+  const phase1Days = [...wallet().dailyCheckin202611Days];
+  const phase1History = getClaims().map(item=>item.questId);
+  assert.equal(phase1History.length,14);
+  assert(phase1History.every(id=>id==="daily-checkin-nov-2026"));
+  setDate("2026-11-21T16:59:59.000Z"); // Nov 21 before phase 2
+  assert.equal((await invoke(claimDate(23))).status,400,"new phase cannot open early");
+  for(let day=23;day<=30;day++){
+    setDate(new OriginalDate(`2026-11-${String(day).padStart(2,"0")}T06:00:00Z`).toISOString());
+    r=await invoke(claimDate(day));
+    assert.equal(r.status,200,"Phase 2 rejected day "+day+": "+JSON.stringify(r.body));
+    assert.equal(r.body.updated,true);
+    assert.equal(r.body.questId,"daily-checkin-nov-2026-phase-2");
+    assert.equal(r.body.claimedDays.length,day-22);
+    if(day===23)assert.equal((await invoke(claimDate(22))).status,400,"Phase 1 cannot be claimed after closing");
+  }
+  assert.deepEqual(wallet().dailyCheckin202611Days,phase1Days,"Phase 1 history must not change");
+  assert.deepEqual(wallet().dailyCheckin202611Phase2Days,Array.from({length:8},(_,i)=>i+23));
+  assert.equal(wallet().balance,1100,"Phase 1 700 plus Phase 2 400 = 1100 Sparks");
+  assert.equal(wallet().memberYearEarned,1100);
+  assert.equal(wallet().totalEarned,1100);
+  assert.equal(getClaims().length,22);
+  const phase2History=getClaims().filter(item=>item.questId==="daily-checkin-nov-2026-phase-2");
+  assert.equal(phase2History.length,8,"exactly eight Phase 2 history entries");
+  const beforeDup=commits;
+  r=await invoke(claimDate(30));
+  assert.equal(r.status,200);
+  assert.equal(r.body.alreadyClaimed,true);
+  assert.equal(commits,beforeDup,"cannot credit the same Phase 2 day twice");
+  setDate("2026-11-30T17:00:00.000Z"); // Dec 1 Thailand
+  assert.equal((await invoke(claimDate(30))).status,400,"Phase 2 cannot claim after 30 Nov");
+  assert.equal(wallet().balance,1100);
+  console.log("PASS Daily Check-in Phase 2: exact 23–30 Nov boundaries, isolated 8-day wallet records, 400 additional Sparks, atomic history, no duplicate and no backdate");
 
   // No session impersonation, and database quota errors never touch wallet.
   setDate("2026-11-20T05:00:00.000Z");

@@ -54,7 +54,7 @@ function CalendarBadge({ size = 34 }: { size?: number }) {
 export default function DailyCheckinQuest({ username, sessionId, claimedDays, claimedDaysPhase2 = [], loaded, autoOpen = false, hideTrigger = false }: Props) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [serverDays, setServerDays] = useState<{ username: string; questId: string; days: number[] } | null>(null);
+  const [serverDays, setServerDays] = useState<{ username: string; questId: string; days: number[] }[]>([]);
   const [today, setToday] = useState(() => bangkokQuestToday());
   const [viewPhase, setViewPhase] = useState<1 | 2>(() => checkinActivePhase(bangkokQuestToday()));
   const [message, setMessage] = useState("");
@@ -69,7 +69,7 @@ export default function DailyCheckinQuest({ username, sessionId, claimedDays, cl
   const event = viewPhase === 1 ? DAILY_CHECKIN_EVENT : DAILY_CHECKIN_PHASE_2;
   const phaseDays = viewPhase === 1 ? CHECKIN_DAYS : CHECKIN_PHASE_2_DAYS;
   const persistedDays = viewPhase === 1 ? claimedDays : claimedDaysPhase2;
-  const validServerDays = serverDays?.username === username && serverDays.questId === event.id ? serverDays.days : [];
+  const validServerDays = serverDays.find((claim) => claim.username === username && claim.questId === event.id)?.days || [];
   const saved = [...new Set([...persistedDays, ...validServerDays])]
     .filter((n) => Number.isInteger(n) && phaseDays.includes(n)).sort((a, b) => a - b);
   const claimedCount = loaded ? saved.length : 0;
@@ -166,7 +166,10 @@ export default function DailyCheckinQuest({ username, sessionId, claimedDays, cl
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(String(result.error || "ระบบไม่สามารถบันทึกเช็กอินได้"));
       const data = result as ClaimResult;
-      setServerDays({ username, questId: data.questId || event.id, days: data.claimedDays });
+      setServerDays((previous) => [
+        ...previous.filter((item) => item.username !== username || item.questId !== (data.questId || event.id)),
+        { username, questId: data.questId || event.id, days: data.claimedDays },
+      ]);
       setMessage(data.alreadyClaimed
         ? "คุณได้รับรางวัลของวันนี้ไปแล้ว ไม่ได้เพิ่มคะแนนซ้ำ"
         : "เช็กอินสำเร็จ! ได้รับ +50 QA Sparks บันทึกใน History และ Member Level แล้ว");
