@@ -184,6 +184,10 @@ DECLARE
  gate_open boolean;
 BEGIN
  SELECT enabled INTO gate_open FROM public.qa_sparks_access_control WHERE id='global';
+ -- Respect the same hard write switch used by the Supabase runtime bridge.
+ IF NOT EXISTS(SELECT 1 FROM sparks_runtime.control WHERE id='live_sparks' AND writes_enabled=true) THEN
+    RETURN jsonb_build_object('status','writes-disabled','awards',0);
+ END IF;
  -- Capture every Active member seen while the outage is underway.
  FOR item IN SELECT * FROM sparks_runtime.maintenance_incidents WHERE state='scheduled' AND start_at<=now() LOOP
    INSERT INTO sparks_runtime.maintenance_eligible(incident_id,username)
