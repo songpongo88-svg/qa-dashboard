@@ -19,7 +19,11 @@ let source = fs.readFileSync(signatureCenterPath, "utf8");
 // safer payment selection and restore _Consolidated suffixes.
 const nativeCarryOver = source.includes("const selectedMonthCarryOverDocs = useMemo(") &&
   source.includes("lateSignaturePaymentCycle(") &&
-  source.includes("fetchMonthlyPaymentBatch");
+  (source.includes("fetchMonthlyPaymentBatch") ||
+    // Native month-scoped exports intentionally do not import the legacy
+    // batch reader. Never reapply v90 and merge old-month recipients back in.
+    (source.includes("return currentMonthIncentiveDocuments(selectedMonth, selectedMonthExportDocs)") &&
+     source.includes("requireCurrentMonthIncentiveDocuments(selectedMonth, selectedMonthPaymentExportDocs)")));
 if (!source.includes(marker) && !nativeCarryOver) {
   source = replaceOnce(
     source,
