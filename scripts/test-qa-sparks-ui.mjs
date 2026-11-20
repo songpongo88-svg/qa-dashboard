@@ -135,7 +135,8 @@ try{
   const lotteryQuest=main.querySelector('[data-quest-item="qa-lottery"]');
   assert.ok(lotteryQuest && lotteryQuest.classList.contains("qa-sparks-mini-item"), "QA Lottery uses the same compact Quest slot");
   assert.equal(main.querySelectorAll(".qa-sparks-quest-grid > .qa-sparks-mini-item").length,3, "all three Quests align in one grid");
-  assert.equal(main.querySelectorAll(".qa-sparks-reward-grid .qa-sparks-mini-item").length,8, "Reward Center includes Auto-Pass, Typing Relief, Shield, TrueMoney and four brand rewards");
+  assert.equal(main.querySelectorAll(".qa-sparks-reward-grid .qa-sparks-mini-item").length,9, "Reward Center includes Mining Lucky Boost, Auto-Pass, Typing Relief, Shield, TrueMoney and four brand rewards");
+  assert.ok(main.querySelector('[data-reward-item="mining-lucky-boost"]'),"Mining Lucky Boost 25 Sparks is present");
   const overviewPanels=main.querySelectorAll(".qa-sparks-dual > .qa-sparks-panel");
   assert.equal(overviewPanels.length,2,"Overview retains the original Reward Center and History panels");
   assert.ok(overviewPanels[0].querySelector(".qa-sparks-reward-grid"),"Reward Center is the first column");
@@ -150,7 +151,7 @@ try{
   const displayedOrder=[...main.querySelectorAll(".qa-sparks-reward-grid .qa-sparks-mini-item")]
     .sort((a,b)=>Number(a.style.order)-Number(b.style.order))
     .map(item=>item.dataset.rewardItem);
-  assert.deepEqual(displayedOrder,["seven-100","netflix-1m","truemoney-20","amazon-55","punthai-65","qa-access-auto-pass","typing-relief","announcement-shield"],
+  assert.deepEqual(displayedOrder,["seven-100","netflix-1m","truemoney-20","amazon-55","punthai-65","qa-access-auto-pass","typing-relief","announcement-shield","mining-lucky-boost"],
     "Reward Center must display all six rewards from most Sparks to least, including TrueMoney's displayed price");
   await act(async()=>main.querySelector('[data-reward-item="punthai-65"]').dispatchEvent(new MouseEvent("click",{bubbles:true})));
   const punthaiPopup=document.querySelector(".sr-modal");
