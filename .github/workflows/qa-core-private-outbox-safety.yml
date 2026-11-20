@@ -28,6 +28,9 @@ on:
       - "migration/qa-windows-verified-source-candidate-stage.sql"
       - "server/qaWindowsVerifiedCandidateJournal.js"
       - "server/qaWindowsSignedReplayReceiverLab.js"
+      - "server/qaCoreSignedReviewSenderLab.js"
+      - "migration/qa-core-signed-review-sender-lab.sql"
+      - "scripts/test-qa-core-windows-signed-review-loopback-integration.mjs"
       - "migration/qa-windows-signed-replay-receiver-lab.sql"
       - "scripts/test-qa-windows-signed-replay-receiver-integration.mjs"
       - "scripts/test-qa-windows-verified-candidate-integration.mjs"
@@ -116,6 +119,7 @@ jobs:
           node --check server/qaWindowsPrivateSignalStage.js
           node --check server/qaWindowsVerifiedCandidateJournal.js
           node --check server/qaWindowsSignedReplayReceiverLab.js
+          node --check server/qaCoreSignedReviewSenderLab.js
           node scripts/test-qa-windows-private-signal-stage.mjs
           node scripts/test-qa-windows-signal-install-policy.mjs
           node --check scripts/Check-QA-Windows-Private-Signal-Stage.mjs
@@ -204,3 +208,4 @@ jobs:
           node scripts/test-qa-windows-reconciliation-integration.mjs
           node scripts/test-qa-core-source-verification-candidate-integration.mjs
           node scripts/test-qa-windows-signed-replay-receiver-integration.mjs
+          node scripts/test-qa-core-windows-signed-review-loopback-integration.mjs
