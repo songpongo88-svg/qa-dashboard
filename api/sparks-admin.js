@@ -1258,7 +1258,7 @@ function toHistory(doc) {
     detail: voided ? "รายการทดลองถูกยกเลิก (เดิม " + (originalAmount > 0 ? "+" : "") + originalAmount.toLocaleString("en-US") + " Sparks)" : String(row.detail || ""),
     source: String(row.source || ""),
     rewardId:String(row.rewardId||""),itemId:String(row.itemId||""),
-    quantity:row.quantity,inventoryAfter:row.inventoryAfter,challengeId:row.challengeId,
+    quantity:row.quantity,inventoryAfter:row.inventoryAfter,boostUsed:row.boostUsed===true,challengeId:row.challengeId,
     originalWords:row.originalWords,remainingWords:row.remainingWords,drawDate:row.drawDate,
     amount: voided ? 0 : originalAmount,
     voided,
