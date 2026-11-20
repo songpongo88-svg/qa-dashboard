@@ -1753,9 +1753,12 @@ async function sparksHandler(req, res) {
     if (!expected || req.headers.authorization !== "Bearer "+expected) return res.status(401).json({error:"Unauthorized cron request"});
     if(String(req.url||"").split("?")[0]==="/api/cron/fruit-match-weekly")
       {
-        const fruit=await fruitMatch.settleWeekly();
-        const puzzle=await fifteenPuzzle.settleWeekly();
-        return res.status(200).json({fruit,puzzle});
+        const [fruit,puzzle]=await Promise.allSettled([fruitMatch.settleWeekly(),fifteenPuzzle.settleWeekly()]);
+        if(fruit.status==="rejected"||puzzle.status==="rejected"){
+          console.error("Weekly mini-games settlement failure",{fruit:fruit.status,puzzle:puzzle.status});
+          return res.status(503).json({error:"การจ่ายรางวัลรายสัปดาห์บางเกมไม่สำเร็จ กรุณารัน Cron ซ้ำ",fruit:fruit.status,puzzle:puzzle.status});
+        }
+        return res.status(200).json({fruit:fruit.value,puzzle:puzzle.value});
       }
     const [lottery,shield,typing,autoPassPending]=await Promise.allSettled([
       qaLottery.settle(),
