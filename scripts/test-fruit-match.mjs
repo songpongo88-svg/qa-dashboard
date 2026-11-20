@@ -53,19 +53,19 @@ try{
   assert.equal((await invoke("fruit-match-data",{},"Agent","")).status,403);assert.equal(commits,0);
   let loaded=await invoke("fruit-match-data");assert.equal(loaded.status,200);assert.deepEqual(loaded.body.leaderboard,[]);
   const round=await start(),beforeRetry=commits;
-  const duplicateStart=await invoke("fruit-match-start",{requestId:"fruit-request-1"});assert.equal(duplicateStart.body.token,round.token);assert.equal(commits,beforeRetry);assert.equal(duplicateStart.body.stats.played,1);
+  const duplicateStart=await invoke("fruit-match-start",{requestId:"fruit-request-1"});assert.equal(duplicateStart.body.token,round.token);assert.equal(commits,beforeRetry);assert.equal(duplicateStart.body.stats.played,1);assert.equal(wallet().balance,199,"one Spark charged only once on start");
   const trace=traceFor(round.deck);
   assert.equal((await invoke("fruit-match-finish",{token:round.token,trace})).status,400,"cannot submit a time not yet elapsed on the server");
   const tampered=round.token.replace(/^./,round.token[0]==="a"?"b":"a");assert.equal((await invoke("fruit-match-finish",{token:tampered,trace})).status,403);
   assert.throws(()=>replayFruitRound(round.deck,[{card:0,at:100},{card:0,at:300}]));
   assert.throws(()=>replayFruitRound(round.deck,[{card:0,at:100},{card:1,at:101}]));
   clock+=6000;conflict=true;
-  let r=await invoke("fruit-match-finish",{token:round.token,trace});assert.equal(r.status,200,JSON.stringify(r.body));assert.equal(r.body.result.won,true);assert.equal(r.body.result.pairs,12);assert.equal(r.body.result.moves,12);assert.equal(wallet().balance,220);assert.equal(wallet().memberYearEarned,220);assert.equal(r.body.leaderboard.length,1);
-  const applied=commits;clock+=200000;r=await invoke("fruit-match-finish",{token:round.token,trace});assert.equal(r.status,200);assert.equal(r.body.alreadyApplied,true);assert.equal(commits,applied);assert.equal(wallet().balance,220);
-  let r2=await win(5000);assert.equal(r2.body.result.earned,20);assert.equal(wallet().balance,240);
+  let r=await invoke("fruit-match-finish",{token:round.token,trace});assert.equal(r.status,200,JSON.stringify(r.body));assert.equal(r.body.result.won,true);assert.equal(r.body.result.pairs,12);assert.equal(r.body.result.moves,12);assert.equal(wallet().balance,219);assert.equal(wallet().memberYearEarned,220);assert.equal(r.body.leaderboard.length,1);
+  const applied=commits;clock+=200000;r=await invoke("fruit-match-finish",{token:round.token,trace});assert.equal(r.status,200);assert.equal(r.body.alreadyApplied,true);assert.equal(commits,applied);assert.equal(wallet().balance,219);
+  let r2=await win(5000);assert.equal(r2.body.result.earned,20);assert.equal(wallet().balance,238);
   assert.equal(r2.body.stats.dailyPlayCount,2);
   assert.equal((await invoke("fruit-match-start",{requestId:"fruit-limit-third"})).status,409,"third play blocked regardless of result");
-  const histories=()=>[...docs.keys()].filter(key=>key.includes("/history/fruit-match-"));assert.equal(histories().length,2);
+  const histories=()=>[...docs.keys()].filter(key=>key.includes("/history/fruit-match-"));assert.equal(histories().length,4);
   clock=OriginalDate.parse("2026-11-05T17:00:01Z");
   r=await win(4000);assert.equal(r.body.result.earned,20,"daily reset at midnight in Bangkok");assert.equal(r.body.stats.rewardDay,"2026-11-06");assert.equal(r.body.stats.dailyPlayCount,1);
   assert.equal(r.body.stats.best.elapsedMs,4000,"faster wins replace the best");
@@ -80,7 +80,7 @@ try{
   const lastYearBalance=wallet().balance;
   clock=OriginalDate.parse("2026-12-31T17:00:01Z"); // Jan 1, 2027 Bangkok
   r=await win(4000);assert.equal(r.body.result.earned,20);
-  assert(lastYearBalance>20);assert.equal(wallet().balance,20,"expired 2026 balance cannot be carried into new reward");
+  assert(lastYearBalance>20);assert.equal(wallet().balance,20-FRUIT_MATCH.entryFee,"expired 2026 balance cannot be carried into new reward");
   assert.equal(wallet().balanceYear,2027);assert.equal(wallet().memberYearEarned,20,"Member Level resets in 2027");
   const originalBalance=wallet().balance;quota=true;r=await invoke("fruit-match-data");assert.equal(r.status,429);assert.equal(wallet().balance,originalBalance);quota=false;
   assert(compareFruitRecords({elapsedMs:1000,moves:12,achievedAt:"2026-01-01"},{elapsedMs:1000,moves:13,achievedAt:"2025-01-01"})<0);
