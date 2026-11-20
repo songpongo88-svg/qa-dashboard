@@ -27,11 +27,12 @@ const db={
  currentMemberYear:()=>2026,
  findProfileByUsername:async name=>profiles[name]||null,
  isSuspendedProfile:v=>v.status==="Suspended",
- listCollection:async()=>({documents:Object.values(profiles).map(fields=>({fields}))}),
+ listCollection:async()=>{throw Error("transfer recipient lookup must not read Firestore profiles");},
+ activeDirectory:async()=>[profiles.alice,profiles.bob],
 };
 const service=createSparksTransferService(db),actor={username:"alice",displayName:"Alice"};
 const state=await service.readState(actor);assert.equal(state.balance,1000);assert.equal(state.remaining,500);
-const list=await service.recipients(actor);assert.deepEqual(list.recipients.map(p=>p.username),["bob"]);
+const list=await service.recipients(actor);assert.deepEqual(list.recipients.map(p=>p.username),["bob"],"only verified Active Supabase recipients are listed");
 const tx1={recipientUsername:"bob",amount:300,requestId:"firstTransferCode123"};
 let result=await service.transfer(tx1,actor);
 assert.equal(result.balanceAfter,700);assert.equal(result.remaining,200);
