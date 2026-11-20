@@ -132,7 +132,7 @@ export default function QALottery({username,sessionId,balance,loaded}:{username:
       pendingPurchase.current={drawDate,number,requestId};
       const result=await request("qa-lottery-buy",{number,drawDate,requestId});
       pendingPurchase.current=null;
-      setNotice(result.alreadyPurchased?"หมายเลขนี้ถูกบันทึกไว้แล้ว":"ซื้อหมายเลข "+number+" เรียบร้อย หัก 120 Sparks");
+      setNotice(result.alreadyPurchased?"หมายเลขนี้ถูกบันทึกไว้แล้ว":"ซื้อหมายเลข "+number+" เรียบร้อย หัก "+data.price+" Sparks");
       setConfirmNumber("");setDigits("");
       window.dispatchEvent(new CustomEvent("qa:sparks-updated"));
       try{setData(await request("qa-lottery-state"));}
@@ -142,18 +142,18 @@ export default function QALottery({username,sessionId,balance,loaded}:{username:
   }
 
   const tickets=data?.draw?.tickets||[];
-  const available=loaded&&balance>=120&&tickets.length<2;
+  const available=loaded&&balance>=(data?.price??80)&&tickets.length<2;
   return <>
     <button type="button" ref={trigger} data-quest-item="qa-lottery"
       className="qa-sparks-mini-item qa-sparks-mini-item--lottery"
-      aria-label="เปิด QA Lottery · ซื้อเลข 6 หลัก 120 Sparks ต่อครั้ง จำกัด 2 ครั้งต่องวด"
+      aria-label="เปิด QA Lottery · ซื้อเลข 6 หลัก 80 Sparks ต่อครั้ง จำกัด 2 ครั้งต่องวด"
       aria-haspopup="dialog" aria-expanded={open} onClick={openDetails}>
       <span className="qa-sparks-mini-art qa-sparks-mini-art--lottery">
         <LotteryTicketArt/>
-        <span className="qa-sparks-mini-corner">120</span>
+        <span className="qa-sparks-mini-corner">80</span>
       </span>
       <strong className="qa-sparks-mini-name">QA Lottery</strong>
-      <span className="qa-sparks-mini-value">120 Sparks/ใบ</span>
+      <span className="qa-sparks-mini-value">80 Sparks/ใบ</span>
       <span className="qa-sparks-mini-hint">งวดวันที่ 1 และ 16</span>
     </button>
     {open&&typeof document!=="undefined"?createPortal(
@@ -175,7 +175,7 @@ export default function QALottery({username,sessionId,balance,loaded}:{username:
           </header>
           <div className="ql-modal-body">
             <div className="ql-summary-grid">
-              <div><small>ราคา / หมายเลข</small><strong>120 <span>Sparks</span></strong></div>
+              <div><small>ราคา / หมายเลข</small><strong>{data?.price??80} <span>Sparks</span></strong></div>
               <div><small>สิทธิ์ซื้อ / งวด</small><strong>2 <span>ครั้ง</span></strong></div>
               <div><small>ตรวจรางวัล</small><strong>3 <span>ประเภท</span></strong></div>
             </div>
@@ -197,12 +197,12 @@ export default function QALottery({username,sessionId,balance,loaded}:{username:
                     disabled={busy||!available||Boolean(confirmNumber)}
                     onChange={event=>{setDigits(event.target.value.replace(/[^0-9]/g,"").slice(0,6));pendingPurchase.current=null;}}/>
                   <button type="submit" disabled={busy||!available||digits.length!==6||Boolean(confirmNumber)}>
-                    {!loaded?"กำลังตรวจยอด Sparks":tickets.length>=2?"ครบสิทธิ์งวดนี้":balance<120?"Sparks ไม่เพียงพอ":"ซื้อเลข · 120 Sparks"}
+                    {!loaded?"กำลังตรวจยอด Sparks":tickets.length>=2?"ครบสิทธิ์งวดนี้":balance<data.price?"Sparks ไม่เพียงพอ":"ซื้อเลข · "+data.price+" Sparks"}
                   </button>
                 </div>
               </form>
               {confirmNumber?<div className="ql-confirm" role="group" aria-label="ยืนยันการซื้อ QA Lottery">
-                <p>ยืนยันซื้อหมายเลข <strong>{confirmNumber}</strong> งวด {formattedDate(data.draw.date)} ด้วย 120 Sparks?</p>
+                <p>ยืนยันซื้อหมายเลข <strong>{confirmNumber}</strong> งวด {formattedDate(data.draw.date)} ด้วย {data.price} Sparks?</p>
                 <div>
                   <button type="button" className="ql-cancel" disabled={busy} onClick={()=>setConfirmNumber("")}>กลับไปแก้ไข</button>
                   <button type="button" className="ql-confirm-buy" disabled={busy} onClick={()=>void buy()}>
@@ -224,7 +224,7 @@ export default function QALottery({username,sessionId,balance,loaded}:{username:
             </section>:null}
             <div className="ql-modal-rules">
               <h3>เงื่อนไขการเข้าร่วม</h3>
-              <p>ใช้ Sparks จากยอดที่มีอยู่ซื้อได้ไม่เกิน 2 ครั้งต่อคนต่องวด (120 Sparks ต่อหมายเลข) และปิดรับเวลา 14:00 น. ตามเวลาไทยในวันออกรางวัลปกติ</p>
+              <p>ใช้ Sparks จากยอดที่มีอยู่ซื้อได้ไม่เกิน 2 ครั้งต่อคนต่องวด ({data?.price??80} Sparks ต่อหมายเลข) และปิดรับเวลา 14:00 น. ตามเวลาไทยในวันออกรางวัลปกติ</p>
               <p>ระบบจะตรวจผลสลากกินแบ่งรัฐบาลตามประเภทของ GLO จริง และจ่าย Sparks หลังยืนยันผลครบเท่านั้น หากแหล่งข้อมูลไม่พร้อม ระบบจะรอตรวจใหม่และไม่จ่ายรางวัลก่อนกำหนด</p>
             </div>
           </div>
