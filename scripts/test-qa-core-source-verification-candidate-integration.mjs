@@ -48,7 +48,7 @@ const readAdapter=createQaCoreIndependentSourceRead({
   return createQaSourceReadBudget({
    client:pool,projectId:project,dailyDocumentLimit:15,
    dailyRequestLimit:11,
-   now:()=>new Date('2026-11-20T08:15:00.000Z'),
+   now:()=>new Date('2031-01-14T08:15:00.000Z'),
   }).reserve(req);
  },
  fetchImpl:async (url,options)=>{
@@ -112,8 +112,8 @@ try{
  assert.equal((await run()).replay,true);
  const ledger=(await pool.query(
   'SELECT reserved_document_units,reserved_requests FROM '+
-  'qa_failover_v1.source_read_budget_daily WHERE project_id=$1',
-  [project])).rows[0];
+  'qa_failover_v1.source_read_budget_daily WHERE project_id=$1 AND budget_day=$2::date',
+  [project,'2031-01-14'])).rows[0];
  assert.equal(ledger.reserved_document_units,2);
  assert.equal(ledger.reserved_requests,2);
  const row=(await pool.query('SELECT observed_revision,field_hash,document_hash,'+
