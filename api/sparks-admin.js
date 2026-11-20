@@ -1752,7 +1752,11 @@ async function sparksHandler(req, res) {
     const expected = String(process.env.CRON_SECRET || "").trim();
     if (!expected || req.headers.authorization !== "Bearer "+expected) return res.status(401).json({error:"Unauthorized cron request"});
     if(String(req.url||"").split("?")[0]==="/api/cron/fruit-match-weekly")
-      return res.status(200).json(await fruitMatch.settleWeekly());
+      {
+        const fruit=await fruitMatch.settleWeekly();
+        const puzzle=await fifteenPuzzle.settleWeekly();
+        return res.status(200).json({fruit,puzzle});
+      }
     const [lottery,shield,typing,autoPassPending]=await Promise.allSettled([
       qaLottery.settle(),
       gate.enabled?announcementShield.sweep():Promise.resolve({status:"paused"}),
