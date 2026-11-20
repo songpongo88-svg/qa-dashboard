@@ -8,7 +8,6 @@ import { createQaLotteryService } from "../server/qaLotteryService.js";
 import { createQaRewardsService } from "../server/qaRewardsService.js";
 import { createSnakesService } from "../server/snakesLaddersService.js";
 import { createFifteenPuzzleService } from "../server/fifteenPuzzleService.js";
-import { createSparksTransferService } from "../server/sparksTransferService.js";
 import { createHiddenTreasureService } from "../server/hiddenTreasureService.js";
 import { createAnnouncementShieldService } from "../server/announcementShieldService.js";
 import { createTypingReliefCloudService } from "../server/typingReliefCloudService.js";
@@ -1831,9 +1830,6 @@ const fruitMatch = createFruitMatchService({firestoreRequest,readDoc,recordValue
   walletDocumentPath,currentMemberYear,annualEarnedFromWallet,spendableBalance});
 const fifteenPuzzle = createFifteenPuzzleService({firestoreRequest,readDoc,recordValue,path,updateWrite,createWrite,
   walletDocumentPath,currentMemberYear,annualEarnedFromWallet,spendableBalance});
-const sparksTransfer = createSparksTransferService({firestoreRequest,readDoc,recordValue,path,updateWrite,createWrite,
-  walletDocumentPath,currentMemberYear,spendableBalance,findProfileByUsername,isSuspendedProfile,listCollection,
-  activeDirectory:sparksAngelDirectory});
 const sparkJourney = createSparkJourneyService({firestoreRequest,readDoc,recordValue,updateWrite,createWrite,
   walletDocumentPath,currentMemberYear,annualEarnedFromWallet,spendableBalance});
 const qaLottery = createQaLotteryService({firestoreRequest,readDoc,listCollection,recordValue,path,updateWrite,createWrite,
