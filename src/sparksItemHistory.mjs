@@ -4,11 +4,11 @@ const names={
  "announcement-shield":"Announcement Shield","truemoney-20-thb":"TrueMoney 20 THB",
  "punthai-65":"PUNTHAI 65 THB","amazon-55":"Café Amazon 55 THB",
  "seven-100":"7-Eleven 100 THB","netflix-1m":"Netflix 1 เดือน",
- "qa-lottery-ticket":"QA Lottery Ticket"
+ "qa-lottery-ticket":"QA Lottery Ticket","mining-lucky-boost":"Mining Lucky Boost +40%"
 };
 const itemSources=new Set(["qa-auto-pass-free","reward-redemption","reward-activation",
  "special-reward","special-reward-admin","special-reward-activation","announcement-shield",
- "qa-lottery","item-expiry-derived","reward-payout"]);
+ "qa-lottery","item-expiry-derived","reward-payout","mining-boost-purchase"]);
 export function isItemHistoryEntry(e){
  if(!e||typeof e!=="object")return false;
  const source=String(e.source||"");
@@ -22,7 +22,8 @@ export function itemHistoryLabel(e){
  const id=String(e.rewardId||"")||(source==="qa-auto-pass-free"?"qa-access-auto-pass":
   source==="announcement-shield"?"announcement-shield":source==="qa-lottery"?"qa-lottery-ticket":"");
  let action="บันทึก Item",quantity=null;
- if(source==="qa-auto-pass-free"){action="รับฟรี";quantity=5;}
+ if(source==="mining-boost-purchase"){action="ซื้อ Item";quantity=1;}
+ else if(source==="qa-auto-pass-free"){action="รับฟรี";quantity=5;}
  else if(source==="reward-redemption" || source==="special-reward"&&!/ Request$/.test(title)
    || source==="announcement-shield"&&/แลก Item/.test(title)){action="รับ / ซื้อ / แลก";quantity=1;}
  else if(source==="reward-activation"){
@@ -47,7 +48,7 @@ export function itemHistoryLabel(e){
   else if(/ต่ออายุ/.test(title))action="ต่ออายุอัตโนมัติ";
  }
  else if(source==="reward-payout")action="ได้รับรางวัล";
- else if(source==="reward-refund")action="คืน Sparks จากการแลก";
+ else if(source==="reward-refund"){action="คืน Sparks จากการแลก";quantity=id==="mining-lucky-boost"?-1:null;}
  const details=[];
  if(e.challengeId)details.push("ภารกิจ "+e.challengeId);
  if(Number(e.originalWords)>0&&Number.isFinite(Number(e.remainingWords)))
