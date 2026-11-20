@@ -46,6 +46,16 @@ function effectivePlays(stats,date=today()) {
   const active=stats.activeRound&&dayFor(stats.activeRound.startedAt)===date?1:0;
   return Math.min(number(stats.dailyPlayCount),completedToday+active);
 }
+// One-off, time-bounded recovery for incomplete starts during the 20 Nov matching-game maintenance.
+const maintenanceStart=Date.parse("2026-11-20T15:00:00Z");
+const maintenanceEnd=Date.parse("2026-11-21T00:00:00Z");
+function recoverableRound(stats) {
+  const round=stats.activeRound;
+  return round && Number.isSafeInteger(round.startedAt)
+    && round.startedAt>=maintenanceStart && round.startedAt<maintenanceEnd
+    && Date.now()>=round.startedAt+FRUIT_MATCH.durationMs+5000
+    && /^[a-f0-9-]{36}$/.test(String(round.id||"")) ? round : null;
+}
 const themes=Object.keys(MATCH_THEMES);
 const validTheme=value=>themes.includes(value)?value:matchThemeAt();
 const themeStats=(stats,theme)=> {
@@ -62,7 +72,7 @@ function publicStats(stats,theme=matchThemeAt()) {
     best: t.best || null, history: Array.isArray(t.history) ? t.history.slice(-10) : [],
     dailyRewardCount: verifiedRewards(stats),
     dailyPlayCount: effectivePlays(stats),
-    playDay: today(), totalSparks: number(t.totalSparks), rewardDay: today(),
+    playDay: today(), totalSparks: number(t.totalSparks), rewardDay: today(), recoveryAvailable:Boolean(recoverableRound(stats)),
   };
 }
 function rows(board) {
@@ -115,6 +125,7 @@ export function createFruitMatchService(db) {
       if (previous?.requestId === body.requestId && previous.sessionHash === sessionHash(body.sessionId)
           && now >= previous.startedAt && now - previous.startedAt < FRUIT_MATCH.durationMs) round = previous;
       if (round) return {writes:[],result:{token:ticket(round),deck:round.deck,theme:round.theme||"fruit",numbers:round.numbers||[],stats:publicStats(stats,round.theme||"fruit")}};
+      if (recoverableRound(stats)) reject("พบรอบเกมค้างระหว่างปรับปรุงระบบ กรุณากดคืน 1 Spark และสิทธิ์เล่นก่อนเริ่มใหม่",409);
       if (previous && now - previous.startedAt < 1000) reject("กรุณารอสักครู่ก่อนเริ่มรอบใหม่", 429);
       const date=today();
       const dailyPlayCount=effectivePlays(stats,date);
@@ -210,6 +221,39 @@ export function createFruitMatchService(db) {
       return {writes,result:{alreadyApplied:false,result,stats:publicStats({...stats,...nextStats},theme),leaderboard,week}};
     });
   }
+  async function recover(actor) {
+    return transact(async transaction => {
+      const docPath=playerPath(actor),walletKey=walletDocumentPath(actor.username);
+      const statsDoc=await readDoc(docPath,transaction),stats=recordValue(statsDoc);
+      const round=recoverableRound(stats);
+      if(!round)reject("ไม่พบรอบค้างที่เข้าเงื่อนไขคืนคะแนน",409);
+      const entryKey=path("qa_sparks_wallets",encodeURIComponent(actor.username),"history","fruit-match-entry-"+round.id);
+      const refundKey=path("qa_sparks_wallets",encodeURIComponent(actor.username),"history","fruit-match-refund-"+round.id);
+      const resultKey=path(RECEIPTS,round.id);
+      const [walletDoc,entryDoc,refundDoc,completedDoc]=await Promise.all([
+        readDoc(walletKey,transaction),readDoc(entryKey,transaction),readDoc(refundKey,transaction),readDoc(resultKey,transaction),
+      ]);
+      if(refundDoc)reject("รายการนี้คืนคะแนนแล้ว กรุณาโหลดข้อมูลใหม่",409);
+      if(!entryDoc||completedDoc||!walletDoc)reject("ไม่สามารถยืนยันรายการหักค่าเล่นที่ยังไม่จบได้",409);
+      const entry=recordValue(entryDoc);
+      if(Number(entry.amount)!==-FRUIT_MATCH.entryFee || entry.roundId!==round.id)
+        reject("หลักฐานค่าเข้าเล่นไม่ตรงกับรอบที่ค้าง",409);
+      const wallet=recordValue(walletDoc),year=currentMemberYear();
+      if(dayFor(round.startedAt)!==today()||year!==2026)
+        reject("การคืนรอบเก่าต้องให้เจ้าหน้าที่ตรวจสอบก่อน",409);
+      const now=new Date().toISOString(),balance=spendableBalance(wallet,year)+FRUIT_MATCH.entryFee;
+      const writes=[
+        updateWrite(docPath,{activeRound:null,dailyPlayCount:Math.max(0,number(stats.dailyPlayCount)-1),
+          updatedAt:now},statsDoc),
+        updateWrite(walletKey,{username:actor.username,balance,balanceYear:year,updatedAt:now},walletDoc),
+        createWrite(refundKey,{createdAt:now,type:"refund",source:"mini-game-maintenance-recovery",
+          title:"Matching Game Maintenance Refund",amount:FRUIT_MATCH.entryFee,
+          detail:"คืนค่าเข้าและสิทธิ์รอบค้างที่ไม่มีผลการเล่นระหว่างปรับปรุงระบบ",
+          balanceAfter:balance,performedBy:actor.username,status:"Completed",roundId:round.id}),
+      ];
+      return {writes,result:{refunded:FRUIT_MATCH.entryFee,roundId:round.id}};
+    });
+  }
   // Atomic weekly payout; settledAt and deterministic wallet ledger prevent duplicates.
   async function settleOne(index,theme="fruit") {
     const period=fruitWeekPeriod(FRUIT_WEEKLY.firstResetAt+index*FRUIT_WEEKLY.weekMs);
@@ -252,5 +296,5 @@ export function createFruitMatchService(db) {
     for(let i=Math.max(0,current.index-8);i<current.index;i++)for(const theme of themes)results.push({...await settleOne(i,theme),theme});
     return {status:"checked",results};
   }
-  return {data,start,finish,settleWeekly};
+  return {data,start,finish,recover,settleWeekly};
 }
