@@ -1232,6 +1232,8 @@ function summary(wallet) {
   return {
     balance: spendableBalance(wallet),
     rewardOrders: balance(wallet.rewardOrders),
+    miningBoostOwned: balance(wallet.miningBoostOwned),
+    miningBoostAvailablePurchaseIds: Array.isArray(wallet.miningBoostAvailablePurchaseIds)?wallet.miningBoostAvailablePurchaseIds.filter(id=>typeof id==="string"):[],
     earned: Math.max(initialEarn, balance(wallet.totalEarned)),
     spent: balance(wallet.totalSpent),
     memberYear: currentMemberYear(),
