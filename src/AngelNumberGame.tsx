@@ -40,6 +40,7 @@ export default function AngelNumberGame({username,sessionId,adminAccess=false,ba
   const [error,setError]=useState(""),[notice,setNotice]=useState("");
   const [selected,setSelected]=useState<number|null>(null),[result,setResult]=useState<{hit:boolean;bonus:number;refund:number;jackpot:number}|null>(null);
   const [adminNumber,setAdminNumber]=useState(""),[now,setNow]=useState(Date.now());
+  const [adminPanelOpen,setAdminPanelOpen]=useState(false);
   const [friends,setFriends]=useState<Friend[]>([]),[friendsBusy,setFriendsBusy]=useState(false);
   const [shareChoice,setShareChoice]=useState<"self"|"friends">("self"),[shares,setShares]=useState<Share[]>([]);
   const [prizePaid,setPrizePaid]=useState(false);
@@ -71,9 +72,12 @@ export default function AngelNumberGame({username,sessionId,adminAccess=false,ba
   const ended=state.status==="finished";
   const mustAllocate=ended&&state.ownWon&&state.payoutStatus==="pending"&&!prizePaid;
   const canNewRound=state.status==="not-configured"||(ended&&state.payoutStatus==="paid");
+  // Visibility is not authorization: every admin write is verified again by the server.
+  const showAdminSettings=username.trim().toLowerCase()==="songpon"||adminAccess;
   const start=async()=>{
     const n=Number(adminNumber);
     if(!/^(0|[1-9]\d?|100)$/.test(adminNumber)||!Number.isInteger(n))return setError("กรุณากำหนดเลขนางฟ้า 0–100");
+    if(!window.confirm(`ยืนยันล็อกเลขนางฟ้า ${n} สำหรับรอบนี้หรือไม่?\n\nหลังยืนยันจะเปลี่ยนเลขไม่ได้ระหว่างรอบ และผู้เล่นจะเริ่มเปิดเลขได้วันที่ 6 ธันวาคม 2569 เวลา 00:00 น. (ประเทศไทย)`))return;
     setBusy(true);setError("");try{
       const data=await request("angel-admin-create",{angelNumber:n});
       setState(data);setAdminNumber("");setNotice("สร้างรอบกิจกรรมแล้ว ระบบจะแสดงเลขนางฟ้าต่อผู้ดูแลเท่านั้น");
@@ -130,16 +134,17 @@ export default function AngelNumberGame({username,sessionId,adminAccess=false,ba
         <span>เปิดแล้ว {opened.size} / 101 หมายเลข · เลขที่เปิดแล้วจะเลือกซ้ำไม่ได้</span></div>
       <div className="an-toolbar-right">
         {cooldown>0&&state.status==="open"?<span className="an-cooldown">เปิดเลขอีกครั้งใน <Countdown until={state.cooldownUntil||0} now={now}/></span>:null}
+        {showAdminSettings?<button type="button" className="an-refresh" data-sparks-angel-admin-toggle="true" aria-controls="an-admin-settings" aria-expanded={adminPanelOpen} onClick={()=>{setAdminPanelOpen(open=>!open);setError("");}} style={{background:"#6e35a3",color:"#fff",borderColor:"#6e35a3",fontWeight:800}}>{canNewRound?"กำหนดเลขนางฟ้า":"ดูเลขลับที่ล็อกไว้"}</button>:null}
         <button type="button" className="an-refresh" onClick={()=>void refresh()} disabled={loading}>รีเฟรช</button>
       </div>
     </div>
     {error?<div role="alert" className="an-alert an-alert--danger">{error}</div>:null}
     {notice?<div role="status" className="an-alert">{notice}</div>:null}
-    {adminAccess&&username==="songpon"?<div className="an-admin">
-      <div><strong>ตั้งค่าเลขนางฟ้า (Admin เท่านั้น)</strong><p>กำหนดเลขลับตั้งแต่ 0–100 แล้วกดยืนยันเปิดรอบ · เกมเริ่มเล่นได้ตั้งแต่ 6 ธันวาคม 2569 · เลขลับไม่แสดงแก่ผู้เล่น</p></div>
+    {showAdminSettings&&adminPanelOpen?<div className="an-admin" id="an-admin-settings" data-sparks-angel-admin-settings="true">
+      <div><strong>ตั้งค่าเลขนางฟ้า (เจ้าของระบบเท่านั้น)</strong><p>กรอกเลขลับ 0–100 และยืนยันเพื่อล็อกเลขสำหรับรอบนี้ · เปลี่ยนไม่ได้ระหว่างรอบ · เริ่มเล่น 6 ธันวาคม 2569 เวลา 00:00 น. (ไทย) · ผู้เล่นไม่เห็นเลขลับ</p></div>
       {canNewRound?<div className="an-admin-controls">
         <input aria-label="เลขนางฟ้าที่กำหนดโดย Admin" type="number" min="0" max="100" placeholder="เลขลับ 0–100" value={adminNumber} onChange={e=>setAdminNumber(e.target.value)}/>
-        <button type="button" onClick={()=>void start()} disabled={busy||adminNumber.trim()===""}>ยืนยันเลขและเปิดรอบ</button>
+        <button type="button" onClick={()=>void start()} disabled={loading||busy||adminNumber.trim()===""}>ยืนยันและล็อกเลข</button>
       </div>:<span className="an-admin-secret">เลขลับของรอบนี้: {state.angelNumber??"—"}</span>}
     </div>:null}
     {state.status==="not-configured"||state.status==="scheduled"?<div className="an-message">
