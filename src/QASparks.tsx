@@ -8,6 +8,7 @@ import SparksEmailAuth, { type SparksVerifiedActor } from "./SparksEmailAuth";
 import SparksAdminPanel from "./SparksAdminPanel";
 import SparksQaCredentialMigration from "./SparksQaCredentialMigration";
 import TypingReliefRewardCard from "./TypingReliefRewardCard";
+import MiningBoostCard from "./MiningBoostCard";
 import QaAutoPassRewardCard from "./QaAutoPassRewardCard";
 import DailyCheckinQuest from "./DailyCheckinQuest";
 import ProfileMakeoverQuest from "./ProfileMakeoverQuest";
@@ -295,7 +296,7 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
           </div>
         </section> : null}
         {view === "overview" ? <div className="qa-sparks-dual">
-          <section className="qa-sparks-panel"><h2><SparksIcon name="gift"/> Reward Center</h2><p className="qa-sparks-reward-tagline">แลกรางวัลสุดพิเศษด้วย Sparks ที่คุณสะสมได้จาก QA Sparks</p><div className="qa-sparks-mini-grid qa-sparks-reward-grid"><TypingReliefRewardCard username={username} sessionId={sparksSessionId} balance={account.balance} owned={account.typingReliefOwned} loaded={walletLoaded}/><QaAutoPassRewardCard username={username} sessionId={sparksSessionId} balance={account.balance} owned={account.autoPassOwned} freeClaimedAt={account.autoPassFreeClaimedAt} loaded={walletLoaded}/><TrueMoneyReward mode="reward" username={username} sessionId={sparksSessionId} balance={account.balance} loaded={walletLoaded}/><AnnouncementShieldItem mode="reward" username={username} sessionId={sparksSessionId} balance={account.balance}/><SpecialRewardCenter mode="reward" username={username} sessionId={sparksSessionId} balance={account.balance} loaded={walletLoaded}/></div></section>
+          <section className="qa-sparks-panel"><h2><SparksIcon name="gift"/> Reward Center</h2><p className="qa-sparks-reward-tagline">แลกรางวัลสุดพิเศษด้วย Sparks ที่คุณสะสมได้จาก QA Sparks</p><div className="qa-sparks-mini-grid qa-sparks-reward-grid"><TypingReliefRewardCard username={username} sessionId={sparksSessionId} balance={account.balance} owned={account.typingReliefOwned} loaded={walletLoaded}/><QaAutoPassRewardCard username={username} sessionId={sparksSessionId} balance={account.balance} owned={account.autoPassOwned} freeClaimedAt={account.autoPassFreeClaimedAt} loaded={walletLoaded}/><TrueMoneyReward mode="reward" username={username} sessionId={sparksSessionId} balance={account.balance} loaded={walletLoaded}/><AnnouncementShieldItem mode="reward" username={username} sessionId={sparksSessionId} balance={account.balance}/><SpecialRewardCenter mode="reward" username={username} sessionId={sparksSessionId} balance={account.balance} loaded={walletLoaded}/><MiningBoostCard username={username} sessionId={sparksSessionId}/></div></section>
           <section className="qa-sparks-panel"><h2><SparksIcon name="clock"/> History</h2><SparksHistory history={account.history}/></section>
         </div> : view === "quests" || view === "games" ? null : view === "rewards" ? <section className="qa-sparks-panel qa-sparks-single"><h2><SparksIcon name="gift"/> Reward Center</h2><p className="qa-sparks-reward-tagline">แลกรางวัลสุดพิเศษด้วย Sparks ที่คุณสะสมได้จาก QA Sparks</p><div className="qa-sparks-mini-grid qa-sparks-reward-grid"><TypingReliefRewardCard username={username} sessionId={sparksSessionId} balance={account.balance} owned={account.typingReliefOwned} loaded={walletLoaded}/><QaAutoPassRewardCard username={username} sessionId={sparksSessionId} balance={account.balance} owned={account.autoPassOwned} freeClaimedAt={account.autoPassFreeClaimedAt} loaded={walletLoaded}/><TrueMoneyReward mode="reward" username={username} sessionId={sparksSessionId} balance={account.balance} loaded={walletLoaded}/><AnnouncementShieldItem mode="reward" username={username} sessionId={sparksSessionId} balance={account.balance}/><SpecialRewardCenter mode="reward" username={username} sessionId={sparksSessionId} balance={account.balance} loaded={walletLoaded}/></div></section>
         : view === "items" ? <section className="qa-sparks-panel qa-sparks-single qa-sparks-items-panel" data-inventory-clock={itemClock}>
@@ -320,6 +321,7 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
               ?<QaAutoPassRewardCard mode="inventory" username={username} sessionId={sparksSessionId}
                   balance={account.balance} owned={account.autoPassOwned}
                   freeClaimedAt={account.autoPassFreeClaimedAt} loaded={walletLoaded}/>:null}
+            <MiningBoostCard mode="inventory" username={username} sessionId={sparksSessionId}/>
             <AnnouncementShieldItem mode="inventory" username={username} sessionId={sparksSessionId} balance={account.balance} inventoryFilter={itemShelf}/>
             <TrueMoneyReward mode="inventory" username={username} sessionId={sparksSessionId} balance={account.balance}
               loaded={walletLoaded} hasOtherItems={true} inventoryFilter={itemShelf}/>
