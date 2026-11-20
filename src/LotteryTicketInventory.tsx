@@ -3,7 +3,7 @@ import {createPortal} from "react-dom";
 import "./lotteryTicketInventory.css";
 import {classifyLotteryTicket,type ItemShelfFilter} from "./qaSparksItemStatus";
 
-type Ticket={id:string;number:string;drawDate:string;createdAt:string;paidAt?:string|null;prize:number;matched:string[];status?:string};
+type Ticket={id:string;number:string;drawDate:string;createdAt:string;paidAt?:string|null;prize:number;matched:string[];price?:number;status?:string};
 const date=(iso:string)=>new Date(iso.includes("T")?iso:iso+"T12:00:00+07:00").toLocaleDateString("th-TH",{day:"numeric",month:"short",year:"numeric",timeZone:"Asia/Bangkok"});
 export default function LotteryTicketInventory({username,sessionId,loaded,inventoryFilter="processing"}:{username:string;sessionId:string;loaded:boolean;inventoryFilter?:ItemShelfFilter}){
  const [tickets,setTickets]=useState<Ticket[]>([]);
@@ -95,7 +95,7 @@ export default function LotteryTicketInventory({username,sessionId,loaded,invent
     <small>MY QA SPARKS · LOTTERY TICKET</small>
     <h2 id="lt-ticket-title">ตั๋ว QA Lottery</h2>
     <div className="lt-number">{ticket.number}</div>
-    <div className="lt-facts"><span>งวด {date(ticket.drawDate)}</span><span>ซื้อเมื่อ {date(ticket.createdAt)}</span><span>120 Sparks</span></div>
+    <div className="lt-facts"><span>งวด {date(ticket.drawDate)}</span><span>ซื้อเมื่อ {date(ticket.createdAt)}</span><span>{ticket.price??120} Sparks</span></div>
     {ticket.paidAt?<div className="lt-result">
       <strong>{ticket.prize>0?"ถูกรางวัล +"+ticket.prize.toLocaleString()+" Sparks":"ไม่ถูกรางวัล"}</strong>
       <p>{ticket.matched?.length?"ประเภทที่ตรง: "+ticket.matched.map(x=>x==="first"?"รางวัลที่ 1":x==="back3"?"เลขท้าย 3 ตัว":"เลขท้าย 2 ตัว").join(" · "):"ตรวจรางวัลเสร็จแล้ว"}</p>
