@@ -115,7 +115,8 @@ export function createFruitMatchService(db) {
       round = {version:FRUIT_MATCH.version,id:randomUUID(),username:actor.username,sessionHash:sessionHash(body.sessionId),
         requestId:body.requestId,startedAt:now,deck,theme,numbers};
       const previousTheme=themeStats(stats,theme);
-      const byTheme={...(stats.byTheme||{}),[theme]:{...previousTheme,played:number(previousTheme.played)+1}};
+      const byTheme={fruit:themeStats(stats,"fruit"),...(stats.byTheme||{}),
+        [theme]:{...previousTheme,played:number(previousTheme.played)+1}};
       const updates = {username:actor.username,displayName:actor.displayName.slice(0,120),played:number(stats.played)+1,byTheme,
         activeRound:round,playDay:date,dailyPlayCount:dailyPlayCount+1,updatedAt:new Date(now).toISOString()};
       const nextBalance=balance-FRUIT_MATCH.entryFee;
