@@ -7,6 +7,9 @@ on:
       - "server/qaLiveMirrorStage.js"
       - "server/qaCorePrivateOutbox.js"
       - "server/qaCoreOutboxUncertainty.js"
+      - "server/qaCoreMutationCoordinatorStage.js"
+      - "scripts/test-qa-core-mutation-coordinator.mjs"
+      - "scripts/test-qa-core-mutation-coordinator-integration.mjs"
       - "server/qaWindowsSourceProbe.js"
       - "server/qaWindowsSourceDocumentReader.js"
       - "scripts/test-qa-windows-source-document-reader.mjs"
@@ -89,6 +92,8 @@ jobs:
         run: |
           node --check server/qaCorePrivateOutbox.js
           node --check server/qaCoreOutboxUncertainty.js
+          node --check server/qaCoreMutationCoordinatorStage.js
+          node scripts/test-qa-core-mutation-coordinator.mjs
           node --check server/qaWindowsSourceProbe.js
           node --check scripts/test-qa-windows-source-probe.mjs
           node scripts/test-qa-windows-source-probe.mjs
@@ -179,6 +184,7 @@ jobs:
       - name: Test private PostgreSQL outbox with NO real user data
         run: |
           node scripts/test-qa-core-private-outbox-stage-integration.mjs
+          node scripts/test-qa-core-mutation-coordinator-integration.mjs
           node scripts/test-qa-windows-source-signal-integration.mjs
           node scripts/test-qa-windows-verified-candidate-integration.mjs
           node scripts/test-qa-windows-firestore-one-read-budget-integration.mjs
