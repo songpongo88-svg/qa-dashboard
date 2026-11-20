@@ -25,6 +25,7 @@ import SpecialRewardCenter from "./SpecialRewardCenter";
 import LotteryTicketInventory from "./LotteryTicketInventory";
 import { sparksCalendarYear } from "./qaSparksMemberLevels";
 import MemberJourney, { SparksWalletSummary } from "./SparksMembership";
+import SparksBirthdayGift from "./SparksBirthdayGift";
 
 type SparksView = "overview" | "quests" | "games" | "rewards" | "items" | "history" | "admin";
 type SparksIconName = "spark" | "gift" | "clock" | "grid" | "receipt" | "crown" | "calendar" | "package";
@@ -269,6 +270,7 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
               </>}
         </section> : null}
         {view === "overview" && walletLoaded ? <MemberJourney key={username + ":" + account.memberYear} earned={account.memberYearEarned} year={account.memberYear} displayName={displayName || username} balance={account.balance} rewardOrders={account.rewardOrders}/> : null}
+        {view === "overview" && walletLoaded ? <SparksBirthdayGift username={username} sessionId={sparksSessionId} earned={account.memberYearEarned} birthdayMMDD={account.birthdayMMDD} birthdayClaimed2026At={account.birthdayClaimed2026At}/> : null}
         {view !== "overview" && view !== "admin" && view !== "games" && walletLoaded ? <section className="qa-sparks-membership qa-sparks-wallet-strip" aria-label="ยอด Sparks ของคุณ"><SparksWalletSummary balance={account.balance} rewardOrders={account.rewardOrders} compact/></section> : null}
         {(view === "overview" || view === "quests") ? <section className="qa-sparks-compact-section qa-sparks-quest-center" aria-label="Quest Center">
           <div className="qa-sparks-compact-header"><h2><SparksIcon name="calendar" size={19}/> Quest Center</h2><span>{3 + welcomePending} Quests</span></div>
