@@ -129,6 +129,7 @@
     "test:late-appeal-72h": "node ./scripts/test-late-appeal-72h.mjs",
     "test:all-item-history": "node scripts/test-all-item-history.mjs",
     "test:agent-ranking-chat-badge": "node ./scripts/test-agent-ranking-chat-badge.mjs",
+    "test:quick-access-excel-groups": "node ./scripts/test-quick-access-excel-groups.mjs",
     "test:quick-access-session": "node ./scripts/test-quick-access-session.mjs",
     "test:sparks-mining": "node ./scripts/test-sparks-mining.mjs",
     "test:qa-sparks-maintenance-compensation": "node ./scripts/test-qa-sparks-maintenance-compensation.mjs"
