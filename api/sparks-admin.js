@@ -1885,12 +1885,12 @@ async function sparksHandler(req, res) {
         :await hiddenTreasure.open(body,actor);
       return res.status(200).json(result);
     }
-    if (["mining-state","mining-dig"].includes(body.action)) {
+    if (["mining-state","mining-dig","mining-boost-buy"].includes(body.action)) {
       if(process.env.SPARKS_DATA_BACKEND!=="supabase")
         fail("Sparks Mining requires the Supabase wallet backend",423);
       const actor=await authorizeRewardUser(body);
       return res.status(200).json(body.action==="mining-state"
-        ?await mining.state(actor):await mining.dig(actor));
+        ?await mining.state(actor):body.action==="mining-boost-buy"?await mining.buyBoost(actor):await mining.dig(actor,{useBoost:body.useBoost===true}));
     }
     if (["angel-state","angel-open","angel-friends","angel-claim","angel-admin-create"].includes(body.action)) {
       if(process.env.SPARKS_DATA_BACKEND!=="supabase")
