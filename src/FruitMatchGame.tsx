@@ -4,7 +4,7 @@ import "./fruitMatchGame.css";
 
 type FruitRecord = {username:string;displayName:string;elapsedMs:number;moves:number;achievedAt:string};
 type GameResult = {roundId:string;won:boolean;pairs:number;moves:number;elapsedMs:number;earned:number;reason:string;createdAt:string};
-type Stats = {played:number;wins:number;completed:number;best:FruitRecord|null;history:GameResult[];dailyRewardCount:number;dailyPlayCount:number;playDay:string;totalSparks:number;rewardDay:string};
+type Stats = {played:number;wins:number;completed:number;best:FruitRecord|null;history:GameResult[];dailyRewardCount:number;dailyPlayCount:number;playDay:string;totalSparks:number;rewardDay:string;recoveryAvailable?:boolean};
 type FruitWeek={weekKey:string;startAt:string|null;nextResetAt:string;previousPending:boolean;
   championSparks:number;previousChampion:(FruitRecord&{amount:number;weekKey:string;awardedAt:string})|null};
 type GameData = {stats:Stats;leaderboard:FruitRecord[];week?:FruitWeek};
@@ -93,6 +93,19 @@ export default function FruitMatchGame({username,sessionId}:{username:string;ses
     });
     return()=>{active=false;for(const image of images){image.onload=null;image.onerror=null;}};
   },[]);
+  const [recovering,setRecovering]=useState(false);
+  const recover=async()=>{
+    if(recovering||busy.current)return;
+    setRecovering(true);setError("");
+    try{
+      const recovered=await request("fruit-match-recover");
+      if(recovered.refunded)window.dispatchEvent(new Event("qa:sparks-updated"));
+      round.current=null;setResult(null);requestId.current="";
+      setSnapshot({deck:PREVIEW,open:new Set(PREVIEW.map((_,index)=>index)),matched:new Set<number>(),remaining:RULES.durationMs,moves:0,phase:"ready"});
+      await refreshData();
+    }catch(reason){setError(reason instanceof Error?reason.message:"คืนค่าเล่นไม่สำเร็จ");}
+    finally{setRecovering(false);}
+  };
   const start=async()=>{
     if(busy.current||!imagesReady||round.current?.phase==="playing"||round.current?.phase==="saving")return;
     busy.current=true;setStarting(true);setError("");
@@ -175,6 +188,12 @@ export default function FruitMatchGame({username,sessionId}:{username:string;ses
       {failed?<button type="button" className="qfm-primary" onClick={()=>round.current&&void submit(round.current)}>ลองบันทึกผลอีกครั้ง</button>:null}
       <button className="qfm-primary" type="button" onClick={()=>void start()} disabled={playing||saving||starting||!imagesReady||!username||!sessionId||data.stats.dailyPlayCount>=RULES.dailyPlayLimit}>
         {starting?"กำลังเริ่มเกม…":playing?"กำลังเล่น…":saving?"กำลังบันทึก…":!imagesReady?"กำลังโหลดภาพ…":data.stats.dailyPlayCount>=RULES.dailyPlayLimit?"ครบ 2 ครั้งวันนี้แล้ว":snapshot.phase==="ready"?"เริ่มเล่น · ใช้ 1 Spark →":"เล่นอีกครั้ง · ใช้ 1 Spark →"}</button>
+      {data.stats.recoveryAvailable?<div className="qfm-recovery">
+        <p>พบรอบเกมค้างระหว่างปรับปรุงระบบที่หัก 1 Spark แต่ยังไม่มีผลการเล่น</p>
+        <button type="button" disabled={recovering} onClick={()=>void recover()}>
+          {recovering?"กำลังตรวจสอบและคืนคะแนน…":"คืน 1 Spark และคืนสิทธิ์เล่นรอบที่ค้าง"}
+        </button>
+      </div>:null}
       <div className="qfm-footbar"><span>เล่นวันนี้ <b>{data.stats.dailyPlayCount} / {RULES.dailyPlayLimit}</b> ครั้ง</span><span>ได้รับจากเกม <b>{data.stats.totalSparks}</b> Sparks</span></div>
     </section>
     <section id="qfm-rank" role="tabpanel" aria-labelledby="qfm-tab-rank" hidden={tab!=="rank"}>
