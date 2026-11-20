@@ -20,9 +20,6 @@ export default function FruitMatchGame({username,sessionId}:{username:string;ses
   const [error,setError]=useState("");
   const [now,setNow]=useState(()=>Date.now());
   const [todayTheme,setTodayTheme]=useState(()=>matchThemeAt());
-  const theme=round.current?.phase==="playing"||round.current?.phase==="saving"||round.current?.phase==="error"?round.current.theme:todayTheme;
-  const themeInfo=MATCH_THEMES[theme as keyof typeof MATCH_THEMES]||MATCH_THEMES.fruit;
-  const numbers=round.current?.numbers?.length?round.current.numbers:[49,80,32,64,17,90,25,91,58,43,76,12];
   useEffect(()=>{if(tab!=="rank")return;const clock=window.setInterval(()=>setNow(Date.now()),1000);
     return()=>window.clearInterval(clock);},[tab]);
   useEffect(()=>{const timer=window.setInterval(()=>setTodayTheme(matchThemeAt()),30000);return()=>window.clearInterval(timer);},[]);
@@ -30,6 +27,10 @@ export default function FruitMatchGame({username,sessionId}:{username:string;ses
   const [snapshot,setSnapshot]=useState({deck:PREVIEW,open:new Set(PREVIEW.map((_,index)=>index)),matched:new Set<number>(),remaining:RULES.durationMs,moves:0,phase:"ready"});
   const round=useRef<Round|null>(null),mounted=useRef(false),busy=useRef(false),requestId=useRef("");
   const hideDelay=useRef<number>();
+  const theme=round.current?.phase==="playing"||round.current?.phase==="saving"||round.current?.phase==="error"?round.current.theme:todayTheme;
+  const themeInfo=MATCH_THEMES[theme as keyof typeof MATCH_THEMES]||MATCH_THEMES.fruit;
+  const numbers=round.current?.numbers?.length?round.current.numbers:[49,80,32,64,17,90,25,91,58,43,76,12];
+
   const request=useCallback(async(action:string,extra:object={})=>{
     const response=await fetch("/api/sparks-admin",{method:"POST",headers:{"content-type":"application/json"},cache:"no-store",
       body:JSON.stringify({action,actorUsername:username,sessionId,...extra})});
