@@ -149,8 +149,8 @@ try {
   docs.set(walletPath,{username:"Agent",balance:199975,totalEarned:199975,memberYear:2026,memberYearEarned:199975});
   r=await invoke(claimDate(12));
   assert.equal(r.status,200,"reward can exceed old 200k cap");
-  assert.equal(wallet().balance,200025);
-  assert.equal(wallet().memberYearEarned,200025);
+  assert.equal(wallet().balance,200040,"Level 7 check-in gets 50 base + 15 level bonus");
+  assert.equal(wallet().memberYearEarned,200040);
   assert.equal(wallet().balanceYear,2026);
   assert.equal(commits,4);
   // Already-claimed fixed history ID remains authoritative even if wallet state is artificially reset.
