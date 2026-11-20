@@ -1047,6 +1047,31 @@ async function markTrueMoneyPaid(body,admin){
   fail("รายการนี้ถูกยืนยันพร้อมกันแล้ว กรุณารีเฟรช Tracker",409);
 }
 
+
+async function issueMemberCard(actor) {
+  const walletPath=walletDocumentPath(actor.username);
+  for(let attempt=0;attempt<4;attempt++){
+    const begin=await firestoreRequest(":beginTransaction","POST",{options:{readWrite:{}}});
+    const transaction=begin?.transaction;
+    if(!transaction)fail("Member card unavailable",503);
+    try {
+      const snap=await readDoc(walletPath,transaction);
+      const wallet=recordValue(snap);
+      if(/^QS-2026-[A-F0-9]{20}$/.test(String(wallet.memberCardNumber||"")))
+        return {ok:true,memberCardNumber:wallet.memberCardNumber};
+      const memberCardNumber="QS-2026-"+randomUUID().replace(/-/g,"").slice(0,20).toUpperCase();
+      await firestoreRequest(":commit","POST",{transaction,writes:[
+        updateWrite(walletPath,{username:actor.username,memberCardNumber,updatedAt:new Date().toISOString()},snap)
+      ]});
+      return {ok:true,memberCardNumber};
+    }catch(error){
+      if(["ABORTED","FAILED_PRECONDITION"].includes(error?.firestoreStatus)&&attempt<3)continue;
+      throw error;
+    }
+  }
+  fail("ไม่สามารถออกเลขบัตรพร้อมกันได้",409);
+}
+
 const BIRTHDAY_2026_POINTS = [50,75,100,150,200,300,400,500,750,1000];
 const MEMBERSHIP_THRESHOLDS = [0,1000,5000,20000,50000,100000,150000,200000,300000,500000];
 const MEMBER_CHECKIN_BONUS = [0,5,5,10,10,15,15,20,20,25];
@@ -2089,6 +2114,10 @@ async function sparksHandler(req, res) {
     if (body.action === "claim-profile-makeover") {
       const actor = await authorizeRewardUser(body);
       return res.status(200).json(await claimProfileMakeover(actor));
+    }
+    if (body.action === "get-member-card") {
+      const actor=await authorizeRewardUser(body);
+      return res.status(200).json(await issueMemberCard(actor));
     }
     if (body.action === "save-member-birthday" || body.action === "claim-member-birthday") {
       const actor = await authorizeRewardUser(body);
