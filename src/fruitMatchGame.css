@@ -8,3 +8,24 @@
 @media(max-width:530px){.qfm-root{padding:12px}.qfm-board{gap:4px}.qfm-brand{letter-spacing:0;font-size:10px}.qfm-heading{gap:6px}.qfm-heading h2{font-size:26px}.qfm-heading p,.qfm-heading small{font-size:11px}.qfm-reward{font-size:21px;padding:9px}.qfm-tabs button{font-size:12px;padding:8px 3px}.qfm-metrics>div:not(:first-child){padding-left:11px}.qfm-metrics strong{font-size:21px}.qfm-personal{gap:6px;padding:12px 9px}.qfm-personal strong{font-size:18px}.qfm-table th:first-child,.qfm-table td:first-child{width:46%}.qfm-result>strong{font-size:28px}.qfm-result .qfm-secondary{min-height:34px;margin-top:7px;padding:5px 12px}}
 @media(max-width:400px){.qfm-board{grid-template-columns:repeat(4,minmax(0,1fr))}}
 @media(prefers-reduced-motion:reduce){.qfm-root *{transition:none!important}}
+
+/* Fruit Match weekly championship and cute blue-and-white refresh */
+.qfm-root{--qfm-bg:#fff;--qfm-text:#182347;--qfm-sub:#64718e;--qfm-line:#d1dfed;--qfm-soft:#edf7ff;--qfm-purple:#1752a1;background:#fff;border-color:#dce5ef;box-shadow:0 10px 30px #19345612}
+.qfm-heading h2{font-weight:700}.qfm-reward{background:linear-gradient(145deg,#f2faff,#e3f4ff)}
+.qfm-hero{display:flex;align-items:center;justify-content:center;position:relative;min-height:112px;padding:6px 9px;margin:-5px 0 7px;border-radius:17px;background:radial-gradient(ellipse at 50% 98%,#e0f7ff,#f3fbff 65%,transparent 79%)}
+.qfm-hero img{width:17%;max-height:105px;object-fit:contain;filter:drop-shadow(0 4px 3px #245d6e22)}
+.qfm-hero img:nth-child(even){transform:rotate(5deg)}.qfm-hero img:nth-child(odd){transform:rotate(-6deg)}
+.qfm-hero>span{position:absolute;top:5px;right:8px;font-size:22px;color:#f4c934}
+.qfm-back{background:linear-gradient(145deg,#448fe3,#1755b5)}.qfm-face{background:#f0faff}
+.qfm-weekly-panel{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:12px;background:linear-gradient(115deg,#f0f8ff,#e1f1ff);border:1px solid #c4e0ff;border-radius:14px;margin:13px 0 10px}
+.qfm-weekly-panel>div{min-width:0}.qfm-weekly-panel>div:last-child{text-align:right}
+.qfm-weekly-panel strong,.qfm-weekly-panel small{display:block}.qfm-weekly-panel strong{font-size:14px;color:#164e97}.qfm-weekly-panel small{font-size:10px;color:#537094}
+.qfm-weekly-panel>div:last-child strong{font-size:17px;font-variant-numeric:tabular-nums}
+.qfm-week-label{font-weight:500;font-size:12px;color:#245797;margin:10px 0}
+.qfm-champion-last{font-size:11px;border-radius:9px;padding:9px 11px;background:#fff8e1;color:#855c18}
+.qfm-table thead{background:#e8f3ff}.qfm-table tbody tr:first-child{background:#f0f8ff}
+.qfm-table td{border-bottom-color:#d6e4f2}.qfm-player-fruit{height:26px;width:26px;object-fit:contain;vertical-align:middle;margin-right:3px}
+.qfm-rank-num{min-width:23px}.qfm-my-rank{background:#ebf7ff;color:#20518f}
+.qfm-footer-fruits{display:flex;align-items:end;justify-content:center;height:90px;padding:14px 3px 0;margin:14px -12px -12px;background:linear-gradient(0deg,#d9f3d1,#eafaff 67%,transparent);border-radius:0 0 17px 17px}
+.qfm-footer-fruits img{height:68px;width:16%;object-fit:contain;filter:drop-shadow(0 3px 3px #24663b20)}
+@media(max-width:530px){.qfm-hero{min-height:84px}.qfm-hero img{max-height:80px}.qfm-weekly-panel{padding:9px 7px}.qfm-weekly-panel strong{font-size:12px}.qfm-weekly-panel small{font-size:9px}.qfm-weekly-panel>div:last-child strong{font-size:14px}.qfm-player-fruit{height:20px;width:20px}.qfm-footer-fruits{height:76px}.qfm-footer-fruits img{height:60px}}

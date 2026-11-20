@@ -1,0 +1,13 @@
+import assert from "node:assert/strict";
+import {FRUIT_WEEKLY,fruitWeekPeriod,FRUIT_MATCH_FRUITS} from "../src/fruitMatchRules.js";
+const first=Date.parse("2026-11-23T04:00:00Z"),week=604800000;
+assert.equal(FRUIT_WEEKLY.firstResetAt,first);
+assert.equal(FRUIT_WEEKLY.championSparks,100);
+assert.equal(fruitWeekPeriod(first-1).key,"legacy");
+assert.equal(fruitWeekPeriod(first).key,"2026-11-23");
+assert.equal(fruitWeekPeriod(first+week-1).key,"2026-11-23");
+assert.equal(fruitWeekPeriod(first+week).key,"2026-11-30");
+assert.equal(fruitWeekPeriod(first+6*week).key,"2027-01-04");
+assert.equal(new Set(FRUIT_MATCH_FRUITS.map(f=>f.image)).size,12);
+assert(FRUIT_MATCH_FRUITS.every(f=>f.image.endsWith(".svg")));
+console.log("PASS weekly boundaries, 100 Spark prize and 12 unique fruit assets");

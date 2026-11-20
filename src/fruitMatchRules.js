@@ -7,8 +7,18 @@ export const FRUIT_MATCH_FRUITS = Object.freeze([
   ["lemon", "เลมอน"], ["lychee", "ลิ้นจี่"], ["mangosteen", "มังคุด"],
   ["orange", "ส้ม"], ["pear", "แพร์"], ["pineapple", "สับปะรด"],
   ["dragonfruit", "แก้วมังกร"], ["strawberry", "สตรอว์เบอร์รี"], ["watermelon", "แตงโม"],
-].map(([id, name]) => Object.freeze({ id, name, image: `/games/fruit-match/${id}.jpg` })));
+].map(([id, name]) => Object.freeze({ id, name, image: `/games/fruit-match/cute/${id}.svg` })));
 
+// Monday 23 November 2026 at 11:00 Bangkok time, 04:00 UTC.
+export const FRUIT_WEEKLY=Object.freeze({firstResetAt:Date.parse("2026-11-23T04:00:00Z"),
+  weekMs:604800000,championSparks:100});
+export function fruitWeekPeriod(ms=Date.now()){
+  const index=Math.floor((ms-FRUIT_WEEKLY.firstResetAt)/FRUIT_WEEKLY.weekMs);
+  if(index<0)return {index:-1,key:"legacy",startAt:null,nextResetAt:new Date(FRUIT_WEEKLY.firstResetAt).toISOString()};
+  const from=FRUIT_WEEKLY.firstResetAt+index*FRUIT_WEEKLY.weekMs;
+  return {index,key:new Date(from).toISOString().slice(0,10),startAt:new Date(from).toISOString(),
+    nextResetAt:new Date(from+FRUIT_WEEKLY.weekMs).toISOString()};
+}
 export function formatFruitTime(ms, precise = false) {
   const cs = precise ? Math.round(Math.max(0, ms) / 10) : Math.ceil(Math.max(0, ms) / 1000) * 100;
   const clock = String(Math.floor(cs / 6000)).padStart(2, "0") + ":" + String(Math.floor(cs / 100) % 60).padStart(2, "0");

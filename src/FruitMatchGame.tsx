@@ -5,7 +5,9 @@ import "./fruitMatchGame.css";
 type FruitRecord = {username:string;displayName:string;elapsedMs:number;moves:number;achievedAt:string};
 type GameResult = {roundId:string;won:boolean;pairs:number;moves:number;elapsedMs:number;earned:number;reason:string;createdAt:string};
 type Stats = {played:number;wins:number;completed:number;best:FruitRecord|null;history:GameResult[];dailyRewardCount:number;dailyPlayCount:number;playDay:string;totalSparks:number;rewardDay:string};
-type GameData = {stats:Stats;leaderboard:FruitRecord[]};
+type FruitWeek={weekKey:string;startAt:string|null;nextResetAt:string;previousPending:boolean;
+  championSparks:number;previousChampion:(FruitRecord&{amount:number;weekKey:string;awardedAt:string})|null};
+type GameData = {stats:Stats;leaderboard:FruitRecord[];week?:FruitWeek};
 type Round = {token:string;deck:number[];began:number;trace:{card:number;at:number}[];first:number|null;
   open:Set<number>;matched:Set<number>;lockedUntil:number;moves:number;phase:"playing"|"saving"|"complete"|"error";localResult?:GameResult};
 const EMPTY:Stats={played:0,wins:0,completed:0,best:null,history:[],dailyRewardCount:0,dailyPlayCount:0,playDay:"",totalSparks:0,rewardDay:""};
@@ -16,6 +18,9 @@ export default function FruitMatchGame({username,sessionId}:{username:string;ses
   const [data,setData]=useState<GameData>({stats:EMPTY,leaderboard:[]});
   const [loading,setLoading]=useState(false),[starting,setStarting]=useState(false),[imagesReady,setImagesReady]=useState(false);
   const [error,setError]=useState("");
+  const [now,setNow]=useState(()=>Date.now());
+  useEffect(()=>{if(tab!=="rank")return;const clock=window.setInterval(()=>setNow(Date.now()),1000);
+    return()=>window.clearInterval(clock);},[tab]);
   const [result,setResult]=useState<GameResult|null>(null);
   const [snapshot,setSnapshot]=useState({deck:PREVIEW,open:new Set(PREVIEW.map((_,index)=>index)),matched:new Set<number>(),remaining:RULES.durationMs,moves:0,phase:"ready"});
   const round=useRef<Round|null>(null),mounted=useRef(false),busy=useRef(false),requestId=useRef("");
@@ -49,7 +54,7 @@ export default function FruitMatchGame({username,sessionId}:{username:string;ses
     try{
       const saved=await request("fruit-match-finish",{token:current.token,trace:current.trace});
       if(!mounted.current||round.current!==current)return;
-      current.phase="complete";setResult(saved.result);setData({stats:saved.stats,leaderboard:saved.leaderboard});
+      current.phase="complete";setResult(saved.result);setData({stats:saved.stats,leaderboard:saved.leaderboard,week:saved.week});
       if(saved.result.earned>0)window.dispatchEvent(new Event("qa:sparks-updated"));
     }catch(reason){
       if(!mounted.current||round.current!==current)return;
@@ -115,9 +120,20 @@ export default function FruitMatchGame({username,sessionId}:{username:string;ses
   const playing=snapshot.phase==="playing",saving=snapshot.phase==="saving",failed=snapshot.phase==="error";
   const myRank=data.leaderboard.findIndex(row=>row.username.toLowerCase()===username.toLowerCase());
   const complete=snapshot.phase==="complete";
+  const remaining=Math.max(0,Date.parse(data.week?.nextResetAt||"")-now)||0;
+  const countdown=data.week?[
+    String(Math.floor(remaining/3600000)).padStart(2,"0"),
+    String(Math.floor(remaining/60000)%60).padStart(2,"0"),
+    String(Math.floor(remaining/1000)%60).padStart(2,"0"),
+  ].join(":"):"--:--:--";
   return <section className="qfm-root" aria-label="Fruit Match มินิเกมจับคู่ผลไม้">
     <header className="qfm-brand"><span>✦ QA SPARKS · MINI GAMES</span><span>12 คู่ / 24 ใบ</span></header>
     <div className="qfm-heading"><div><p>จับคู่ภาพผลไม้ แล้วทำเวลาให้ดีที่สุด</p><h2>Fruit Match</h2><small>12 คู่ · 24 ใบ · 2 นาที 30 วินาที</small></div><div className="qfm-reward">✦ +{RULES.reward}<small>Sparks / รอบที่ผ่าน</small></div></div>
+    <div className="qfm-hero" aria-label="ผลไม้โฉมใหม่">
+      {["strawberry","orange","watermelon","lychee","banana","apple"].map(id=>
+        <img key={id} src={"/games/fruit-match/cute/"+id+".svg"} alt="" draggable={false}/>)}
+      <span aria-hidden="true">✦</span>
+    </div>
     <nav className="qfm-tabs" role="tablist" aria-label="Fruit Match">
       {([["play","เล่นเกม"],["rank","อันดับผู้เล่น"],["stats","สถิติของฉัน"]] as const).map(([key,label])=><button key={key} id={"qfm-tab-"+key} type="button" role="tab" aria-selected={tab===key} aria-controls={"qfm-"+key} onClick={()=>setTab(key)}>{label}</button>)}
     </nav>
@@ -144,7 +160,14 @@ export default function FruitMatchGame({username,sessionId}:{username:string;ses
     <section id="qfm-rank" role="tabpanel" aria-labelledby="qfm-tab-rank" hidden={tab!=="rank"}>
       <div className="qfm-section-head"><h3>ใครจับคู่ครบเร็วที่สุด?</h3><button type="button" className="qfm-text-button" disabled={loading} onClick={()=>void refreshData()}>{loading?"กำลังโหลด…":"อัปเดตอันดับ"}</button></div>
       <p className="qfm-caption">ใช้เวลาที่ดีที่สุดต่อคน เฉพาะรอบที่จับคู่ครบ 12 คู่</p>
-      <table className="qfm-table"><thead><tr><th>อันดับ / ผู้เล่น</th><th>เวลา</th><th>เปิดจับคู่</th></tr></thead><tbody>{data.leaderboard.map((row,index)=><tr key={row.username} className={row.username.toLowerCase()===username.toLowerCase()?"is-you":""}><td><span className="qfm-rank-num">{index<3?["🥇","🥈","🥉"][index]:index+1}</span>{row.displayName||row.username}</td><td>{formatFruitTime(row.elapsedMs,true)}</td><td>{row.moves} ครั้ง</td></tr>)}</tbody></table>
+      <div className="qfm-weekly-panel" aria-label="รางวัลแชมป์ประจำสัปดาห์">
+        <div><strong>🏆 Weekly Champion</strong><small>อันดับ 1 เมื่อปิดรอบ รับเพิ่ม 100 Sparks</small></div>
+        <div><strong>{countdown}</strong><small>{data.week?.weekKey==="legacy"?"เริ่มรอบแรก 23 พ.ย. 11:00 น.":"รีเซ็ตทุกจันทร์ 11:00 น."}</small></div>
+      </div>
+      {data.week?.previousChampion?<p className="qfm-champion-last">🏅 แชมป์สัปดาห์ก่อน: <b>{data.week.previousChampion.displayName||data.week.previousChampion.username}</b> · +100 Sparks</p>:
+        data.week?.previousPending?<p className="qfm-champion-last">กำลังสรุปรางวัลแชมป์สัปดาห์ที่ผ่านมา</p>:null}
+      <p className="qfm-week-label">{data.week?.weekKey==="legacy"?"อันดับเดิมก่อนเริ่มรอบรายสัปดาห์":"อันดับประจำสัปดาห์นี้"}</p>
+      <table className="qfm-table"><thead><tr><th>อันดับ / ผู้เล่น</th><th>เวลา</th><th>เปิดจับคู่</th></tr></thead><tbody>{data.leaderboard.map((row,index)=><tr key={row.username} className={row.username.toLowerCase()===username.toLowerCase()?"is-you":""}><td><span className="qfm-rank-num">{index<3?["🥇","🥈","🥉"][index]:index+1}</span><img className="qfm-player-fruit" src={FRUITS[index%FRUITS.length].image} alt="" draggable={false}/>{row.displayName||row.username}</td><td>{formatFruitTime(row.elapsedMs,true)}</td><td>{row.moves} ครั้ง</td></tr>)}</tbody></table>
       {!data.leaderboard.length?<p className="qfm-empty">ยังไม่มีผู้เล่นทำสำเร็จ มาเป็นคนแรกกัน</p>:null}
       <p className="qfm-my-rank">{myRank>=0?`คุณอยู่อันดับ ${myRank+1} · เวลาดีที่สุด ${formatFruitTime(data.leaderboard[myRank].elapsedMs,true)}`:data.stats.best?"สถิติของคุณอยู่นอก 100 อันดับแรก":"เล่นผ่านรอบแรกเพื่อเพิ่มชื่อในอันดับ"}</p>
       <p className="qfm-caption">เวลาเท่ากัน ดูจำนวนครั้งที่เปิดจับคู่ หากยังเท่ากันให้ผู้ที่ทำได้ก่อนอยู่สูงกว่า</p>
@@ -155,6 +178,6 @@ export default function FruitMatchGame({username,sessionId}:{username:string;ses
     </section>
     {error?<div className="qfm-error" role="alert">{error}</div>:null}
     <p className="qfm-note">จับคู่สำเร็จรับ {RULES.reward} Sparks · เล่นได้ {RULES.dailyPlayLimit} ครั้ง/วัน · เวลาไทย · สลับแท็บแล้วยังจับเวลาต่อ</p>
-    <p className="qfm-credit">ภาพ: <a href="https://github.com/fruits-360/fruits-360-100x100" target="_blank" rel="noreferrer">Fruits-360 · Mihai Oltean</a> · <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noreferrer">CC BY-SA 4.0</a></p>
+    <div className="qfm-footer-fruits" aria-hidden="true">{["strawberry","orange","watermelon","mangosteen","banana","apple"].map(id=><img key={id} src={"/games/fruit-match/cute/"+id+".svg"} alt=""/>)}</div>
   </section>;
 }

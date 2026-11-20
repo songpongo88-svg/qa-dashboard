@@ -1707,8 +1707,11 @@ async function sparksHandler(req, res) {
   const authorizedLotteryCron=req.method==="GET" &&
     String(req.url||"").split("?")[0]==="/api/cron/qa-lottery" &&
     Boolean(cronSecret) && req.headers.authorization==="Bearer "+cronSecret;
+  const authorizedFruitCron=req.method==="GET" &&
+    String(req.url||"").split("?")[0]==="/api/cron/fruit-match-weekly" &&
+    Boolean(cronSecret) && req.headers.authorization==="Bearer "+cronSecret;
   const gate=await getSparksAccessState();
-  if(!gate.enabled && !maintenanceAction && !authorizedLotteryCron)
+  if(!gate.enabled && !maintenanceAction && !authorizedLotteryCron && !authorizedFruitCron)
     return res.status(423).json({error:gate.message,code:"SPARKS_ACCESS_PAUSED"});
   if (sparksEmailAuthEnabled()) {
     const originKind = String(req.headers?.["sec-fetch-site"] || "");
@@ -1726,6 +1729,8 @@ async function sparksHandler(req, res) {
     if (sparksCloudReadOnlyEnabled()) return res.status(423).json({error:"QA Sparks Supabase preview is read-only; scheduled payouts are disabled"});
     const expected = String(process.env.CRON_SECRET || "").trim();
     if (!expected || req.headers.authorization !== "Bearer "+expected) return res.status(401).json({error:"Unauthorized cron request"});
+    if(String(req.url||"").split("?")[0]==="/api/cron/fruit-match-weekly")
+      return res.status(200).json(await fruitMatch.settleWeekly());
     const [lottery,shield,typing,autoPassPending]=await Promise.allSettled([
       qaLottery.settle(),
       gate.enabled?announcementShield.sweep():Promise.resolve({status:"paused"}),

@@ -1,5 +1,5 @@
 import { createHash, createHmac, randomInt, randomUUID, timingSafeEqual } from "node:crypto";
-import { FRUIT_MATCH, compareFruitRecords, replayFruitRound } from "../src/fruitMatchRules.js";
+import { FRUIT_MATCH, FRUIT_WEEKLY, fruitWeekPeriod, compareFruitRecords, replayFruitRound } from "../src/fruitMatchRules.js";
 
 const COLLECTION = "qa_sparks_fruit_players_v1";
 const BOARD_COLLECTION = "qa_sparks_fruit_boards";
@@ -48,7 +48,11 @@ export function createFruitMatchService(db) {
   const { firestoreRequest, readDoc, recordValue, path, updateWrite, createWrite, walletDocumentPath,
     currentMemberYear, annualEarnedFromWallet, spendableBalance } = db;
   const playerPath = actor => path(COLLECTION, actor.username);
-  const boardPath = path(BOARD_COLLECTION, FRUIT_MATCH.version);
+  const boardPath=p=>path(BOARD_COLLECTION,p.index<0?FRUIT_MATCH.version:FRUIT_MATCH.version+"-week-"+p.key);
+  const previousPeriod=p=>p.index>0?fruitWeekPeriod(FRUIT_WEEKLY.firstResetAt+(p.index-1)*FRUIT_WEEKLY.weekMs):null;
+  const meta=(p,prev)=>({weekKey:p.key,startAt:p.startAt,nextResetAt:p.nextResetAt,
+    previousChampion:prev?.weeklyChampion||null,previousPending:Boolean(prev?.rows?.length&&!prev?.settledAt),
+    championSparks:FRUIT_WEEKLY.championSparks});
   async function transact(work) {
     for (let attempt = 0; attempt < 4; attempt++) {
       const begin = await firestoreRequest(":beginTransaction", "POST", { options: {readWrite:{}} });
@@ -68,8 +72,11 @@ export function createFruitMatchService(db) {
     reject("มีการบันทึกพร้อมกัน กรุณาลองใหม่", 409);
   }
   async function data(actor) {
-    const [statsDoc, boardDoc] = await Promise.all([readDoc(playerPath(actor)),readDoc(boardPath)]);
-    return {stats:publicStats(recordValue(statsDoc)),leaderboard:rows(recordValue(boardDoc))};
+    const period=fruitWeekPeriod(),previous=previousPeriod(period);
+    const [statsDoc,boardDoc,lastDoc]=await Promise.all([readDoc(playerPath(actor)),readDoc(boardPath(period)),
+      previous?readDoc(boardPath(previous)):Promise.resolve(null)]);
+    return {stats:publicStats(recordValue(statsDoc)),leaderboard:rows(recordValue(boardDoc)),
+      week:meta(period,recordValue(lastDoc))};
   }
   async function start(body, actor) {
     if (!/^[a-zA-Z0-9_-]{12,100}$/.test(String(body.requestId || ""))) reject("รหัสเริ่มเกมไม่ถูกต้อง");
@@ -98,12 +105,15 @@ export function createFruitMatchService(db) {
     const replay = replayFruitRound(round.deck,body.trace);
     const receiptPath = path(RECEIPTS,round.id), docPath = playerPath(actor);
     return transact(async transaction => {
-      const [receiptDoc, statsDoc, boardDoc, walletDoc] = await Promise.all([
-        readDoc(receiptPath,transaction),readDoc(docPath,transaction),readDoc(boardPath,transaction),
+      const period=fruitWeekPeriod(),previous=previousPeriod(period);
+      const [receiptDoc,statsDoc,boardDoc,walletDoc,lastDoc]=await Promise.all([
+        readDoc(receiptPath,transaction),readDoc(docPath,transaction),readDoc(boardPath(period),transaction),
         readDoc(walletDocumentPath(actor.username),transaction),
+        previous?readDoc(boardPath(previous),transaction):Promise.resolve(null),
       ]);
-      const stats=recordValue(statsDoc), board=recordValue(boardDoc), wallet=recordValue(walletDoc);
-      if (receiptDoc) return {writes:[],result:{alreadyApplied:true,result:recordValue(receiptDoc),stats:publicStats(stats),leaderboard:rows(board)}};
+      const stats=recordValue(statsDoc),board=recordValue(boardDoc),wallet=recordValue(walletDoc);
+      const week=meta(period,recordValue(lastDoc));
+      if(receiptDoc)return {writes:[],result:{alreadyApplied:true,result:recordValue(receiptDoc),stats:publicStats(stats),leaderboard:rows(board),week}};
       const age = Date.now()-round.startedAt;
       if (age < 0 || age > FRUIT_MATCH.durationMs+5000 || replay.elapsedMs > age+250) reject("รอบเกมหมดอายุหรือเวลาการเล่นไม่ถูกต้อง กรุณาเริ่มรอบใหม่");
       if (!replay.won && age < FRUIT_MATCH.durationMs) reject("รอบนี้ยังไม่หมดเวลา");
@@ -116,15 +126,19 @@ export function createFruitMatchService(db) {
       const result={roundId:round.id,...replay,earned,reason,createdAt:now,balanceAfter:spendableBalance(wallet,year)+earned};
       const candidate={username:actor.username,displayName:actor.displayName.slice(0,120),elapsedMs:replay.elapsedMs,moves:replay.moves,achievedAt:now};
       const improved=replay.won && (!stats.best || compareFruitRecords(candidate,stats.best)<0);
+      let leaderboard=rows(board);
+      const existing=leaderboard.find(row=>row.username===actor.username);
+      const improvedThisWeek=replay.won && (!existing || compareFruitRecords(candidate,existing)<0);
       const nextStats={username:actor.username,displayName:candidate.displayName,completed:number(stats.completed)+1,
         wins:number(stats.wins)+(replay.won?1:0),totalSparks:number(stats.totalSparks)+earned,
         best:improved?candidate:stats.best||null,history:[...(Array.isArray(stats.history)?stats.history:[]),result].slice(-10),
         activeRound:null,rewardDay:date,dailyRewardCount:claimed+(earned?1:0),updatedAt:now};
-      let leaderboard=rows(board);
       const writes=[updateWrite(docPath,nextStats,statsDoc),createWrite(receiptPath,result)];
-      if (improved) {
+      if (improvedThisWeek) {
         leaderboard=[...leaderboard.filter(row=>row.username!==actor.username),candidate].sort(compareFruitRecords).slice(0,100);
-        writes.push(updateWrite(boardPath,{version:FRUIT_MATCH.version,rows:leaderboard,updatedAt:now},boardDoc));
+        writes.push(updateWrite(boardPath(period),{
+          version:FRUIT_MATCH.version,weekKey:period.key,weekStartAt:period.startAt,rows:leaderboard,updatedAt:now,
+        },boardDoc));
       }
       if (earned) {
         const balance=spendableBalance(wallet,year)+earned;
@@ -137,8 +151,48 @@ export function createFruitMatchService(db) {
           performedBy:actor.username,status:"Completed",roundId:round.id,
         }));
       }
-      return {writes,result:{alreadyApplied:false,result,stats:publicStats({...stats,...nextStats}),leaderboard}};
+      return {writes,result:{alreadyApplied:false,result,stats:publicStats({...stats,...nextStats}),leaderboard,week}};
     });
   }
-  return {data,start,finish};
+  // Atomic weekly payout; settledAt and deterministic wallet ledger prevent duplicates.
+  async function settleOne(index) {
+    const period=fruitWeekPeriod(FRUIT_WEEKLY.firstResetAt+index*FRUIT_WEEKLY.weekMs);
+    if(index<0||Date.now()<Date.parse(period.nextResetAt))return {weekKey:period.key,status:"not-due"};
+    return transact(async transaction=>{
+      const key=boardPath(period),boardDoc=await readDoc(key,transaction),board=recordValue(boardDoc);
+      if(!boardDoc)return {writes:[],result:{weekKey:period.key,status:"no-players"}};
+      if(board.settledAt)return {writes:[],result:{weekKey:period.key,status:"already-settled"}};
+      const champion=rows(board)[0]||null,now=new Date().toISOString();
+      if(!champion)return {writes:[updateWrite(key,{settledAt:now,weeklyChampion:null},boardDoc)],
+        result:{weekKey:period.key,status:"no-players"}};
+      const walletKey=walletDocumentPath(champion.username),playerKey=playerPath(champion);
+      const [walletDoc,playerDoc]=await Promise.all([readDoc(walletKey,transaction),readDoc(playerKey,transaction)]);
+      if(!walletDoc)reject("ไม่พบกระเป๋า Sparks ของแชมป์ประจำสัปดาห์",503);
+      const wallet=recordValue(walletDoc),stats=recordValue(playerDoc),year=currentMemberYear(),
+        award=FRUIT_WEEKLY.championSparks,balance=spendableBalance(wallet,year)+award,
+        annual=annualEarnedFromWallet(wallet,year),
+        lifetime=Math.max(number(wallet.totalEarned),number(wallet.firstLogin?.amount));
+      const winner={...champion,weekKey:period.key,amount:award,awardedAt:now};
+      const writes=[
+        updateWrite(key,{settledAt:now,weeklyChampion:winner},boardDoc),
+        updateWrite(walletKey,{username:champion.username,balance,balanceYear:year,
+          totalEarned:lifetime+award,memberYear:year,memberYearEarned:annual+award,updatedAt:now},walletDoc),
+        updateWrite(playerKey,{totalSparks:number(stats.totalSparks)+award,updatedAt:now},playerDoc),
+        createWrite(path("qa_sparks_wallets",encodeURIComponent(champion.username),"history",
+          "fruit-match-weekly-"+period.key),{createdAt:now,type:"earn",source:"mini-game-fruit-match-weekly",
+          title:"Fruit Match Weekly Champion",amount:award,
+          detail:"อันดับ 1 Fruit Match สัปดาห์ "+period.key+" ถึง "+period.nextResetAt,
+          balanceAfter:balance,performedBy:"system",status:"Completed",weekKey:period.key}),
+      ];
+      return {writes,result:{weekKey:period.key,status:"awarded",champion:winner}};
+    });
+  }
+  async function settleWeekly() {
+    const current=fruitWeekPeriod();
+    if(current.index<=0)return {status:"not-due",nextResetAt:current.nextResetAt,results:[]};
+    const results=[];
+    for(let i=Math.max(0,current.index-8);i<current.index;i++)results.push(await settleOne(i));
+    return {status:"checked",results};
+  }
+  return {data,start,finish,settleWeekly};
 }
