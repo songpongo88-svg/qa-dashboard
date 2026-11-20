@@ -47,3 +47,11 @@
 @media(max-width:530px){.qfm-color-swatch{height:52px}.qfm-hero--cat img{height:63px}.qfm-hero--number>strong{font-size:24px;letter-spacing:3px}}
 
 .qfm-hero--color .qfm-color-swatch{position:static;top:auto;right:auto}
+
+/* Weekday-specific footer: keep the bottom decoration consistent with the board. */
+.qfm-footer--number,.qfm-footer--color,.qfm-footer--cat{align-items:center;gap:8px;background:linear-gradient(0deg,#e4f0ff,#f3f9ff 75%,transparent)}
+.qfm-footer-number{display:flex;align-items:center;justify-content:center;width:16%;height:53px;border-radius:12px;background:#e8f0ff;border:1px solid #bccff0;color:#153b84;font-size:23px;font-weight:800;font-variant-numeric:tabular-nums;box-shadow:0 3px 8px #18234710}
+.qfm-footer-color{display:block;width:16%;height:53px;border-radius:12px;border:2px solid white;box-shadow:0 3px 9px #18234724}
+.qfm-footer--cat{background:linear-gradient(0deg,#ffebf4,#fff5fb 75%,transparent)}
+.qfm-footer-fruits img.qfm-footer-cat{width:16%;height:65px;object-fit:cover;border-radius:12px;border:2px solid #fff;filter:none;box-shadow:0 3px 8px #763c5e22}
+@media(max-width:530px){.qfm-footer-number{height:42px;font-size:17px}.qfm-footer-color{height:42px}.qfm-footer-fruits img.qfm-footer-cat{height:50px}}
