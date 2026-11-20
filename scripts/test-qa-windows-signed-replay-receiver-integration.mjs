@@ -28,7 +28,7 @@ const mkEvent=(sequence,{docId='AA_SYNTH_0001',
   sourceRevision:rev,documentJson,
   payloadHash:qaCanonicalDocumentHash(documentJson)};
 };
-const run=(envelope,opts={})=>receiveQaWindowsSignedReviewEvent({
+const run=async(envelope,opts={})=>receiveQaWindowsSignedReviewEvent({
  pool,envelope,signatureBase64:sign(null,qaWindowsEnvelopeMessage(envelope),privateKey).toString('base64'),
  trustedPublicKeyPem:pubPem,env,...opts,
 });
