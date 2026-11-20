@@ -42,10 +42,10 @@ export default function FruitMatchGame({username,sessionId}:{username:string;ses
   const refreshData=useCallback(async()=>{
     if(!username||!sessionId)return;
     setLoading(true);setError("");
-    try{const next=await request("fruit-match-data");if(mounted.current)setData(next);}
+    try{const next=await request("fruit-match-data",{theme:viewTheme});if(mounted.current)setData(next);}
     catch(reason){if(mounted.current)setError(reason instanceof Error?reason.message:"โหลดสถิติไม่สำเร็จ");}
     finally{if(mounted.current)setLoading(false);}
-  },[username,sessionId,request]);
+  },[username,sessionId,request,viewTheme]);
   const show=useCallback(()=>{
     const current=round.current;if(!current)return;
     setSnapshot({deck:current.deck,open:new Set(current.open),matched:new Set(current.matched),
@@ -61,7 +61,7 @@ export default function FruitMatchGame({username,sessionId}:{username:string;ses
     try{
       const saved=await request("fruit-match-finish",{token:current.token,trace:current.trace});
       if(!mounted.current||round.current!==current)return;
-      current.phase="complete";setResult(saved.result);setData({stats:saved.stats,leaderboard:saved.leaderboard,week:saved.week});
+      current.phase="complete";setResult(saved.result);setViewTheme(current.theme as "fruit"|"number"|"color"|"cat");setData({stats:saved.stats,leaderboard:saved.leaderboard,week:saved.week});
       if(saved.result.earned>0)window.dispatchEvent(new Event("qa:sparks-updated"));
     }catch(reason){
       if(!mounted.current||round.current!==current)return;
@@ -98,7 +98,7 @@ export default function FruitMatchGame({username,sessionId}:{username:string;ses
       const started=await request("fruit-match-start",{requestId:requestId.current});
       if(!mounted.current)return;
       if(!Array.isArray(started.deck)||started.deck.length!==RULES.pairs*2||started.deck.some((n:number)=>!Number.isInteger(n)||!FRUITS[n]))throw new Error("ไม่สามารถโหลดกระดานเกมได้");
-      window.clearTimeout(hideDelay.current);requestId.current="";setResult(null);
+      window.clearTimeout(hideDelay.current);requestId.current="";setResult(null);setViewTheme(started.theme||todayTheme);
       setData(previous=>({...previous,stats:started.stats}));
       window.dispatchEvent(new Event("qa:sparks-updated"));
       round.current={token:started.token,deck:started.deck,theme:started.theme||todayTheme,numbers:started.numbers||[],began:performance.now(),trace:[],first:null,
@@ -174,8 +174,14 @@ export default function FruitMatchGame({username,sessionId}:{username:string;ses
       <div className="qfm-footbar"><span>เล่นวันนี้ <b>{data.stats.dailyPlayCount} / {RULES.dailyPlayLimit}</b> ครั้ง</span><span>ได้รับจากเกม <b>{data.stats.totalSparks}</b> Sparks</span></div>
     </section>
     <section id="qfm-rank" role="tabpanel" aria-labelledby="qfm-tab-rank" hidden={tab!=="rank"}>
+      <div className="qfm-theme-tabs" role="group" aria-label="เลือกเกมสำหรับอันดับและสถิติ">
+        {(Object.keys(MATCH_THEMES) as Array<keyof typeof MATCH_THEMES>).map(key=>
+          <button key={key} type="button" aria-pressed={viewTheme===key} className={viewTheme===key?"is-active":""} onClick={()=>setViewTheme(key)}>
+            {MATCH_THEMES[key].title}
+          </button>)}
+      </div>
       <div className="qfm-section-head"><h3>ใครจับคู่ครบเร็วที่สุด?</h3><button type="button" className="qfm-text-button" disabled={loading} onClick={()=>void refreshData()}>{loading?"กำลังโหลด…":"อัปเดตอันดับ"}</button></div>
-      <p className="qfm-caption">ใช้เวลาที่ดีที่สุดต่อคน เฉพาะรอบที่จับคู่ครบ 12 คู่</p>
+      <p className="qfm-caption">อันดับเฉพาะ {MATCH_THEMES[viewTheme].title} · ใช้เวลาที่ดีที่สุดต่อคน เฉพาะรอบที่จับคู่ครบ 12 คู่</p>
       <div className="qfm-weekly-panel" aria-label="รางวัลแชมป์ประจำสัปดาห์">
         <div><strong>🏆 Weekly Champion</strong><small>อันดับ 1 เมื่อปิดรอบ รับเพิ่ม 100 Sparks</small></div>
         <div><strong>{countdown}</strong><small>{data.week?.weekKey==="legacy"?"เริ่มรอบแรก 23 พ.ย. 11:00 น.":"รีเซ็ตทุกจันทร์ 11:00 น."}</small></div>
@@ -183,13 +189,22 @@ export default function FruitMatchGame({username,sessionId}:{username:string;ses
       {data.week?.previousChampion?<p className="qfm-champion-last">🏅 แชมป์สัปดาห์ก่อน: <b>{data.week.previousChampion.displayName||data.week.previousChampion.username}</b> · +100 Sparks</p>:
         data.week?.previousPending?<p className="qfm-champion-last">กำลังสรุปรางวัลแชมป์สัปดาห์ที่ผ่านมา</p>:null}
       <p className="qfm-week-label">{data.week?.weekKey==="legacy"?"อันดับเดิมก่อนเริ่มรอบรายสัปดาห์":"อันดับประจำสัปดาห์นี้"}</p>
-      <table className="qfm-table"><thead><tr><th>อันดับ / ผู้เล่น</th><th>เวลา</th><th>เปิดจับคู่</th></tr></thead><tbody>{data.leaderboard.map((row,index)=><tr key={row.username} className={row.username.toLowerCase()===username.toLowerCase()?"is-you":""}><td><span className="qfm-rank-num">{index<3?["🥇","🥈","🥉"][index]:index+1}</span><img className="qfm-player-fruit" src={FRUITS[index%FRUITS.length].image} alt="" draggable={false}/>{row.displayName||row.username}</td><td>{formatFruitTime(row.elapsedMs,true)}</td><td>{row.moves} ครั้ง</td></tr>)}</tbody></table>
+      <table className="qfm-table"><thead><tr><th>อันดับ / ผู้เล่น</th><th>เวลา</th><th>เปิดจับคู่</th></tr></thead><tbody>{data.leaderboard.map((row,index)=><tr key={row.username} className={row.username.toLowerCase()===username.toLowerCase()?"is-you":""}><td><span className="qfm-rank-num">{index<3?["🥇","🥈","🥉"][index]:index+1}</span>{viewTheme==="fruit"?<img className="qfm-player-fruit" src={FRUITS[index%FRUITS.length].image} alt="" draggable={false}/>:
+          viewTheme==="cat"?<img className="qfm-player-fruit qfm-rank-cat" src={MATCH_CATS[index%MATCH_CATS.length].image} alt="" loading="lazy"/>:
+          viewTheme==="number"?<span className="qfm-rank-icon qfm-rank-number">49</span>:
+          <span className="qfm-rank-icon" style={{background:MATCH_COLORS[index%MATCH_COLORS.length]}}/>}{row.displayName||row.username}</td><td>{formatFruitTime(row.elapsedMs,true)}</td><td>{row.moves} ครั้ง</td></tr>)}</tbody></table>
       {!data.leaderboard.length?<p className="qfm-empty">ยังไม่มีผู้เล่นทำสำเร็จ มาเป็นคนแรกกัน</p>:null}
       <p className="qfm-my-rank">{myRank>=0?`คุณอยู่อันดับ ${myRank+1} · เวลาดีที่สุด ${formatFruitTime(data.leaderboard[myRank].elapsedMs,true)}`:data.stats.best?"สถิติของคุณอยู่นอก 100 อันดับแรก":"เล่นผ่านรอบแรกเพื่อเพิ่มชื่อในอันดับ"}</p>
       <p className="qfm-caption">เวลาเท่ากัน ดูจำนวนครั้งที่เปิดจับคู่ หากยังเท่ากันให้ผู้ที่ทำได้ก่อนอยู่สูงกว่า</p>
     </section>
     <section id="qfm-stats" role="tabpanel" aria-labelledby="qfm-tab-stats" hidden={tab!=="stats"}>
-      <h3>สถิติของฉัน</h3><div className="qfm-personal"><div><span>เล่นทั้งหมด</span><strong>{data.stats.played} <small>รอบ</small></strong></div><div><span>ผ่านแล้ว</span><strong>{data.stats.wins} <small>รอบ</small></strong></div><div><span>เวลาดีที่สุด</span><strong>{data.stats.best?formatFruitTime(data.stats.best.elapsedMs,true):"—"}</strong></div></div>
+<div className="qfm-theme-tabs" role="group" aria-label="เลือกเกมสำหรับอันดับและสถิติ">
+        {(Object.keys(MATCH_THEMES) as Array<keyof typeof MATCH_THEMES>).map(key=>
+          <button key={key} type="button" aria-pressed={viewTheme===key} className={viewTheme===key?"is-active":""} onClick={()=>setViewTheme(key)}>
+            {MATCH_THEMES[key].title}
+          </button>)}
+      </div>
+      <h3>สถิติของฉัน · {MATCH_THEMES[viewTheme].title}</h3><div className="qfm-personal"><div><span>เล่นทั้งหมด</span><strong>{data.stats.played} <small>รอบ</small></strong></div><div><span>ผ่านแล้ว</span><strong>{data.stats.wins} <small>รอบ</small></strong></div><div><span>เวลาดีที่สุด</span><strong>{data.stats.best?formatFruitTime(data.stats.best.elapsedMs,true):"—"}</strong></div></div>
       <h4>ผลการเล่นล่าสุด</h4>{data.stats.history.length?<table className="qfm-table"><thead><tr><th>ผล / วันที่เล่น</th><th>เวลาที่ใช้</th><th>คู่ที่ได้</th></tr></thead><tbody>{[...data.stats.history].reverse().map(row=><tr key={row.roundId}><td>{row.won?"ผ่าน":"หมดเวลา"}<small>{new Date(row.createdAt).toLocaleString("th-TH",{timeZone:"Asia/Bangkok",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hour12:false})}</small></td><td>{formatFruitTime(row.elapsedMs,true)}</td><td>{row.pairs} / 12</td></tr>)}</tbody></table>:<p className="qfm-empty">ยังไม่มีผลการเล่น ลองเล่นรอบแรกกัน</p>}
     </section>
     {error?<div className="qfm-error" role="alert">{error}</div>:null}
