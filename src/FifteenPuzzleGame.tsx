@@ -66,6 +66,7 @@ export default function FifteenPuzzleGame({username,sessionId}:{username:string;
   </div>
   {result?<div className="fifteen-victory" role="status">🏆 สำเร็จ {duration(result.elapsedMs)} · รับ {result.earned} Sparks (สำเร็จ {result.base} + โบนัสเวลา {result.fast} + อันดับ {result.rankBonus})</div>:<p className="fifteen-hint">{phase==="ready"?"กดเริ่มเกมเพื่อหักค่าเข้า 1 Spark และสุ่มโจทย์ใหม่":phase==="saving"?"กำลังยืนยันคำตอบและจ่ายรางวัลจากเซิร์ฟเวอร์":"กดตัวเลขติดช่องว่างเพื่อเลื่อนไปยังช่องว่าง"}</p>}
   <div className="fifteen-actions">
+   {phase==="playing"&&tiles.every((n,i)=>n===GOAL[i])?<button type="button" disabled={busy} onClick={()=>void finish(movesRef.current)}>ลองบันทึกผลอีกครั้ง</button>:null}
    <button type="button" disabled={busy} onClick={()=>void begin()}>{phase==="playing"?"↻ เริ่มใหม่ (หัก 1 Spark)":"✦ เริ่มเกม (1 Spark)"}</button>
    {phase==="playing"||phase==="won"?<button type="button" disabled={busy} onClick={exit}>ออกจากเกม</button>:null}
   </div>
