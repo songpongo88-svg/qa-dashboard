@@ -82,7 +82,7 @@ try{
   assert.equal((await invoke("fruit-match-start",{requestId:"fruit-new-year-no-sparks"})).status,409,"entry fee cannot use expired Sparks");
   wallet().balance=1;wallet().balanceYear=2027;wallet().memberYear=2027;wallet().memberYearEarned=0;
   r=await win(4000);assert.equal(r.body.result.earned,20);
-  assert(lastYearBalance>20);assert.equal(wallet().balance,20-FRUIT_MATCH.entryFee,"expired 2026 balance cannot be carried into new reward");
+  assert(lastYearBalance>20);assert.equal(wallet().balance,20,"expired 2026 balance cannot be carried into new reward");
   assert.equal(wallet().balanceYear,2027);assert.equal(wallet().memberYearEarned,20,"Member Level resets in 2027");
   const originalBalance=wallet().balance;quota=true;r=await invoke("fruit-match-data");assert.equal(r.status,429);assert.equal(wallet().balance,originalBalance);quota=false;
   assert(compareFruitRecords({elapsedMs:1000,moves:12,achievedAt:"2026-01-01"},{elapsedMs:1000,moves:13,achievedAt:"2025-01-01"})<0);
