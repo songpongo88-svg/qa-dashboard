@@ -1,5 +1,5 @@
 import { createHash, createHmac, randomInt, randomUUID, timingSafeEqual } from "node:crypto";
-import { FRUIT_MATCH, FRUIT_WEEKLY, fruitWeekPeriod, compareFruitRecords, replayFruitRound } from "../src/fruitMatchRules.js";
+import { FRUIT_MATCH, FRUIT_WEEKLY, matchThemeAt, fruitWeekPeriod, compareFruitRecords, replayFruitRound } from "../src/fruitMatchRules.js";
 
 const COLLECTION = "qa_sparks_fruit_players_v1";
 const BOARD_COLLECTION = "qa_sparks_fruit_boards";
@@ -81,23 +81,42 @@ export function createFruitMatchService(db) {
   async function start(body, actor) {
     if (!/^[a-zA-Z0-9_-]{12,100}$/.test(String(body.requestId || ""))) reject("รหัสเริ่มเกมไม่ถูกต้อง");
     return transact(async transaction => {
-      const docPath = playerPath(actor), snap = await readDoc(docPath,transaction), stats = recordValue(snap);
+      const docPath = playerPath(actor), walletKey=walletDocumentPath(actor.username);
+      const [snap,walletDoc]=await Promise.all([readDoc(docPath,transaction),readDoc(walletKey,transaction)]);
+      const stats=recordValue(snap),wallet=recordValue(walletDoc);
       const now = Date.now(), previous = stats.activeRound;
       let round;
       if (previous?.requestId === body.requestId && previous.sessionHash === sessionHash(body.sessionId)
           && now >= previous.startedAt && now - previous.startedAt < FRUIT_MATCH.durationMs) round = previous;
-      if (round) return {writes:[],result:{token:ticket(round),deck:round.deck,stats:publicStats(stats)}};
+      if (round) return {writes:[],result:{token:ticket(round),deck:round.deck,theme:round.theme||"fruit",numbers:round.numbers||[],stats:publicStats(stats)}};
       if (previous && now - previous.startedAt < 1000) reject("กรุณารอสักครู่ก่อนเริ่มรอบใหม่", 429);
       const date=today();
       const dailyPlayCount=stats.playDay===date?number(stats.dailyPlayCount):stats.rewardDay===date?number(stats.dailyRewardCount):0;
       if (dailyPlayCount>=FRUIT_MATCH.dailyPlayLimit) reject("ครบสิทธิ์เล่น Fruit Match 2 ครั้งวันนี้แล้ว กรุณาเล่นอีกครั้งวันถัดไป",409);
+      const year=currentMemberYear(),balance=spendableBalance(wallet,year);
+      if (!walletDoc || balance<FRUIT_MATCH.entryFee) reject("Sparks ไม่เพียงพอ ต้องมีอย่างน้อย 1 Spark เพื่อเริ่มเล่น",409);
+      const theme=matchThemeAt(now);
+      const numbers=[];
+      if(theme==="number"){const pool=Array.from({length:90},(_,i)=>i+10);
+        for(let i=pool.length-1;i>0;i--){const j=randomInt(i+1);[pool[i],pool[j]]=[pool[j],pool[i]];}
+        numbers.push(...pool.slice(0,FRUIT_MATCH.pairs));}
       const deck = Array.from({length:FRUIT_MATCH.pairs*2},(_,index)=>index % FRUIT_MATCH.pairs);
       for (let i=deck.length-1;i>0;i--) { const j=randomInt(i+1); [deck[i],deck[j]]=[deck[j],deck[i]]; }
       round = {version:FRUIT_MATCH.version,id:randomUUID(),username:actor.username,sessionHash:sessionHash(body.sessionId),
-        requestId:body.requestId,startedAt:now,deck};
+        requestId:body.requestId,startedAt:now,deck,theme,numbers};
       const updates = {username:actor.username,displayName:actor.displayName.slice(0,120),played:number(stats.played)+1,
         activeRound:round,playDay:date,dailyPlayCount:dailyPlayCount+1,updatedAt:new Date(now).toISOString()};
-      return {writes:[updateWrite(docPath,updates,snap)],result:{token:ticket(round),deck,stats:publicStats({...stats,...updates})}};
+      const nextBalance=balance-FRUIT_MATCH.entryFee;
+      const writes=[
+        updateWrite(docPath,updates,snap),
+        updateWrite(walletKey,{username:actor.username,balance:nextBalance,balanceYear:year,updatedAt:new Date(now).toISOString()},walletDoc),
+        createWrite(path("qa_sparks_wallets",encodeURIComponent(actor.username),"history","fruit-match-entry-"+round.id),{
+          createdAt:new Date(now).toISOString(),type:"spend",source:"mini-game-fruit-match",title:"Weekly Matching Entry",
+          amount:-FRUIT_MATCH.entryFee,detail:"ค่าเข้าเล่น "+theme+" 1 Spark",balanceAfter:nextBalance,
+          performedBy:actor.username,status:"Completed",roundId:round.id,
+        }),
+      ];
+      return {writes,result:{token:ticket(round),deck,theme,numbers,stats:publicStats({...stats,...updates})}};
     });
   }
   async function finish(body, actor) {
@@ -147,7 +166,7 @@ export function createFruitMatchService(db) {
           memberYear:year,memberYearEarned:annual+earned,updatedAt:now},walletDoc));
         writes.push(createWrite(path("qa_sparks_wallets",encodeURIComponent(actor.username),"history","fruit-match-"+round.id),{
           createdAt:now,type:"earn",source:"mini-game-fruit-match",title:"Fruit Match Reward",amount:earned,
-          detail:"จับคู่ผลไม้ครบ 12 คู่ · "+(replay.elapsedMs/1000).toFixed(2)+" วินาที",balanceAfter:balance,
+          detail:"จับคู่ครบ 12 คู่ · "+(replay.elapsedMs/1000).toFixed(2)+" วินาที",balanceAfter:balance,
           performedBy:actor.username,status:"Completed",roundId:round.id,
         }));
       }
