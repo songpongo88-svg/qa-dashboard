@@ -71,7 +71,7 @@ export default function MemberJourney({ earned, year, displayName, balance, rewa
   },[username]);
   const [cardActive, setCardActive] = useState(false);
   useEffect(() => {
-    if(!username||!sessionId)return;
+    if(!username)return;
     let alive=true;
     const load=()=>{void fetch("/api/sparks-admin",{method:"POST",credentials:"same-origin",cache:"no-store",
       headers:{"content-type":"application/json"},
