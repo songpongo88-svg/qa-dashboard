@@ -79,11 +79,13 @@ try{
   ' SET failover_eligible=true'),e=>e.code==='23514');
  await assert.rejects(pool.query('UPDATE qa_windows_probe_v1.verified_source_candidates'+
   " SET promotion_status='ready'"),e=>e.code==='23514');
+ await pool.query('CREATE ROLE qa_ci_verified_candidate_no_access NOLOGIN');
  const access=(await pool.query("SELECT c.relrowsecurity,c.relforcerowsecurity,"+
-  " has_schema_privilege('public','qa_windows_probe_v1','USAGE') AS public_usage"+
+  " has_schema_privilege('qa_ci_verified_candidate_no_access','qa_windows_probe_v1','USAGE') AS unauth_usage"+
   " FROM pg_class c WHERE c.oid='qa_windows_probe_v1.verified_source_candidates'::regclass")).rows[0];
  assert.equal(access.relrowsecurity,true);
  assert.equal(access.relforcerowsecurity,true);
+ assert.equal(access.unauth_usage,false);
  // Public role privileges are already revoked; no production credentials involved.
  console.log('PASS verified point-read candidate stage: source attestation, exact revision, frozen snapshot, idempotency, no promote or writes');
 }finally{await pool.end();}
