@@ -8,6 +8,7 @@ import { createQaLotteryService } from "../server/qaLotteryService.js";
 import { createQaRewardsService } from "../server/qaRewardsService.js";
 import { createSnakesService } from "../server/snakesLaddersService.js";
 import { createFifteenPuzzleService } from "../server/fifteenPuzzleService.js";
+import { createSparksTransferService } from "../server/sparksTransferService.js";
 import { createHiddenTreasureService } from "../server/hiddenTreasureService.js";
 import { createAnnouncementShieldService } from "../server/announcementShieldService.js";
 import { createTypingReliefCloudService } from "../server/typingReliefCloudService.js";
@@ -1697,6 +1698,8 @@ const fruitMatch = createFruitMatchService({firestoreRequest,readDoc,recordValue
   walletDocumentPath,currentMemberYear,annualEarnedFromWallet,spendableBalance});
 const fifteenPuzzle = createFifteenPuzzleService({firestoreRequest,readDoc,recordValue,path,updateWrite,createWrite,
   walletDocumentPath,currentMemberYear,annualEarnedFromWallet,spendableBalance});
+const sparksTransfer = createSparksTransferService({firestoreRequest,readDoc,recordValue,path,updateWrite,createWrite,
+  walletDocumentPath,currentMemberYear,spendableBalance,findProfileByUsername,isSuspendedProfile,listCollection});
 const sparkJourney = createSparkJourneyService({firestoreRequest,readDoc,recordValue,updateWrite,createWrite,
   walletDocumentPath,currentMemberYear,annualEarnedFromWallet,spendableBalance});
 const qaLottery = createQaLotteryService({firestoreRequest,readDoc,listCollection,recordValue,path,updateWrite,createWrite,
@@ -1938,6 +1941,14 @@ async function sparksHandler(req, res) {
         :body.action==="angel-claim"?await angelNumber.claim(body,actor)
         :await angelNumber.create(body,actor);
       return res.status(200).json(data);
+    }
+    if (["sparks-transfer-state","sparks-transfer-recipients","sparks-transfer-submit"].includes(body.action)) {
+      if(process.env.SPARKS_DATA_BACKEND!=="supabase")fail("การโอน Sparks เปิดใช้งานเฉพาะระบบ Supabase",423);
+      const actor=await authorizeRewardUser(body);
+      const result=body.action==="sparks-transfer-state"?await sparksTransfer.readState(actor)
+        :body.action==="sparks-transfer-recipients"?await sparksTransfer.recipients(actor)
+        :await sparksTransfer.transfer(body,actor);
+      return res.status(200).json(result);
     }
     if (["puzzle15-data","puzzle15-start","puzzle15-finish"].includes(body.action)) {
       if(process.env.SPARKS_DATA_BACKEND!=="supabase")fail("15-Puzzle ใช้กระเป๋า Sparks บน Supabase เท่านั้น",423);
