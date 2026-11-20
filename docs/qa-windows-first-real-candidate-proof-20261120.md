@@ -76,3 +76,57 @@ clients are not represented in this ledger.
   alter the archived source snapshot, or start the source listener yet.
 
 `QA_FAILOVER=OFF` must remain until actual release gates are satisfied.
+
+## 20 Nov — real Windows read-only archive recheck PASSED
+
+The operator subsequently ran the pinned
+`Check-QA-Windows-New-Candidate.ps1` on Windows and supplied the output:
+
+- `QA_WINDOWS_ARCHIVE_VERIFY=LOCAL_CANDIDATE_HASHES_AND_MANIFESTS_RECHECKED`
+- `QA_WINDOWS_ARCHIVE_CHECK=LOCAL_READ_ONLY_RECHECK_COMPLETE`
+- Confirmed **2,226 old / 2,427 new**, with **202 added, 1 removed,
+  61 modified, 2,164 unchanged** across all **11 changed datasets**.
+- `QA_WINDOWS_ARCHIVE_FIRESTORE_READS=0` — the recheck did not consume
+  more Firestore reads or rerun the 11-collection capture.
+- `QA_SOURCE_LISTENER=NOT_STARTED_BY_CHECK`,
+  `QA_SOURCE_CONTINUITY=NOT_CERTIFIED`, and `QA_FAILOVER=OFF`.
+
+**Decision:** the one-time copy and its offline integrity recheck are
+complete. Do not ask the operator to repeat either one. This milestone
+closes **point-in-time archive integrity**, **not** continuous sync.
+The original active frozen snapshot and the new archived candidate must
+remain unchanged; do not promote the candidate to active standby.
+
+### Next engineering work: committed mutation capture, not another export
+
+The current Dashboard still writes directly to Firestore from the browser.
+Known paths include `src/evaluationStore.ts`, `src/appealStore.ts`,
+`src/signatureStore.ts`, `src/userRoleStore.ts`,
+`src/sessionStore.ts`, `src/qaEvaluationProgressStore.ts`, and
+`src/evaluationEditingStore.ts`. The source-writer inventory is
+non-exhaustive and must be completed before any coverage claim.
+A Vercel API or local Windows listener cannot reconstruct every remote
+browser commit after the fact from the 2,427-document archive.
+
+Required subsequent implementation, in an **independently reviewed,
+disabled-by-default stage**:
+
+1. Inventory all 11 collection write/delete/transaction paths plus
+   extra lock/activity, storage, and external writer paths.
+2. Provide server-authorized mutation endpoints with immutable operation
+   IDs and enforce per-role permissions, session revocations, monthly
+   locks and edit leases at the authoritative boundary.
+3. Persist each attempted change in the private, durable journal; reconcile
+   uncertain Firestore commits; never claim delivery on a client success
+   flag or unconfirmed document. Prevent old direct-writer clients from
+   bypassing the new path before promising completeness.
+4. Privately deliver committed, source-verified changes and deletions to
+   Windows with authenticated acknowledgments, replay, ordering and
+   outage-gap recovery. Establish bounded quota and billing safeguards.
+5. Test QA scores, appeals, signatures, sessions, attachments, locks,
+   failover/failback and record-level parity using a staging environment
+   before enabling production.
+
+No automatic Firestore listener, unbounded polling, new full scan,
+Windows receiver, database migration, production deploy, or failover
+activation is authorized by the passed local recheck. **Keep PR Draft.**
