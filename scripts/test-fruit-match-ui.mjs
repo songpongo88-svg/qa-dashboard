@@ -41,10 +41,10 @@ try{
   const Game=(await import(pathToFileURL(outfile).href)).default;
   await act(async()=>root.render(React.createElement(Game,{username:"Agent",sessionId:"agent-session-123456789"})));await wait();
   assert.equal(document.querySelectorAll("[data-fruit-card]").length,24);
-  assert.equal(document.querySelectorAll(".qfm-number").length,24,"number theme renders 24 matching two-digit cards");
-  assert.equal(new Set([...document.querySelectorAll(".qfm-number")].map(node=>node.textContent)).size,12,"number theme contains 12 distinct pairs");
   assert.equal(calls.length,1,"one initial stats read, no polling");assert(!document.body.textContent.includes("ผู้เล่น A"));
   await click(document.querySelector(".qfm-primary"));await wait();assert.equal(calls.length,2);
+  assert.equal(document.querySelectorAll(".qfm-number").length,24,"number theme renders 24 matching two-digit cards");
+  assert.equal(new Set([...document.querySelectorAll(".qfm-number")].map(node=>node.textContent)).size,12,"number theme contains 12 distinct pairs");
   const card=index=>document.querySelector(`[data-fruit-card="${index}"]`);
   await click(card(0));await click(card(1));await click(card(2));assert(!card(2).classList.contains("is-open"),"third card is locked during mismatch");assert.equal(calls.length,2,"flipping cards must never read or write the database");
   clock+=700;await wait(660);
