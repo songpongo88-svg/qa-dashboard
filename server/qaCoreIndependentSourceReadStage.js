@@ -19,7 +19,7 @@ function canonicalRevision(value){
  return value;
 }
 export function createQaCoreIndependentSourceRead({
- oauthToken, reserveRead, fetchImpl=fetch, env=process.env,
+ oauthToken, reserveRead, fetchImpl, env=process.env,
 }={}){
  if(env.QA_CORE_SOURCE_READ_ADAPTER_TEST!=='1'||
     env.QA_CORE_SOURCE_VERIFICATION_STAGE!=='1'||
@@ -27,6 +27,8 @@ export function createQaCoreIndependentSourceRead({
     env.QA_FAILOVER!=='OFF'||
     typeof reserveRead!=='function'||typeof fetchImpl!=='function')
   fail('qa_rest_source_reader_disabled');
+ // The mock fetch function is required explicitly: this isolated stage
+ // has no network-capable default and cannot call Firestore accidentally.
  // This token must come from the isolated backend test runner. NEVER accept
  // an access token, expected revision, or read receipt supplied by a browser.
  if(typeof oauthToken!=='string'||oauthToken.length<20||
