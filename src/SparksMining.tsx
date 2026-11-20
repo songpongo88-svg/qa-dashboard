@@ -2,8 +2,8 @@ import React,{useCallback,useEffect,useState} from "react";
 import "./sparksMining.css";
 
 type MineState={ok:boolean;day:string;open:boolean;claimedToday:boolean;
-  amount:number;available:boolean;opensAt:string;closesAt:string;timeZone:string};
-type MineResult={ok:boolean;alreadyApplied:boolean;day:string;amount:number;balance:number};
+  amount:number;available:boolean;opensAt:string;closesAt:string;timeZone:string;boostOwned:number;boostBoughtToday:number;boostPrice:number};
+type MineResult={ok:boolean;alreadyApplied:boolean;day:string;amount:number;balance:number;boostUsed?:boolean};
 const points=(value:number)=>new Intl.NumberFormat("th-TH").format(value);
 function bangkokHour(ms:number){
   const parts=new Intl.DateTimeFormat("en-GB",{
@@ -44,6 +44,7 @@ export default function SparksMining({username,sessionId,active}:{username:strin
   const [result,setResult]=useState<MineResult|null>(null);
   const [loading,setLoading]=useState(false);
   const [working,setWorking]=useState(false);
+  const [useBoost,setUseBoost]=useState(false);
   const [error,setError]=useState("");
   const inside=active&&miningWindowOpen(time);
   useEffect(()=>{
@@ -54,18 +55,18 @@ export default function SparksMining({username,sessionId,active}:{username:strin
     return()=>{window.clearInterval(timer);window.removeEventListener("focus",tick);};
   },[active]);
   useEffect(()=>{if(!inside)setIsOpen(false);},[inside]);
-  const request=useCallback(async(action:"mining-state"|"mining-dig")=>{
+  const request=useCallback(async(action:"mining-state"|"mining-dig",boost=false)=>{
     const response=await fetch("/api/sparks-admin",{
       method:"POST",cache:"no-store",credentials:"same-origin",
       headers:{"content-type":"application/json"},
-      body:JSON.stringify({action,actorUsername:username,sessionId}),
+      body:JSON.stringify({action,actorUsername:username,sessionId,useBoost:boost}),
     });
     const data=await response.json().catch(()=>({}));
     if(!response.ok)throw Error(String(data.error||"ไม่สามารถติดต่อเหมืองแร่ได้"));
     return data;
   },[username,sessionId]);
   const openMine=async()=>{
-    setIsOpen(true);setError("");setResult(null);setState(null);setLoading(true);
+    setIsOpen(true);setError("");setResult(null);setState(null);setUseBoost(false);setLoading(true);
     try{setState(await request("mining-state") as MineState);}
     catch(e){setError(e instanceof Error?e.message:"โหลดข้อมูลไม่สำเร็จ");}
     finally{setLoading(false);}
@@ -74,9 +75,9 @@ export default function SparksMining({username,sessionId,active}:{username:strin
     if(working||!state?.available)return;
     setWorking(true);setError("");
     try {
-      const prize=await request("mining-dig") as MineResult;
+      const prize=await request("mining-dig",useBoost) as MineResult;
       setResult(prize);
-      setState(previous=>previous?{...previous,available:false,claimedToday:true,amount:prize.amount}:previous);
+      setState(previous=>previous?{...previous,available:false,claimedToday:true,amount:prize.amount,boostOwned:previous.boostOwned-(prize.boostUsed?1:0)}:previous);
       if(!prize.alreadyApplied)window.dispatchEvent(new Event("qa:sparks-updated"));
     }catch(e){
       setError(e instanceof Error?e.message:"ขุดเหมืองไม่สำเร็จ");
@@ -109,6 +110,11 @@ export default function SparksMining({username,sessionId,active}:{username:strin
             <span>กลับมาขุดใหม่ได้ในวันถัดไป เวลา 14:00 น.</span>
           </div>:
           <div className="qa-mining-available">เหลือสิทธิ์ขุดเหมืองวันนี้ 1 ครั้ง</div>}
+        {!loading&&!state?.claimedToday?<label style={{display:"flex",gap:10,alignItems:"center",padding:"10px 12px",border:"1px solid #bda6da",borderRadius:12,margin:"12px 0"}}>
+          <input type="checkbox" checked={useBoost} disabled={working||!state?.boostOwned} onChange={event=>setUseBoost(event.target.checked)}/>
+          <span><strong>ใช้ Mining Lucky Boost +40%</strong><small style={{display:"block"}}>คงเหลือ {state?.boostOwned??0} ชิ้น · เพิ่มโอกาสรางวัลระดับสูง 40%</small></span>
+        </label>:null}
+        {result?.boostUsed?<p role="status">ใช้ Mining Lucky Boost 1 ชิ้นแล้ว</p>:null}
         {error?<p role="alert" className="qa-mining-error">{error}</p>:null}
         <button type="button" className="qa-mining-action"
           disabled={loading||working||!state?.available}
