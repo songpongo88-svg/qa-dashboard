@@ -243,7 +243,7 @@ begin
        'peer-transfer-refund-'||v_transfer.id::text,'sparks-peer-transfer-refund',
        'ครบ 72 ชั่วโมง · คืน '||v_transfer.amount||' Sparks');
      update sparks_transfer.transfers set status='expired',settled_at=v_now where id=v_id;
-     return jsonb_build_object('ok',false,'status','expired');
+     return jsonb_build_object('ok',false,'status','expired','error','TRANSFER_EXPIRED');
    end if;
    perform sparks_transfer.wallet_move(me,v_transfer.amount::bigint,
      'peer-transfer-accepted-'||v_transfer.id::text,'sparks-peer-transfer-accepted',
