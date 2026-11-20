@@ -88,17 +88,15 @@ begin
  return n;
 end $function$
 
-CREATE OR REPLACE FUNCTION sparks_transfer.legacy_sent(p_username text)
- RETURNS bigint
- LANGUAGE sql
- STABLE SECURITY DEFINER
- SET search_path TO ''
-AS $function$
- select coalesce((fields #>> '{sent,integerValue}')::bigint,0)
- from sparks_runtime.documents
- where source_path='qa_sparks_transfer_monthly_v1/'||p_username||'-'||to_char(now() at time zone 'Asia/Bangkok','YYYY-MM')
- $function$
-
+create or replace function sparks_transfer.legacy_sent(p_username text)
+returns bigint language sql stable security definer set search_path='' as $$
+ select coalesce((
+   select nullif(fields #>> '{sent,integerValue}','')::bigint
+   from sparks_runtime.documents
+   where source_path='qa_sparks_transfer_monthly_v1/'||p_username||'-'||to_char(now() at time zone 'Asia/Bangkok','YYYY-MM')
+ ),0)::bigint
+$$;
+revoke all on function sparks_transfer.legacy_sent(text) from public,anon,authenticated;
 CREATE OR REPLACE FUNCTION public.sparks_transfer_v2(p_action text, p_payload jsonb DEFAULT '{}'::jsonb)
  RETURNS jsonb
  LANGUAGE plpgsql
