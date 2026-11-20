@@ -1,4 +1,5 @@
 import SparksCloudStatus from "./SparksCloudStatus";
+import MaintenanceSparksCompensation,{recordDashboardMaintenance} from "./MaintenanceSparksCompensation";
 import DateTime24Input from './DateTime24Input';
 import React, { useEffect, useMemo, useState } from "react";
 import { collection, getDocs } from "firebase/firestore";
@@ -2534,10 +2535,12 @@ function MaintenancePanel({
       : "";
 
   let currentUserName = "System Administrator";
+  let currentUserUsername = "";
   try {
     const currentUser = currentUserRaw
       ? JSON.parse(currentUserRaw)
       : null;
+    currentUserUsername=String(currentUser?.username||"").trim().toLowerCase();
     currentUserName =
       String(currentUser?.displayName || currentUser?.username || "").trim() ||
       "System Administrator";
@@ -2852,13 +2855,21 @@ function MaintenancePanel({
       onMessageChange(nextState.message);
 
       await onSaveMaintenanceMode(!scheduled);
-
+      // QA Dashboard Maintenance and QA Sparks use separate gates.
+      // Record the interval in the private Sparks compensation ledger; never
+      // claim compensation was registered if owner verification failed.
+      let compensationWarning="";
+      if(currentUserUsername==="songpon")try{
+        await recordDashboardMaintenance("schedule",nextState);
+      }catch(error){
+        compensationWarning=" · ช่วงชดเชย QA Sparks ยังไม่ได้ลงทะเบียน กรุณายืนยันบัญชีเจ้าของแล้วซิงก์";
+      }
       setControlState(nextState);
       setConfirmOpen(false);
       setToast(
         scheduled
-          ? "ตั้งเวลา Maintenance เรียบร้อยแล้ว"
-          : "เปิด Maintenance เรียบร้อยแล้ว"
+          ? "ตั้งเวลา Maintenance เรียบร้อยแล้ว" + compensationWarning
+          : "เปิด Maintenance เรียบร้อยแล้ว" + compensationWarning
       );
 
       window.dispatchEvent(
@@ -2890,8 +2901,14 @@ function MaintenancePanel({
     try {
       await saveMaintenanceControlState(nextState);
       await onSaveMaintenanceMode(false);
+      let compensationWarning="";
+      if(currentUserUsername==="songpon")try{
+        await recordDashboardMaintenance("close",controlState);
+      }catch(error){
+        compensationWarning=" · ช่วงชดเชย QA Sparks ยังปิดรายการไม่สำเร็จ โปรดตรวจสอบ";
+      }
       setControlState(nextState);
-      setToast("เปิดระบบกลับมาใช้งานตามปกติแล้ว");
+      setToast("เปิดระบบกลับมาใช้งานตามปกติแล้ว"+compensationWarning);
     } catch (error) {
       setToast(
         error instanceof Error
@@ -3047,6 +3064,11 @@ function MaintenancePanel({
         </div>
       ) : null}
 
+      <MaintenanceSparksCompensation username={currentUserUsername}
+        scheduledStartAt={controlState.scheduledStartAt}
+        scheduledEndAt={controlState.scheduledEndAt}
+        autoOpenEnabled={controlState.autoOpenEnabled}
+        active={active}/>
       <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)]">
         <div className="space-y-5">
           <section className="rounded-[26px] border border-slate-200 bg-white p-5 shadow-sm">

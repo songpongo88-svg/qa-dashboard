@@ -4,6 +4,27 @@ import {
 } from "../server/sparksSupabaseAuth.js";
 import { getSparksAccessState, invalidateSparksAccessState } from "../server/sparksAccessControl.js";
 
+// Maintenance compensation owner RPC accepts only an outage interval; never an
+// arbitrary number of Sparks, usernames or a free-form award request.
+async function compensationRpc(action,{key="",startAt=null,plannedEndAt=null,autoClose=false}={}){
+  const jwt=getVerifiedSparksAccessToken();
+  const url=String(process.env.SPARKS_SUPABASE_AUTH_URL||"").replace(/\/$/,"");
+  const apiKey=String(process.env.SPARKS_SUPABASE_PUBLISHABLE_KEY||"");
+  if(!jwt||!url.startsWith("https://")||!apiKey)
+    throw Object.assign(new Error("QA Sparks owner verification unavailable"),{status:503});
+  const response=await fetch(url+"/rest/v1/rpc/qa_sparks_maintenance_compensation_v1",{
+    method:"POST",cache:"no-store",signal:AbortSignal.timeout(15000),
+    headers:{"apikey":apiKey,"Authorization":"Bearer "+jwt,"content-type":"application/json"},
+    body:JSON.stringify({p_action:action,p_key:key,p_start_at:startAt,
+      p_planned_end_at:plannedEndAt,p_auto_close:autoClose}),
+  });
+  const payload=await response.json().catch(()=>null);
+  if(!response.ok)throw Object.assign(new Error(
+    response.status===400?"ช่วงเวลา Maintenance ไม่ถูกต้องหรือยังไม่ลงทะเบียน":
+    "ไม่สามารถตรวจสอบระบบชดเชย QA Sparks ได้"),{status:response.status===403?403:503});
+  return payload;
+}
+
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store, private");
   res.setHeader("X-Content-Type-Options", "nosniff");
@@ -15,6 +36,15 @@ export default async function handler(req, res) {
     if (req.method === "GET") {
       const action = String(req.query?.action || "");
       if (action === "access") return res.status(200).json(await getSparksAccessState());
+      if (action === "maintenance-compensation") {
+        const incidents=await withSparksRequest(req,res,async()=>{
+          const actor=await getSparksRequestActor();
+          if(actor.username!=="songpon"||actor.role!=="Quality Assurance")
+            throw Object.assign(new Error("Owner only"),{status:403});
+          return compensationRpc("list");
+        });
+        return res.status(200).json({ok:true,incidents});
+      }
       if (action === "sync-status") {
         const status = await withSparksRequest(req,res,()=>sparksProfileSyncStatus());
         return res.status(200).json({ok:true,status});
@@ -32,6 +62,32 @@ export default async function handler(req, res) {
     }
     if (req.method === "POST") {
       const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body || {};
+      if (body.action === "maintenance-compensation") {
+        const origin=String(req.headers?.origin||"");
+        const host=String(req.headers?.host||"");
+        if(origin&&(!host||origin!=="https://"+host))
+          return res.status(403).json({error:"Same-origin owner request required"});
+        if(!["schedule","close"].includes(body.operation))
+          return res.status(400).json({error:"Invalid maintenance compensation operation"});
+        const key=String(body.key||"");
+        if(!/^dashboard-[0-9TZ:.-]{15,45}$/.test(key))
+          return res.status(400).json({error:"Invalid maintenance incident key"});
+        const startAt=body.operation==="schedule"?new Date(String(body.startAt||"")):null;
+        const endAt=body.plannedEndAt?new Date(String(body.plannedEndAt)):null;
+        if((startAt&&!Number.isFinite(startAt.getTime()))||
+            (endAt&&!Number.isFinite(endAt.getTime())))
+          return res.status(400).json({error:"Invalid maintenance time"});
+        return withSparksRequest(req,res,async()=>{
+          const actor=await getSparksRequestActor();
+          if(actor.username!=="songpon"||actor.role!=="Quality Assurance")
+            return res.status(403).json({error:"เฉพาะเจ้าของ QA Sparks เท่านั้น"});
+          const incident=await compensationRpc(body.operation,{
+            key,startAt:startAt?startAt.toISOString():null,
+            plannedEndAt:endAt?endAt.toISOString():null,autoClose:body.autoClose===true,
+          });
+          return res.status(200).json({ok:true,incident});
+        });
+      }
       if (body.action === "access-set") {
         const origin = String(req.headers?.origin || "");
         const host = String(req.headers?.host || "");
