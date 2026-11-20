@@ -15,6 +15,9 @@ on:
       - "scripts/test-qa-core-outbox-uncertainty.mjs"
       - "scripts/check-qa-no-billing-source-writers.mjs"
       - "migration/qa-windows-source-signal-stage.sql"
+      - "migration/qa-windows-verified-source-candidate-stage.sql"
+      - "server/qaWindowsVerifiedCandidateJournal.js"
+      - "scripts/test-qa-windows-verified-candidate-integration.mjs"
       - "server/qaWindowsSourceSignalJournal.js"
       - "server/qaWindowsProbeBaseline.js"
       - "server/qaWindowsPrivateSignalStage.js"
@@ -86,6 +89,7 @@ jobs:
           node --check server/qaWindowsProbeBaseline.js
           node scripts/test-qa-windows-probe-baseline.mjs
           node --check server/qaWindowsPrivateSignalStage.js
+          node --check server/qaWindowsVerifiedCandidateJournal.js
           node scripts/test-qa-windows-private-signal-stage.mjs
           node scripts/test-qa-windows-signal-install-policy.mjs
           node --check scripts/Check-QA-Windows-Private-Signal-Stage.mjs
@@ -158,6 +162,7 @@ jobs:
         run: |
           node scripts/test-qa-core-private-outbox-stage-integration.mjs
           node scripts/test-qa-windows-source-signal-integration.mjs
+          node scripts/test-qa-windows-verified-candidate-integration.mjs
           node scripts/test-qa-windows-firestore-one-read-budget-integration.mjs
           node scripts/test-qa-source-read-budget-integration.mjs
           node scripts/test-qa-windows-reconciliation-integration.mjs
