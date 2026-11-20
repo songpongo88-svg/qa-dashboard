@@ -273,13 +273,14 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
         {view === "overview" && walletLoaded ? <SparksBirthdayGift username={username} sessionId={sparksSessionId} earned={account.memberYearEarned} birthdayMMDD={account.birthdayMMDD} birthdayClaimed2026At={account.birthdayClaimed2026At}/> : null}
         {view !== "overview" && view !== "admin" && view !== "games" && walletLoaded ? <section className="qa-sparks-membership qa-sparks-wallet-strip" aria-label="ยอด Sparks ของคุณ"><SparksWalletSummary balance={account.balance} rewardOrders={account.rewardOrders} compact/></section> : null}
         {(view === "overview" || view === "quests") ? <section className="qa-sparks-compact-section qa-sparks-quest-center" aria-label="Quest Center">
-          <div className="qa-sparks-compact-header"><h2><SparksIcon name="calendar" size={19}/> Quest Center</h2><span>{3 + welcomePending} Quests</span></div>
+          <div className="qa-sparks-compact-header"><h2><SparksIcon name="calendar" size={19}/> Quest Center</h2><span>{3 + welcomePending} Quests{view==="overview"?" · Spark Transfer":""}</span></div>
           <div className="qa-sparks-mini-grid qa-sparks-quest-grid">
             <DailyCheckinQuest username={username} sessionId={sparksSessionId}
               claimedDays={account.dailyCheckinClaimedDays || []} claimedDaysPhase2={account.dailyCheckinPhase2ClaimedDays || []}
               loaded={walletLoaded}/>
             <ProfileMakeoverQuest username={username} claimedAt={account.profileMakeoverClaimedAt} loaded={walletLoaded}/>
             <QALottery username={username} sessionId={sparksSessionId} balance={account.balance} loaded={walletLoaded}/>
+            {view==="overview"?<SparksTransfer username={username} sessionId={sparksSessionId} active={active&&sparksAllowed}/>:null}
             {walletLoaded && isWelcomeQuestOpen() && !account.firstLogin ? <article className="qa-sparks-welcome-quest">
               <span className="label">SPECIAL QUEST · UNTIL 25 DEC</span>
               <strong>Welcome Fruit Reward</strong>
@@ -302,9 +303,6 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
           <section className="qa-sparks-panel"><h2><SparksIcon name="gift"/> Reward Center</h2><p className="qa-sparks-reward-tagline">แลกรางวัลสุดพิเศษด้วย Sparks ที่คุณสะสมได้จาก QA Sparks</p><div className="qa-sparks-mini-grid qa-sparks-reward-grid"><TypingReliefRewardCard username={username} sessionId={sparksSessionId} balance={account.balance} owned={account.typingReliefOwned} loaded={walletLoaded}/><QaAutoPassRewardCard username={username} sessionId={sparksSessionId} balance={account.balance} owned={account.autoPassOwned} freeClaimedAt={account.autoPassFreeClaimedAt} loaded={walletLoaded}/><TrueMoneyReward mode="reward" username={username} sessionId={sparksSessionId} balance={account.balance} loaded={walletLoaded}/><AnnouncementShieldItem mode="reward" username={username} sessionId={sparksSessionId} balance={account.balance}/><SpecialRewardCenter mode="reward" username={username} sessionId={sparksSessionId} balance={account.balance} loaded={walletLoaded}/><MiningBoostCard username={username} sessionId={sparksSessionId}/></div></section>
           <section className="qa-sparks-panel"><h2><SparksIcon name="clock"/> History</h2><SparksHistory history={account.history}/></section>
         </div>
-          <section className="qa-sparks-panel qa-sparks-overview-transfer">
-            <SparksTransfer username={username} sessionId={sparksSessionId} active={active&&sparksAllowed&&view==="overview"}/>
-          </section>
         </> : view === "quests" || view === "games" ? null : view === "rewards" ? <section className="qa-sparks-panel qa-sparks-single"><h2><SparksIcon name="gift"/> Reward Center</h2><p className="qa-sparks-reward-tagline">แลกรางวัลสุดพิเศษด้วย Sparks ที่คุณสะสมได้จาก QA Sparks</p><div className="qa-sparks-mini-grid qa-sparks-reward-grid"><TypingReliefRewardCard username={username} sessionId={sparksSessionId} balance={account.balance} owned={account.typingReliefOwned} loaded={walletLoaded}/><QaAutoPassRewardCard username={username} sessionId={sparksSessionId} balance={account.balance} owned={account.autoPassOwned} freeClaimedAt={account.autoPassFreeClaimedAt} loaded={walletLoaded}/><TrueMoneyReward mode="reward" username={username} sessionId={sparksSessionId} balance={account.balance} loaded={walletLoaded}/><AnnouncementShieldItem mode="reward" username={username} sessionId={sparksSessionId} balance={account.balance}/><SpecialRewardCenter mode="reward" username={username} sessionId={sparksSessionId} balance={account.balance} loaded={walletLoaded}/></div></section>
         : view === "items" ? <section className="qa-sparks-panel qa-sparks-single qa-sparks-items-panel" data-inventory-clock={itemClock}>
           <h2><SparksIcon name="package"/> My Items</h2>
