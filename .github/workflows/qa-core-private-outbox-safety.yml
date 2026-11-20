@@ -14,6 +14,8 @@ on:
       - "scripts/test-qa-core-private-outbox*.mjs"
       - "scripts/test-qa-core-outbox-uncertainty.mjs"
       - "scripts/check-qa-no-billing-source-writers.mjs"
+      - "scripts/qa-firestore-writer-inventory.mjs"
+      - "scripts/test-qa-firestore-writer-inventory.mjs"
       - "migration/qa-windows-source-signal-stage.sql"
       - "migration/qa-windows-verified-source-candidate-stage.sql"
       - "server/qaWindowsVerifiedCandidateJournal.js"
@@ -80,7 +82,9 @@ jobs:
         with:
           node-version: "22"
       - name: Verify source coverage guard (no live data calls)
-        run: node scripts/check-qa-no-billing-source-writers.mjs
+        run: |
+          node scripts/test-qa-firestore-writer-inventory.mjs
+          node scripts/check-qa-no-billing-source-writers.mjs
       - name: Test stage-only outbox authorization and quarantine
         run: |
           node --check server/qaCorePrivateOutbox.js
