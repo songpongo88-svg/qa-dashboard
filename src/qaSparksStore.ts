@@ -70,6 +70,7 @@ export type SparksAccount = {
   dailyCheckinPhase2ClaimedDays: number[];
   profileMakeoverClaimedAt: string;
   birthdayMMDD: string;
+  birthdayDate: string;
   birthdayClaimed2026At: string;
   firstLogin: FirstLoginPrize | null;
   sparkJourney2026: SparkJourneyPrize | null;
@@ -79,7 +80,7 @@ export type SparksAccount = {
 };
 
 export const EMPTY_SPARKS_ACCOUNT: SparksAccount = {
-  balance: 0, rewardOrders: 0, typingReliefOwned: 0, autoPassOwned: 0, autoPassFreeClaimedAt: "", memberYear: sparksCalendarYear(), memberYearEarned: 0, dailyCheckinClaimedDays: [], dailyCheckinPhase2ClaimedDays: [], profileMakeoverClaimedAt: "", birthdayMMDD: "", birthdayClaimed2026At: "", firstLogin: null, sparkJourney2026: null, history: [],
+  balance: 0, rewardOrders: 0, typingReliefOwned: 0, autoPassOwned: 0, autoPassFreeClaimedAt: "", memberYear: sparksCalendarYear(), memberYearEarned: 0, dailyCheckinClaimedDays: [], dailyCheckinPhase2ClaimedDays: [], profileMakeoverClaimedAt: "", birthdayMMDD: "", birthdayDate: "", birthdayClaimed2026At: "", firstLogin: null, sparkJourney2026: null, history: [],
 };
 
 export function sparksAccountKey(username: string): string {
@@ -186,6 +187,7 @@ export async function getSparksAccount(username: string, options: { historyLimit
       memberYearEarned:annualEarnedFromWallet(data,year),
       profileMakeoverClaimedAt:String(data.profileMakeoverClaimedAt||""),
       birthdayMMDD:String(data.birthdayMMDD||""),
+      birthdayDate:String(data.birthdayDate||""),
       birthdayClaimed2026At:String(data.birthdayClaimed2026At||""),
       dailyCheckinClaimedDays:Array.isArray(data.dailyCheckin202611Days)
         ?[...new Set(data.dailyCheckin202611Days.map(Number)
@@ -261,6 +263,7 @@ export async function getSparksAccount(username: string, options: { historyLimit
     memberYearEarned: annualEarnedFromWallet(data, memberYear),
     profileMakeoverClaimedAt: String(data.profileMakeoverClaimedAt || ""),
     birthdayMMDD: String(data.birthdayMMDD || ""),
+    birthdayDate: String(data.birthdayDate || ""),
     birthdayClaimed2026At: String(data.birthdayClaimed2026At || ""),
     dailyCheckinClaimedDays: Array.isArray(data.dailyCheckin202611Days)
       ? [...new Set(data.dailyCheckin202611Days.map(Number).filter((day: number) => Number.isInteger(day) && day >= 9 && day <= 22))].sort((a: number, b: number) => a - b) as number[]
