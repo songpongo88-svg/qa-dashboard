@@ -1086,3 +1086,10 @@
 .qa-sparks-reward-grid .qa-money-reward-root{min-width:0;max-width:none}
 .qa-sparks-reward-grid .qa-sparks-mini-item--money{width:100%;max-width:none}
 @container (max-width:530px){.qa-sparks-reward-grid .qa-sparks-mini-item{min-height:0}.qa-sparks-reward-grid .qa-sparks-mini-art{max-height:205px}}
+
+/* Daily Check-in — independent Phase 1 / Phase 2 switch; original calendar styling retained. */
+.qa-sparks-checkin-phase-switch{display:flex;gap:8px;margin:0 0 18px;flex-wrap:wrap}
+.qa-sparks-checkin-phase-switch button{font:inherit;font-size:12px;min-height:38px;flex:1;min-width:130px;border-radius:10px;
+  border:1px solid #e9d9ea;color:var(--sparks-dark,#583468);background:#fff;cursor:pointer;padding:7px 12px}
+.qa-sparks-checkin-phase-switch button[aria-pressed="true"]{border-color:#bd85cf;background:#f6ecfa;color:#612377;font-weight:700}
+.qa-sparks-checkin-phase-switch button:focus-visible{outline:2px solid #a757d3;outline-offset:2px}

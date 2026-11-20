@@ -67,6 +67,7 @@ export type SparksAccount = {
   memberYear: number;
   memberYearEarned: number;
   dailyCheckinClaimedDays: number[];
+  dailyCheckinPhase2ClaimedDays: number[];
   profileMakeoverClaimedAt: string;
   firstLogin: FirstLoginPrize | null;
   sparkJourney2026: SparkJourneyPrize | null;
@@ -76,7 +77,7 @@ export type SparksAccount = {
 };
 
 export const EMPTY_SPARKS_ACCOUNT: SparksAccount = {
-  balance: 0, rewardOrders: 0, typingReliefOwned: 0, autoPassOwned: 0, autoPassFreeClaimedAt: "", memberYear: sparksCalendarYear(), memberYearEarned: 0, dailyCheckinClaimedDays: [], profileMakeoverClaimedAt: "", firstLogin: null, sparkJourney2026: null, history: [],
+  balance: 0, rewardOrders: 0, typingReliefOwned: 0, autoPassOwned: 0, autoPassFreeClaimedAt: "", memberYear: sparksCalendarYear(), memberYearEarned: 0, dailyCheckinClaimedDays: [], dailyCheckinPhase2ClaimedDays: [], profileMakeoverClaimedAt: "", firstLogin: null, sparkJourney2026: null, history: [],
 };
 
 export function sparksAccountKey(username: string): string {
@@ -186,6 +187,10 @@ export async function getSparksAccount(username: string, options: { historyLimit
         ?[...new Set(data.dailyCheckin202611Days.map(Number)
           .filter((day:number)=>Number.isInteger(day)&&day>=9&&day<=22))]
           .sort((a:number,b:number)=>a-b) as number[] :[],
+      dailyCheckinPhase2ClaimedDays:Array.isArray(data.dailyCheckin202611Phase2Days)
+        ? [...new Set(data.dailyCheckin202611Phase2Days.map(Number)
+          .filter((day:number)=>Number.isInteger(day)&&day>=23&&day<=30))]
+          .sort((a:number,b:number)=>a-b) as number[] : [],
       balance:spendableSparksFromWallet(data,year),
       totalEarned:safeBalance(data.totalEarned)||safeBalance(data.firstLogin?.amount),
       totalSpent:safeBalance(data.totalSpent),
@@ -253,6 +258,9 @@ export async function getSparksAccount(username: string, options: { historyLimit
     profileMakeoverClaimedAt: String(data.profileMakeoverClaimedAt || ""),
     dailyCheckinClaimedDays: Array.isArray(data.dailyCheckin202611Days)
       ? [...new Set(data.dailyCheckin202611Days.map(Number).filter((day: number) => Number.isInteger(day) && day >= 9 && day <= 22))].sort((a: number, b: number) => a - b) as number[]
+      : [],
+    dailyCheckinPhase2ClaimedDays: Array.isArray(data.dailyCheckin202611Phase2Days)
+      ? [...new Set(data.dailyCheckin202611Phase2Days.map(Number).filter((day: number) => Number.isInteger(day) && day >= 23 && day <= 30))].sort((a: number, b: number) => a - b) as number[]
       : [],
     balance: spendableSparksFromWallet(data,memberYear),
     totalEarned: safeBalance(data.totalEarned) || safeBalance(data.firstLogin?.amount),

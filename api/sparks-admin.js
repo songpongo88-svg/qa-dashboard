@@ -52,6 +52,17 @@ const DAILY_CHECKIN_QUEST = Object.freeze({
   end: "2026-11-22",
   reward: 50,
   walletField: "dailyCheckin202611Days",
+  firstDay: 9, lastDay: 22,
+});
+// Phase 2 is a separate campaign and independent ledger counter.
+// Never overwrite the 9–22 November record or its earned Sparks.
+const DAILY_CHECKIN_PHASE_2 = Object.freeze({
+  id: "daily-checkin-nov-2026-phase-2",
+  start: "2026-11-23",
+  end: "2026-11-30",
+  reward: 50,
+  walletField: "dailyCheckin202611Phase2Days",
+  firstDay: 23, lastDay: 30,
 });
 let accessToken = "";
 let tokenExpiry = 0;
@@ -661,7 +672,7 @@ async function redeemTypingRelief(body, actor) {
 
 /**
  * Only the authenticated member can claim today's 50 Sparks, once per
- * Bangkok calendar day from Nov 9 through Nov 22. No catch-up, streak
+ * Bangkok calendar day in Phase 1 (Nov 9–22) or Phase 2 (Nov 23–30). No catch-up, streak
  * dependence, auto-claim, browser-clock trust, or future-date selection.
  *
  * Wallet + fixed-ID history are committed in ONE Firestore transaction.
@@ -674,10 +685,11 @@ function bangkokQuestDate(now = new Date()) {
   const extract = (type) => parts.find((part) => part.type === type)?.value || "";
   return extract("year") + "-" + extract("month") + "-" + extract("day");
 }
-function normalizedCheckinDays(wallet) {
-  const input = wallet[DAILY_CHECKIN_QUEST.walletField];
+function normalizedCheckinDays(wallet, quest = DAILY_CHECKIN_QUEST) {
+  const input = wallet[quest.walletField];
   return Array.isArray(input)
-    ? [...new Set(input.map(Number).filter((day) => Number.isInteger(day) && day >= 9 && day <= 22))].sort((a, b) => a - b)
+    ? [...new Set(input.map(Number).filter((day) =>
+      Number.isInteger(day) && day >= quest.firstDay && day <= quest.lastDay))].sort((a, b) => a - b)
     : [];
 }
 /**
@@ -1035,7 +1047,8 @@ async function claimDailyCheckin(body, actor) {
   // This must be checked on the server, never inferred from user device time.
   const today = bangkokQuestDate();
   if (today < DAILY_CHECKIN_QUEST.start) fail("Daily Check-in เปิดให้รับรางวัลตั้งแต่วันที่ 9 พฤศจิกายน 2026", 400);
-  if (today > DAILY_CHECKIN_QUEST.end) fail("Daily Check-in สิ้นสุดแล้ว ไม่สามารถรับรางวัลย้อนหลังได้", 400);
+  if (today > DAILY_CHECKIN_PHASE_2.end) fail("Daily Check-in สิ้นสุดแล้ว ไม่สามารถรับรางวัลย้อนหลังได้", 400);
+  const quest = today >= DAILY_CHECKIN_PHASE_2.start ? DAILY_CHECKIN_PHASE_2 : DAILY_CHECKIN_QUEST;
   const selected = String(body.questDate || "");
   if (selected !== today) fail("รับรางวัลได้เฉพาะวันที่ปัจจุบัน (เวลาไทย) ไม่สามารถรับย้อนหลังหรือล่วงหน้าได้", 400);
   const dayNumber = Number(today.slice(-2));
@@ -1050,9 +1063,9 @@ async function claimDailyCheckin(body, actor) {
         readDoc(walletPath, transaction), readDoc(historyPath, transaction),
       ]);
       const wallet = recordValue(walletDoc);
-      const claimedDays = normalizedCheckinDays(wallet);
+      const claimedDays = normalizedCheckinDays(wallet, quest);
       if (claimDoc || claimedDays.includes(dayNumber)) {
-        return { updated: false, alreadyClaimed: true, questDate: today,
+        return { updated: false, alreadyClaimed: true, questId: quest.id, questDate: today,
           claimedDays: [...new Set([...claimedDays, dayNumber])].sort((a, b) => a - b),
           balance: spendableBalance(wallet), memberYearEarned: annualEarnedFromWallet(wallet) };
       }
@@ -1061,30 +1074,30 @@ async function claimDailyCheckin(body, actor) {
       const now = new Date().toISOString();
       // Never reduce earned levels when tickets are redeemed.
       const lifetimeEarned = Math.max(intCount(wallet.totalEarned), intCount(wallet.firstLogin?.amount));
-      const nextBalance = spendableBalance(wallet,memberYear) + DAILY_CHECKIN_QUEST.reward;
-      const nextEarned = earnedThisYear + DAILY_CHECKIN_QUEST.reward;
+      const nextBalance = spendableBalance(wallet,memberYear) + quest.reward;
+      const nextEarned = earnedThisYear + quest.reward;
       const nextDays = [...claimedDays, dayNumber].sort((a, b) => a - b);
       const updates = {
         username: actor.username,
         balance: nextBalance,
         balanceYear: memberYear,
-        totalEarned: lifetimeEarned + DAILY_CHECKIN_QUEST.reward,
+        totalEarned: lifetimeEarned + quest.reward,
         memberYear,
         memberYearEarned: nextEarned,
-        [DAILY_CHECKIN_QUEST.walletField]: nextDays,
+        [quest.walletField]: nextDays,
         updatedAt: now,
       };
       const history = {
         createdAt: now, type: "earn", source: "quest-daily-checkin",
-        questId: DAILY_CHECKIN_QUEST.id, questDate: today,
+        questId: quest.id, questDate: today,
         title: "Daily Check-in Reward", detail: "เช็กอินวันที่ " + dayNumber + " พฤศจิกายน 2026",
-        amount: DAILY_CHECKIN_QUEST.reward, balanceAfter: nextBalance,
+        amount: quest.reward, balanceAfter: nextBalance,
         performedBy: actor.username, status: "Completed",
       };
       await firestoreRequest(":commit", "POST", {
         transaction, writes: [updateWrite(walletPath, updates, walletDoc), createWrite(historyPath, history)],
       });
-      return { updated: true, alreadyClaimed: false, questDate: today,
+      return { updated: true, alreadyClaimed: false, questId: quest.id, questDate: today,
         claimedDays: nextDays, balance: nextBalance, memberYearEarned: nextEarned };
     } catch (error) {
       if (["ABORTED", "FAILED_PRECONDITION"].includes(error?.firestoreStatus) && attempt < 3) continue;

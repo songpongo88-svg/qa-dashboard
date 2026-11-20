@@ -270,7 +270,9 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
         {(view === "overview" || view === "quests") ? <section className="qa-sparks-compact-section qa-sparks-quest-center" aria-label="Quest Center">
           <div className="qa-sparks-compact-header"><h2><SparksIcon name="calendar" size={19}/> Quest Center</h2><span>{3 + welcomePending} Quests</span></div>
           <div className="qa-sparks-mini-grid qa-sparks-quest-grid">
-            <DailyCheckinQuest username={username} sessionId={sparksSessionId} claimedDays={account.dailyCheckinClaimedDays || []} loaded={walletLoaded}/>
+            <DailyCheckinQuest username={username} sessionId={sparksSessionId}
+              claimedDays={account.dailyCheckinClaimedDays || []} claimedDaysPhase2={account.dailyCheckinPhase2ClaimedDays || []}
+              loaded={walletLoaded}/>
             <ProfileMakeoverQuest username={username} claimedAt={account.profileMakeoverClaimedAt} loaded={walletLoaded}/>
             <QALottery username={username} sessionId={sparksSessionId} balance={account.balance} loaded={walletLoaded}/>
             {walletLoaded && isWelcomeQuestOpen() && !account.firstLogin ? <article className="qa-sparks-welcome-quest">

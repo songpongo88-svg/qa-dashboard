@@ -6,7 +6,15 @@ export const DAILY_CHECKIN_EVENT = Object.freeze({
   id: "daily-checkin-nov-2026", start: "2026-11-09", end: "2026-11-22",
   pointsPerDay: 50, days: 14, maxPoints: 700,
 });
+export const DAILY_CHECKIN_PHASE_2 = Object.freeze({
+  id: "daily-checkin-nov-2026-phase-2", start: "2026-11-23", end: "2026-11-30",
+  pointsPerDay: 50, days: 8, maxPoints: 400,
+});
 export const CHECKIN_DAYS = Array.from({ length: 14 }, (_, index) => index + 9);
+export const CHECKIN_PHASE_2_DAYS = Array.from({ length: 8 }, (_, index) => index + 23);
+export function checkinActivePhase(today: string): 1 | 2 {
+  return today >= DAILY_CHECKIN_PHASE_2.start ? 2 : 1;
+}
 
 export function bangkokQuestToday(now = new Date()) {
   const date = new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Bangkok",
@@ -24,11 +32,11 @@ export function checkinStatus(day: number, today: string, claimed: readonly numb
 }
 
 type ClaimResult = {
-  updated: boolean; alreadyClaimed?: boolean; questDate: string;
+  updated: boolean; alreadyClaimed?: boolean; questId: string; questDate: string;
   claimedDays: number[]; balance: number; memberYearEarned: number;
 };
 type Props = {
-  username: string; sessionId: string; claimedDays: number[];
+  username: string; sessionId: string; claimedDays: number[]; claimedDaysPhase2?: number[];
   loaded: boolean;
   autoOpen?: boolean;
   hideTrigger?: boolean;
@@ -43,11 +51,12 @@ function CalendarBadge({ size = 34 }: { size?: number }) {
   </svg>;
 }
 
-export default function DailyCheckinQuest({ username, sessionId, claimedDays, loaded, autoOpen = false, hideTrigger = false }: Props) {
+export default function DailyCheckinQuest({ username, sessionId, claimedDays, claimedDaysPhase2 = [], loaded, autoOpen = false, hideTrigger = false }: Props) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [serverDays, setServerDays] = useState<{ username: string; days: number[] } | null>(null);
+  const [serverDays, setServerDays] = useState<{ username: string; questId: string; days: number[] } | null>(null);
   const [today, setToday] = useState(() => bangkokQuestToday());
+  const [viewPhase, setViewPhase] = useState<1 | 2>(() => checkinActivePhase(bangkokQuestToday()));
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [modalTheme, setModalTheme] = useState({accent:"#7e22ce", dark:"#581c87",soft:"#faf5ff"});
@@ -57,15 +66,26 @@ export default function DailyCheckinQuest({ username, sessionId, claimedDays, lo
   const busyRef = useRef(busy);
   const autoOpenedRef = useRef(false);
   busyRef.current = busy;
-  const validServerDays = serverDays?.username === username ? serverDays.days : [];
-  const saved = [...new Set([...claimedDays, ...validServerDays])].filter((n) => Number.isInteger(n) && n >= 9 && n <= 22).sort((a, b) => a - b);
+  const event = viewPhase === 1 ? DAILY_CHECKIN_EVENT : DAILY_CHECKIN_PHASE_2;
+  const phaseDays = viewPhase === 1 ? CHECKIN_DAYS : CHECKIN_PHASE_2_DAYS;
+  const persistedDays = viewPhase === 1 ? claimedDays : claimedDaysPhase2;
+  const validServerDays = serverDays?.username === username && serverDays.questId === event.id ? serverDays.days : [];
+  const saved = [...new Set([...persistedDays, ...validServerDays])]
+    .filter((n) => Number.isInteger(n) && phaseDays.includes(n)).sort((a, b) => a - b);
   const claimedCount = loaded ? saved.length : 0;
-  const upcoming = today < DAILY_CHECKIN_EVENT.start;
-  const finished = today > DAILY_CHECKIN_EVENT.end;
+  const upcoming = today < event.start;
+  const finished = today > event.end;
   const currentDay = Number(today.slice(-2));
   const status = upcoming ? "เตรียมเปิดกิจกรรม" : finished ? "กิจกรรมสิ้นสุดแล้ว" : saved.includes(currentDay) ? "รับรางวัลวันนี้แล้ว" : "เช็กอินวันนี้ได้";
   // The short item label stays compact; full quest status is available in the calendar dialog.
   const statusClass = upcoming ? "upcoming" : finished ? "finished" : "live";
+  const previousDateRef = useRef(today);
+  useEffect(() => {
+    if (previousDateRef.current !== today) {
+      previousDateRef.current = today;
+      if (today === DAILY_CHECKIN_PHASE_2.start) setViewPhase(2);
+    }
+  }, [today]);
 
   // The login prompt opens at most once per authenticated component mount.
   // Do not compete with the first-login fruit reward or another active dialog.
@@ -125,12 +145,14 @@ export default function DailyCheckinQuest({ username, sessionId, claimedDays, lo
       });
     }
     setToday(bangkokQuestToday());
+    setViewPhase(checkinActivePhase(bangkokQuestToday()));
     setMessage(""); setError(""); setOpen(true);
   };
   const claim = async (day: number) => {
     const currentDate = bangkokQuestToday();
     setToday(currentDate);
-    if (!loaded || !sessionId || !username || busy || checkinStatus(day, currentDate, saved) !== "today") return;
+    if (!loaded || !sessionId || !username || busy || currentDate < event.start || currentDate > event.end ||
+        checkinStatus(day, currentDate, saved) !== "today" || !phaseDays.includes(day)) return;
     setBusy(true);
     setError(""); setMessage("");
     try {
@@ -144,7 +166,7 @@ export default function DailyCheckinQuest({ username, sessionId, claimedDays, lo
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(String(result.error || "ระบบไม่สามารถบันทึกเช็กอินได้"));
       const data = result as ClaimResult;
-      setServerDays({ username, days: data.claimedDays });
+      setServerDays({ username, questId: data.questId || event.id, days: data.claimedDays });
       setMessage(data.alreadyClaimed
         ? "คุณได้รับรางวัลของวันนี้ไปแล้ว ไม่ได้เพิ่มคะแนนซ้ำ"
         : "เช็กอินสำเร็จ! ได้รับ +50 QA Sparks บันทึกใน History และ Member Level แล้ว");
@@ -164,7 +186,7 @@ export default function DailyCheckinQuest({ username, sessionId, claimedDays, lo
       </span>
       <strong className="qa-sparks-mini-name">Daily Check-in</strong>
       <span className="qa-sparks-mini-value">+50 Sparks/วัน</span>
-      <span className="qa-sparks-mini-hint">9–22 พ.ย.</span>
+      <span className="qa-sparks-mini-hint">{viewPhase === 1 ? "9–22 พ.ย." : "23–30 พ.ย. · Phase 2"}</span>
     </button>}
 
     {open && typeof document !== "undefined" ? createPortal(
@@ -182,26 +204,34 @@ export default function DailyCheckinQuest({ username, sessionId, claimedDays, lo
             <div className="qa-sparks-checkin-hero-flex">
               <div className="qa-sparks-checkin-hero-icon"><CalendarBadge size={88}/></div>
               <div>
-                <h2 id="qa-checkin-title">Daily Check-in</h2>
+                <h2 id="qa-checkin-title">Daily Check-in {viewPhase === 2 ? "· Phase 2" : ""}</h2>
                 <p id="qa-checkin-summary">เช็กอินทุกวันที่สะดวก กดรับด้วยตัวเอง วันละ 50 Sparks</p>
-                <span className="qa-sparks-checkin-event-dates">9–22 พ.ย. 2026 · เวลาไทย (UTC+7)</span>
+                <span className="qa-sparks-checkin-event-dates">{viewPhase === 1 ? "9–22" : "23–30"} พ.ย. 2026 · เวลาไทย (UTC+7)</span>
               </div>
             </div>
           </div>
           <div className="qa-sparks-checkin-body">
             <div className="qa-sparks-checkin-stats">
               <div><span>รางวัลต่อวัน</span><strong>+50 <small>Sparks</small></strong></div>
-              <div><span>รับแล้ว</span><strong>{loaded ? claimedCount : "—"} <small>/ 14 วัน</small></strong></div>
-              <div><span>คะแนนที่ได้รับ</span><strong>{loaded ? claimedCount * 50 : "—"} <small>/ 700 Sparks</small></strong></div>
+              <div><span>รับแล้ว</span><strong>{loaded ? claimedCount : "—"} <small>/ {event.days} วัน</small></strong></div>
+              <div><span>คะแนนที่ได้รับ</span><strong>{loaded ? claimedCount * event.pointsPerDay : "—"} <small>/ {event.maxPoints} Sparks</small></strong></div>
+            </div>
+            <div className="qa-sparks-checkin-phase-switch" aria-label="เลือกรอบกิจกรรม Daily Check-in">
+              <button type="button" aria-pressed={viewPhase===1} onClick={()=>{setViewPhase(1);setMessage("");setError("");}}>
+                Phase 1 · 9–22 พ.ย.
+              </button>
+              <button type="button" aria-pressed={viewPhase===2} onClick={()=>{setViewPhase(2);setMessage("");setError("");}}>
+                Phase 2 · 23–30 พ.ย.
+              </button>
             </div>
             <div className="qa-sparks-checkin-calendar-head">
               <div><h3>ปฏิทินเช็กอิน</h3><span>พฤศจิกายน 2026 · เลือกรับรางวัลจากช่องวันที่ปัจจุบันเท่านั้น</span></div>
               <span className={"qa-sparks-quest-state " + statusClass}>{status}</span>
             </div>
-            <div className="qa-sparks-checkin-calendar" aria-label="ปฏิทินเช็กอิน 9 ถึง 22 พฤศจิกายน 2026">
+            <div className="qa-sparks-checkin-calendar" aria-label={"ปฏิทินเช็กอิน " + (viewPhase===1 ? "9 ถึง 22" : "23 ถึง 30") + " พฤศจิกายน 2026"}>
               {["จ.","อ.","พ.","พฤ.","ศ.","ส.","อา."].map((day) =>
                 <span key={day} className="qa-sparks-checkin-weekday">{day}</span>)}
-              {CHECKIN_DAYS.map((day) => {
+              {phaseDays.map((day) => {
                 const dayStatus = checkinStatus(day, today, saved);
                 const isToday = dayStatus === "today";
                 const canClaim = loaded && Boolean(username && sessionId) && isToday && !busy;
@@ -246,16 +276,17 @@ export default function DailyCheckinQuest({ username, sessionId, claimedDays, lo
 // Mounted once after a successful QA Dashboard login, independently of the QA Sparks tab.
 // Wallet eligibility is read through the existing shared/cached store; no polling reads.
 export function DailyCheckinLoginPrompt({ username, sessionId }: { username: string; sessionId: string }) {
-  const [account, setAccount] = useState<{ username: string; days: number[] } | null>(null);
+  const [account, setAccount] = useState<{ username: string; days: number[]; daysPhase2: number[] } | null>(null);
   useEffect(() => {
     let active = true;
     setAccount(null);
     if (!username || !sessionId) return () => { active = false; };
     const today = bangkokQuestToday();
-    if (today < DAILY_CHECKIN_EVENT.start || today > DAILY_CHECKIN_EVENT.end)
+    if (today < DAILY_CHECKIN_EVENT.start || today > DAILY_CHECKIN_PHASE_2.end)
       return () => { active = false; };
     void getSparksAccount(username, { historyLimit: 0, sessionId }).then((wallet) => {
-      if (active) setAccount({ username, days: wallet.dailyCheckinClaimedDays || [] });
+      if (active) setAccount({ username, days: wallet.dailyCheckinClaimedDays || [],
+        daysPhase2: wallet.dailyCheckinPhase2ClaimedDays || [] });
     }).catch((error) => {
       // Never present a reward claim without verified eligibility.
       console.warn("Unable to verify daily check-in eligibility", error);
@@ -264,5 +295,5 @@ export function DailyCheckinLoginPrompt({ username, sessionId }: { username: str
   }, [username, sessionId]);
   if (!account || account.username !== username) return null;
   return <DailyCheckinQuest username={username} sessionId={sessionId} claimedDays={account.days}
-    loaded autoOpen hideTrigger />;
+    claimedDaysPhase2={account.daysPhase2} loaded autoOpen hideTrigger />;
 }
