@@ -46,7 +46,8 @@ export default function SparksTransfer({username,sessionId,active}:{username:str
    setConfirm(false);setRecipient("");setAmount("");setRequestId("");
    setNotice("โอน "+done.receipt.amount+" Sparks สำเร็จ ให้ "+done.receipt.recipientName+" ("+done.receipt.recipient+")");
    window.dispatchEvent(new Event("qa:sparks-updated"));
-   await refresh();
+   try{await refresh();}
+   catch{setError("โอน Sparks สำเร็จแล้ว แต่ยังโหลดข้อมูลยอดล่าสุดไม่ได้ กรุณากดลองโหลดข้อมูลอีกครั้ง");}
   }catch(e){setError(e instanceof Error?e.message:"โอนไม่สำเร็จ");}
   finally{setPending(false);}
  };
