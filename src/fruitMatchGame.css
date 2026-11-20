@@ -55,3 +55,10 @@
 .qfm-footer--cat{background:linear-gradient(0deg,#ffebf4,#fff5fb 75%,transparent)}
 .qfm-footer-fruits img.qfm-footer-cat{width:16%;height:65px;object-fit:cover;border-radius:12px;border:2px solid #fff;filter:none;box-shadow:0 3px 8px #763c5e22}
 @media(max-width:530px){.qfm-footer-number{height:42px;font-size:17px}.qfm-footer-color{height:42px}.qfm-footer-fruits img.qfm-footer-cat{height:50px}}
+
+.qfm-theme-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin:12px 0 18px}
+.qfm-theme-tabs button{min-height:40px;border:1px solid #d1dfed;border-radius:9px;background:#f6faff;color:#24538d;padding:7px 5px;font-size:12px}
+.qfm-theme-tabs button.is-active{border-color:#1752a1;background:#ddecff;color:#16448b;font-weight:700;box-shadow:inset 0 0 0 1px #1752a1}
+.qfm-rank-icon{display:inline-block;width:25px;height:25px;border-radius:6px;vertical-align:middle;margin-right:5px;border:1px solid #cad9e9}
+.qfm-rank-number{background:#e8f0ff;color:#153b84;font-weight:700;font-size:12px;text-align:center;line-height:24px}
+.qfm-player-fruit.qfm-rank-cat{object-fit:cover;border-radius:7px}
