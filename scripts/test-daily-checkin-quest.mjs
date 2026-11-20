@@ -192,7 +192,7 @@ try {
     assert.equal(r.body.updated,true);
     assert.equal(r.body.questId,"daily-checkin-nov-2026-phase-2");
     assert.equal(r.body.claimedDays.length,day-22);
-    assert.equal(r.body.amount,day===24?200:50,"only Nov 24 must award 200 Sparks");
+    assert.equal(r.body.amount,day===24?200:day>=26?55:50,"Nov 24 is 200; Level 2 bonus begins after reaching 1,000 Sparks");
     if(day===23)assert.equal((await invoke(claimDate(22))).status,400,"Phase 1 cannot be claimed after closing");
     if(day===24){
       const nov24History=getClaims().find(item=>item.questDate===claimDate(24));
@@ -213,9 +213,9 @@ try {
   }
   assert.deepEqual(wallet().dailyCheckin202611Days,phase1Days,"Phase 1 history must not change");
   assert.deepEqual(wallet().dailyCheckin202611Phase2Days,Array.from({length:8},(_,i)=>i+23));
-  assert.equal(wallet().balance,1250,"Phase 1 700 plus Phase 2 550 = 1250 Sparks");
-  assert.equal(wallet().memberYearEarned,1250);
-  assert.equal(wallet().totalEarned,1250);
+  assert.equal(wallet().balance,1275,"Phase 1 700 + Phase 2 base 550 + 5 days × 5 Level 2 bonus");
+  assert.equal(wallet().memberYearEarned,1275);
+  assert.equal(wallet().totalEarned,1275);
   assert.equal(getClaims().length,22);
   const phase2History=getClaims().filter(item=>item.questId==="daily-checkin-nov-2026-phase-2");
   assert.equal(phase2History.length,8,"exactly eight Phase 2 history entries");
@@ -226,8 +226,8 @@ try {
   assert.equal(commits,beforeDup,"cannot credit the same Phase 2 day twice");
   setDate("2026-11-30T17:00:00.000Z"); // Dec 1 Thailand
   assert.equal((await invoke(claimDate(30))).status,400,"Phase 2 cannot claim after 30 Nov");
-  assert.equal(wallet().balance,1250);
-  console.log("PASS Daily Check-in Phase 2: 7×50 + Nov 24×200 = 550; total 1250, isolated wallet and history, no double claim or backdate");
+  assert.equal(wallet().balance,1275);
+  console.log("PASS Daily Check-in Phase 2: 7×50 + Nov 24×200 = 550 base; +25 tier bonus = 1275 total, isolated wallet and history, no double claim or backdate");
 
   // No session impersonation, and database quota errors never touch wallet.
   setDate("2026-11-20T05:00:00.000Z");
