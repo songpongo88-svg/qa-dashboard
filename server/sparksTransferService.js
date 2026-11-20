@@ -6,7 +6,7 @@ const error=(message,status=409)=>{throw Object.assign(new Error(message),{statu
 const monthKey=()=>new Intl.DateTimeFormat("en-CA",{year:"numeric",month:"2-digit",timeZone:"Asia/Bangkok"}).format(new Date()).slice(0,7);
 export function createSparksTransferService(db){
  const {firestoreRequest,readDoc,recordValue,path,updateWrite,createWrite,walletDocumentPath,
-  spendableBalance,currentMemberYear,findProfileByUsername,isSuspendedProfile,listCollection}=db;
+  spendableBalance,currentMemberYear,findProfileByUsername,isSuspendedProfile,listCollection,activeDirectory}=db;
  const monthPath=(username,key)=>path("qa_sparks_transfer_monthly_v1",encodeURIComponent(username)+"-"+key);
  const receiptPath=id=>path("qa_sparks_transfer_receipts_v1",id);
  async function readState(actor){
@@ -17,8 +17,10 @@ export function createSparksTransferService(db){
    balance:spendableBalance(recordValue(walletDoc),currentMemberYear())};
  }
  async function recipients(actor){
-  const members=await listCollection("qa_user_profiles",["username","displayName","firstName","lastName","status","suspendEffectiveDate","suspendEndDate","suspendAutoReactivate"]);
-  const choices=members.documents.map(recordValue)
+  const members=activeDirectory
+    ? (await activeDirectory()).map(row=>({username:row.username,displayName:row.displayName,status:"Active"}))
+    : (await listCollection("qa_user_profiles",["username","displayName","firstName","lastName","status","suspendEffectiveDate","suspendEndDate","suspendAutoReactivate"])).documents.map(recordValue);
+  const choices=members
     .filter(p=>p&&typeof p.username==="string"&&p.username.trim().toLowerCase()!==actor.username
       && !isSuspendedProfile(p)&&String(p.status||"Active").toLowerCase()!=="inactive")
     .map(p=>({username:p.username.toLowerCase(),
@@ -32,7 +34,9 @@ export function createSparksTransferService(db){
   if(!/^[a-z0-9._-]{2,90}$/.test(to)||to===actor.username)error("เลือกสมาชิกผู้รับที่ไม่ใช่บัญชีของตนเอง",400);
   if(!Number.isSafeInteger(amount)||amount<1||amount>LIMIT)error("โอนได้ครั้งละ 1–500 Sparks เท่านั้น",400);
   if(!/^[a-zA-Z0-9_-]{16,100}$/.test(id))error("รหัสยืนยันการโอนไม่ถูกต้อง",400);
-  const target=await findProfileByUsername(to);
+  const target=activeDirectory
+    ? (await activeDirectory()).find(row=>String(row.username||"").toLowerCase()===to)
+    : await findProfileByUsername(to);
   if(!target||isSuspendedProfile(target)||String(target.status||"Active").toLowerCase()==="inactive")
     error("บัญชีผู้รับไม่พร้อมรับ Sparks",403);
   const month=monthKey(),year=currentMemberYear();
