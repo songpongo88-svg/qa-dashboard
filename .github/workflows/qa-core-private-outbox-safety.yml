@@ -9,6 +9,8 @@ on:
       - "server/qaCoreOutboxUncertainty.js"
       - "server/qaCoreMutationCoordinatorStage.js"
       - "server/qaCoreSourceVerificationCandidateStage.js"
+      - "server/qaCoreIndependentSourceReadStage.js"
+      - "scripts/test-qa-core-independent-source-read.mjs"
       - "migration/qa-core-source-verification-candidate-stage.sql"
       - "scripts/test-qa-core-source-verification-candidate-integration.mjs"
       - "scripts/test-qa-core-mutation-coordinator.mjs"
@@ -97,6 +99,8 @@ jobs:
           node --check server/qaCoreOutboxUncertainty.js
           node --check server/qaCoreMutationCoordinatorStage.js
           node --check server/qaCoreSourceVerificationCandidateStage.js
+          node --check server/qaCoreIndependentSourceReadStage.js
+          node scripts/test-qa-core-independent-source-read.mjs
           node scripts/test-qa-core-mutation-coordinator.mjs
           node --check server/qaWindowsSourceProbe.js
           node --check scripts/test-qa-windows-source-probe.mjs
