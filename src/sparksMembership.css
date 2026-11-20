@@ -216,3 +216,26 @@
 @media(pointer:coarse) {
   .qa-sparks-membership .qa-action,.qa-sparks-membership .qa-rules summary { min-height:44px; }
 }
+
+
+/* 2026-11 premium lighting enhancement: preserve every existing tier's geometry,
+   lettering, colors and foil artwork. Only the depth/hover lighting changes. */
+.qa-sparks-membership .qa-member-card {
+  box-shadow:
+    0 34px 54px -30px rgba(25,16,42,.67),
+    0 16px 26px -18px rgba(26,12,40,.43),
+    0 3px 8px -5px rgba(18,11,28,.32),
+    inset 0 1px 1px rgba(255,255,255,.28);
+  transition:box-shadow .28s ease,filter .28s ease;
+}
+.qa-sparks-membership .qa-member-card:hover {
+  box-shadow:
+    0 40px 62px -30px rgba(25,16,42,.73),
+    0 19px 29px -18px rgba(26,12,40,.48),
+    0 0 23px -10px color-mix(in srgb,var(--foil) 45%,transparent),
+    inset 0 1px 1px rgba(255,255,255,.32);
+  filter:brightness(1.025);
+}
+@media (prefers-reduced-motion:reduce) {
+  .qa-sparks-membership .qa-member-card { transition:none; }
+}
