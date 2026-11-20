@@ -3,6 +3,7 @@ import { EMPTY_SPARKS_ACCOUNT, getSparksAccount, invalidateSparksAccount, isWelc
 import "./qaSparks.css";
 import "./qaSparksProductCards.css";
 import SparksHistory from "./SparksHistory";
+import SparksTransfer from "./SparksTransfer";
 import SparksWelcomeQuests, { SPARKS_WELCOME_OPEN_EVENT } from "./SparksWelcomeQuests";
 import SparksEmailAuth, { type SparksVerifiedActor } from "./SparksEmailAuth";
 import SparksAdminPanel from "./SparksAdminPanel";
@@ -25,7 +26,7 @@ import LotteryTicketInventory from "./LotteryTicketInventory";
 import { sparksCalendarYear } from "./qaSparksMemberLevels";
 import MemberJourney, { SparksWalletSummary } from "./SparksMembership";
 
-type SparksView = "overview" | "quests" | "games" | "rewards" | "items" | "history" | "admin";
+type SparksView = "overview" | "quests" | "games" | "rewards" | "items" | "history" | "transfer" | "admin";
 type SparksIconName = "spark" | "gift" | "clock" | "grid" | "receipt" | "crown" | "calendar" | "package";
 const paths: Record<SparksIconName, React.ReactNode> = {
   spark: <path d="m12 2 2.7 6.7L22 12l-7.3 3.3L12 22l-2.7-6.7L2 12l7.3-3.3z"/>,
@@ -185,6 +186,7 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
     { key: "rewards", label: "Reward Center", icon: "gift" },
     { key: "items", label: "My Items", icon: "package" },
     { key: "history", label: "History", icon: "clock" },
+    { key: "transfer", label: "โอน Sparks", icon: "spark" },
     ...(adminAccess && (!emailAuthEnabled || (verifiedActor?.role === "Quality Assurance" && verifiedActor?.username === "songpon")) && import.meta.env?.VITE_SPARKS_CLOUD_READ_ONLY !== "1" ? [{ key: "admin" as SparksView, label: "Sparks Admin", icon: "crown" as SparksIconName }] : []),
   ];
   const walletLoaded = Boolean(lastAccountLoadAt && lastAccountUsername.toLowerCase() === username.toLowerCase());
@@ -335,6 +337,7 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
               itemShelf==="processing"?"ไม่มี Item ที่กำลังดำเนินการ":"ยังไม่มีประวัติ Item ในหมวดนี้"}
           </div>
         </section>
+        : view === "transfer" ? <SparksTransfer username={username} sessionId={sparksSessionId} active={active&&sparksAllowed}/>
         : view === "history" ? <section className="qa-sparks-panel qa-sparks-single"><h2><SparksIcon name="clock"/> History</h2><SparksHistory history={account.history} large/></section>
         : adminAccess ? <div>
           {/* Visibility is owner-role gated here. Server validates the real QA session or verified Supabase Auth on every action. */}
