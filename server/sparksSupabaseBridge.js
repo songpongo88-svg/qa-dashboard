@@ -12,6 +12,7 @@ const ROOTS=new Set([
   "qa_sparks_typing_relief_operations",
   "qa_sparks_auto_pass_operations",
   "qa_sparks_angel_rounds",
+  "qa_sparks_transfer_monthly_v1","qa_sparks_transfer_receipts_v1",
   // QA Access Check typing challenges must remain on Firebase.
   // They are NOT Sparks data; a typing-relief cross-DB transaction is blocked.
 ]);
