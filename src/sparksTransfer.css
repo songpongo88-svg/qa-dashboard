@@ -1,15 +1,50 @@
-.sparks-transfer{max-width:780px;margin:0 auto;padding:26px;background:var(--card-bg,#fff);border:1px solid #dbe6f5;border-radius:18px;color:#183e72}
-.sparks-transfer-head h2{font-size:24px;margin:0 0 5px}.sparks-transfer-head p{font-size:13px;color:#61758c;margin:0 0 22px}
-.sparks-transfer-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:22px}
-.sparks-transfer-summary>div{background:#f0f7ff;padding:14px;border:1px solid #d8e6f9;border-radius:12px;min-width:0}
-.sparks-transfer-summary small{display:block;color:#61758c;font-size:12px}.sparks-transfer-summary strong{display:block;font-size:20px;margin-top:7px;word-break:break-word}
-.sparks-transfer label{display:block;margin:16px 0 6px;font-size:13px;font-weight:700}
-.sparks-transfer select,.sparks-transfer input{width:100%;box-sizing:border-box;border:1px solid #b8c9df;border-radius:9px;background:#fff;color:#14345d;padding:11px;min-height:44px;font:inherit}
-.sparks-transfer-explain,.sparks-transfer-footnote{font-size:12px;line-height:1.6;color:#63768b;margin:12px 0}
-.sparks-transfer-primary{background:#1855a4;color:white;border:0;border-radius:9px;padding:12px 18px;font-weight:700;cursor:pointer}
-.sparks-transfer-primary:disabled{opacity:.5;cursor:not-allowed}
-.sparks-transfer-error{color:#ac2626;font-size:13px}.sparks-transfer-success{color:#167647;font-weight:700;font-size:13px}
-.sparks-transfer-confirm{padding:18px;border:1px solid #b7d2f3;border-radius:12px;background:#f4f9ff}
-.sparks-transfer-confirm p{font-size:13px}.sparks-transfer-confirm>div{display:flex;gap:10px;flex-wrap:wrap}
-.sparks-transfer-confirm>div button:not(.sparks-transfer-primary){padding:12px 18px;border:1px solid #c8d6e5;border-radius:9px;background:#fff;color:#23466d;cursor:pointer}
-@media(max-width:620px){.sparks-transfer{padding:16px}.sparks-transfer-summary{grid-template-columns:1fr}.sparks-transfer-summary>div{padding:10px}.sparks-transfer-summary strong{font-size:18px}}
+
+/* Spark Transfer uses a compact Quest-style tile; all forms stay inside its dialog. */
+.qa-transfer-item{cursor:pointer}
+.qa-transfer-item .qa-transfer-item-art{display:grid;place-items:center;background:radial-gradient(circle at 35% 22%,#f8d7ff,#c68aef 62%,#a360d4)!important}
+.qa-transfer-item .qa-transfer-item-art svg{width:96%;height:96%;filter:drop-shadow(0 4px 4px #63229355)}
+.qa-transfer-item .qa-sparks-mini-value small{display:block;font-size:10px}
+.qa-sparks-overview-transfer{display:none!important}
+.qa-transfer-backdrop{position:fixed;z-index:10040;inset:0;padding:15px;background:#201031b8;backdrop-filter:blur(5px);display:grid;place-items:center;font-family:Kanit,sans-serif}
+.qa-transfer-dialog{width:min(740px,100%);max-height:93dvh;display:flex;flex-direction:column;background:#fff;border:1px solid #d4b6f8;border-radius:22px;box-shadow:0 20px 80px #190927a0;color:#273b68;overflow:hidden}
+.qa-transfer-dialog *{box-sizing:border-box}
+.qa-transfer-dialog-header{padding:21px 26px;display:flex;justify-content:space-between;gap:20px;color:white;background:linear-gradient(120deg,#3c1b72,#7625aa 65%,#a458d2)}
+.qa-transfer-dialog-header span{font-size:11px;font-weight:700;letter-spacing:.08em;color:#f0d6ff}
+.qa-transfer-dialog-header h2{margin:3px 0;font-size:27px;font-weight:900}
+.qa-transfer-dialog-header p{margin:0;font-size:12px;color:#efdcff;line-height:1.5}
+.qa-transfer-dialog-header button{background:#fff3;border:1px solid #fce4ff99;color:#fff;font-size:26px;width:36px;height:36px;border-radius:50%;cursor:pointer;flex:0 0 36px}
+.qa-transfer-dialog-body{padding:22px 26px;overflow:auto;display:flex;flex-direction:column;gap:12px;min-height:0}
+.qa-transfer-dialog-body h3{font-size:18px;color:#33205d;margin:4px 0 0}
+.qa-transfer-dialog-body p{font-size:12px;line-height:1.7;margin:0;color:#6b6480}
+.qa-transfer-dialog-body label{font-weight:650;color:#342457;font-size:12px;display:flex;flex-direction:column;gap:6px}
+.qa-transfer-dialog-body input{width:100%;height:45px;border:1px solid #cfb8e7;border-radius:11px;padding:10px 13px;font:inherit;color:#40275a;background:#faf7ff;font-size:14px}
+.qa-transfer-dialog-body input:focus{outline:2px solid #9856d8}
+.qa-transfer-main,.qa-transfer-secondary{font:750 13px Kanit,sans-serif;border:0;border-radius:11px;cursor:pointer;padding:11px 17px;min-height:42px}
+.qa-transfer-main{color:#fff;background:linear-gradient(110deg,#7132b3,#9544d4);box-shadow:0 3px 10px #60249535}
+.qa-transfer-main:disabled,.qa-transfer-secondary:disabled{opacity:.48;cursor:not-allowed}
+.qa-transfer-secondary{align-self:start;background:#eee0fc;color:#5b238b}
+.qa-transfer-text{background:none;border:0;color:#66319d;font:650 12px Kanit,sans-serif;cursor:pointer;padding:6px}
+.qa-transfer-card-number{border-radius:15px;padding:16px;background:linear-gradient(120deg,#4b287f,#9a56c4);color:white;display:grid;gap:5px}
+.qa-transfer-card-number small{opacity:.8;font-size:11px}
+.qa-transfer-card-number strong{font-size:15px;word-break:break-word}
+.qa-transfer-gate{display:flex;flex-direction:column;gap:13px}
+.qa-transfer-gate input{text-align:center;font-size:26px;letter-spacing:.35em}
+.qa-transfer-inline{display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between}
+.qa-transfer-inline button{background:none;border:0;font:600 12px Kanit,sans-serif;color:#7140aa;cursor:pointer}
+.qa-transfer-tabs{display:flex;gap:7px;background:#f6effd;padding:5px;border-radius:13px}
+.qa-transfer-tabs button{flex:1;border:0;background:transparent;font:700 12px Kanit,sans-serif;color:#785b93;padding:11px 5px;border-radius:10px;cursor:pointer}
+.qa-transfer-tabs button[aria-pressed="true"]{background:white;color:#5b2189;box-shadow:0 2px 8px #5b278a22}
+.qa-transfer-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+.qa-transfer-summary>div{background:#f2edfc;border:1px solid #e7d6fa;border-radius:12px;padding:12px}
+.qa-transfer-summary small{display:block;font-size:11px;color:#786289}
+.qa-transfer-summary strong{font-size:17px;color:#55238a}
+.qa-transfer-recipient{border:1px solid #c3e4cb;background:#edf8ef;padding:10px 12px;border-radius:10px;font-size:12px;color:#20663c}
+.qa-transfer-confirm{border:1px solid #dfc6f4;border-radius:12px;padding:14px;background:#f7efff;display:flex;gap:12px;flex-direction:column}
+.qa-transfer-record{padding:12px;border-radius:12px;border:1px solid #e9daf4;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.qa-transfer-record div{display:grid;gap:4px}
+.qa-transfer-record strong{font-size:14px;color:#53248a}
+.qa-transfer-record small{font-size:11px;color:#786a87}
+.qa-transfer-note{padding:11px;background:#fbf6ff;border-radius:9px;border:1px solid #eddef6}
+.qa-transfer-error{padding:10px;background:#ffeded;color:#a32335!important;border-radius:9px}
+.qa-transfer-notice{padding:10px;background:#e8f8f0;color:#166440!important;border-radius:9px}
+@media(max-width:640px){.qa-transfer-backdrop{padding:7px}.qa-transfer-dialog{max-height:97dvh;border-radius:16px}.qa-transfer-dialog-body{padding:14px}.qa-transfer-dialog-header{padding:14px}.qa-transfer-summary strong{font-size:13px}.qa-transfer-record{flex-wrap:wrap}}
