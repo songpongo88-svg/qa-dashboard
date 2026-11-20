@@ -7,6 +7,7 @@ import { createSparkJourneyService } from "../server/sparkJourneyService.js";
 import { createQaLotteryService } from "../server/qaLotteryService.js";
 import { createQaRewardsService } from "../server/qaRewardsService.js";
 import { createSnakesService } from "../server/snakesLaddersService.js";
+import { createFifteenPuzzleService } from "../server/fifteenPuzzleService.js";
 import { createHiddenTreasureService } from "../server/hiddenTreasureService.js";
 import { createAnnouncementShieldService } from "../server/announcementShieldService.js";
 import { createTypingReliefCloudService } from "../server/typingReliefCloudService.js";
@@ -1666,6 +1667,8 @@ const angelNumber = createAngelNumberService({firestoreRequest,readDoc,recordVal
   walletDocumentPath,currentMemberYear,annualEarnedFromWallet,spendableBalance,sparksAngelDirectory});
 const fruitMatch = createFruitMatchService({firestoreRequest,readDoc,recordValue,path,updateWrite,createWrite,
   walletDocumentPath,currentMemberYear,annualEarnedFromWallet,spendableBalance});
+const fifteenPuzzle = createFifteenPuzzleService({firestoreRequest,readDoc,recordValue,path,updateWrite,createWrite,
+  walletDocumentPath,currentMemberYear,annualEarnedFromWallet,spendableBalance});
 const sparkJourney = createSparkJourneyService({firestoreRequest,readDoc,recordValue,updateWrite,createWrite,
   walletDocumentPath,currentMemberYear,annualEarnedFromWallet,spendableBalance});
 const qaLottery = createQaLotteryService({firestoreRequest,readDoc,listCollection,recordValue,path,updateWrite,createWrite,
@@ -1695,7 +1698,7 @@ const CLOUD_PREVIEW_READ_ACTIONS = new Set([
   "sparks-cloud-wallet", "sparks-wallet-recovery", "get-truemoney-price",
   "list-my-truemoney", "qa-lottery-state", "qa-lottery-my-tickets",
   "special-rewards-mine", "announcement-shield-state", "treasure-state",
-  "fruit-match-data", "snakes-state", "auto-pass-state", "angel-state", "mining-state", "list-truemoney-tracker",
+  "fruit-match-data", "puzzle15-data", "snakes-state", "auto-pass-state", "angel-state", "mining-state", "list-truemoney-tracker",
   "special-rewards-admin-list", "special-rewards-admin-receipt",
   "list-reward-queues", "list", "history",
 ]);
@@ -1900,6 +1903,14 @@ async function sparksHandler(req, res) {
         :body.action==="angel-claim"?await angelNumber.claim(body,actor)
         :await angelNumber.create(body,actor);
       return res.status(200).json(data);
+    }
+    if (["puzzle15-data","puzzle15-start","puzzle15-finish"].includes(body.action)) {
+      if(process.env.SPARKS_DATA_BACKEND!=="supabase")fail("15-Puzzle ใช้กระเป๋า Sparks บน Supabase เท่านั้น",423);
+      const actor=await authorizeRewardUser(body);
+      const result=body.action==="puzzle15-data"?await fifteenPuzzle.data(actor)
+        :body.action==="puzzle15-start"?await fifteenPuzzle.start(body,actor)
+        :await fifteenPuzzle.finish(body,actor);
+      return res.status(200).json(result);
     }
     if (["fruit-match-data","fruit-match-start","fruit-match-finish"].includes(body.action)) {
       const actor = await authorizeRewardUser(body);
