@@ -8,10 +8,15 @@ export const DAILY_CHECKIN_EVENT = Object.freeze({
 });
 export const DAILY_CHECKIN_PHASE_2 = Object.freeze({
   id: "daily-checkin-nov-2026-phase-2", start: "2026-11-23", end: "2026-11-30",
-  pointsPerDay: 50, days: 8, maxPoints: 400,
+  pointsPerDay: 50, days: 8, maxPoints: 550,
+  specialDay: 24, specialPoints: 200,
 });
 export const CHECKIN_DAYS = Array.from({ length: 14 }, (_, index) => index + 9);
 export const CHECKIN_PHASE_2_DAYS = Array.from({ length: 8 }, (_, index) => index + 23);
+export function checkinRewardForDay(day: number, phase: 1 | 2 = 1): number {
+  return phase === 2 && day === DAILY_CHECKIN_PHASE_2.specialDay
+    ? DAILY_CHECKIN_PHASE_2.specialPoints : DAILY_CHECKIN_EVENT.pointsPerDay;
+}
 export function checkinActivePhase(today: string): 1 | 2 {
   return today >= DAILY_CHECKIN_PHASE_2.start ? 2 : 1;
 }
@@ -32,7 +37,7 @@ export function checkinStatus(day: number, today: string, claimed: readonly numb
 }
 
 type ClaimResult = {
-  updated: boolean; alreadyClaimed?: boolean; questId: string; questDate: string;
+  updated: boolean; alreadyClaimed?: boolean; questId: string; questDate: string; amount?: number;
   claimedDays: number[]; balance: number; memberYearEarned: number;
 };
 type Props = {
@@ -73,6 +78,7 @@ export default function DailyCheckinQuest({ username, sessionId, claimedDays, cl
   const saved = [...new Set([...persistedDays, ...validServerDays])]
     .filter((n) => Number.isInteger(n) && phaseDays.includes(n)).sort((a, b) => a - b);
   const claimedCount = loaded ? saved.length : 0;
+  const claimedSparks = saved.reduce((total,day)=>total + checkinRewardForDay(day,viewPhase),0);
   const upcoming = today < event.start;
   const finished = today > event.end;
   const currentDay = Number(today.slice(-2));
@@ -172,7 +178,8 @@ export default function DailyCheckinQuest({ username, sessionId, claimedDays, cl
       ]);
       setMessage(data.alreadyClaimed
         ? "คุณได้รับรางวัลของวันนี้ไปแล้ว ไม่ได้เพิ่มคะแนนซ้ำ"
-        : "เช็กอินสำเร็จ! ได้รับ +50 QA Sparks บันทึกใน History และ Member Level แล้ว");
+        : "เช็กอินสำเร็จ! ได้รับ +" + (data.amount ?? checkinRewardForDay(day, viewPhase))
+          + " QA Sparks บันทึกใน History และ Member Level แล้ว");
       window.dispatchEvent(new Event("qa:sparks-updated"));
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "ไม่สามารถรับรางวัลได้ กรุณาลองใหม่อีกครั้ง");
@@ -208,16 +215,16 @@ export default function DailyCheckinQuest({ username, sessionId, claimedDays, cl
               <div className="qa-sparks-checkin-hero-icon"><CalendarBadge size={88}/></div>
               <div>
                 <h2 id="qa-checkin-title">Daily Check-in {viewPhase === 2 ? "· Phase 2" : ""}</h2>
-                <p id="qa-checkin-summary">เช็กอินทุกวันที่สะดวก กดรับด้วยตัวเอง วันละ 50 Sparks</p>
+                <p id="qa-checkin-summary">เช็กอินทุกวันที่สะดวก กดรับด้วยตัวเอง วันละ 50 Sparks{viewPhase === 2 ? " · 24 พ.ย. รับพิเศษ 200 Sparks" : ""}</p>
                 <span className="qa-sparks-checkin-event-dates">{viewPhase === 1 ? "9–22" : "23–30"} พ.ย. 2026 · เวลาไทย (UTC+7)</span>
               </div>
             </div>
           </div>
           <div className="qa-sparks-checkin-body">
             <div className="qa-sparks-checkin-stats">
-              <div><span>รางวัลต่อวัน</span><strong>+50 <small>Sparks</small></strong></div>
+              <div><span>รางวัลปกติต่อวัน</span><strong>+50 <small>Sparks</small></strong>{viewPhase === 2 ? <small className="qa-checkin-special-stats">24 พ.ย. +200</small> : null}</div>
               <div><span>รับแล้ว</span><strong>{loaded ? claimedCount : "—"} <small>/ {event.days} วัน</small></strong></div>
-              <div><span>คะแนนที่ได้รับ</span><strong>{loaded ? claimedCount * event.pointsPerDay : "—"} <small>/ {event.maxPoints} Sparks</small></strong></div>
+              <div><span>คะแนนที่ได้รับ</span><strong>{loaded ? claimedSparks : "—"} <small>/ {event.maxPoints} Sparks</small></strong></div>
             </div>
             <div className="qa-sparks-checkin-phase-switch" aria-label="เลือกรอบกิจกรรม Daily Check-in">
               <button type="button" aria-pressed={viewPhase===1} onClick={()=>{setViewPhase(1);setMessage("");setError("");}}>
@@ -236,25 +243,29 @@ export default function DailyCheckinQuest({ username, sessionId, claimedDays, cl
                 <span key={day} className="qa-sparks-checkin-weekday">{day}</span>)}
               {phaseDays.map((day) => {
                 const dayStatus = checkinStatus(day, today, saved);
+                const isSpecial = viewPhase === 2 && day === DAILY_CHECKIN_PHASE_2.specialDay;
+                const reward = checkinRewardForDay(day,viewPhase);
                 const isToday = dayStatus === "today";
                 const canClaim = loaded && Boolean(username && sessionId) && isToday && !busy;
                 return <button key={day} type="button"
-                  className={"qa-sparks-checkin-day " + dayStatus}
-                  title={dayStatus === "claimed" ? "รับรางวัลแล้ว" : dayStatus === "missed" ? "พลาดแล้ว รับย้อนหลังไม่ได้" : isToday ? "รับ 50 Sparks วันนี้" : "ยังไม่ถึงวันที่รับรางวัล"}
-                  aria-label={"วันที่ " + day + " พฤศจิกายน 2026, " + (dayStatus === "claimed" ? "รับรางวัลแล้ว" : dayStatus === "missed" ? "พลาดแล้ว" : isToday ? "กดรับรางวัล 50 Sparks" : "ยังไม่เปิด")}
+                  className={"qa-sparks-checkin-day " + dayStatus + (isSpecial ? " special-day" : "")}
+                  title={(isSpecial ? "วันลอยกระทง · " : "") + (dayStatus === "claimed" ? "รับรางวัลแล้ว " + reward + " Sparks" : dayStatus === "missed" ? "พลาดแล้ว รับย้อนหลังไม่ได้" : isToday ? "รับ " + reward + " Sparks วันนี้" : "ยังไม่ถึงวันที่รับรางวัล")}
+                  aria-label={"วันที่ " + day + " พฤศจิกายน 2026" + (isSpecial ? " วันลอยกระทงพิเศษ 200 Sparks" : "") + ", " + (dayStatus === "claimed" ? "รับรางวัลแล้ว" : dayStatus === "missed" ? "พลาดแล้ว" : isToday ? "กดรับรางวัล " + reward + " Sparks" : "ยังไม่เปิด")}
                   disabled={!canClaim}
                   onClick={() => void claim(day)}>
                   <span className="qa-sparks-checkin-day-num">{day}</span>
+                  {isSpecial ? <span className="qa-sparks-checkin-special-label">วันลอยกระทง</span> : null}
                   <span className="qa-sparks-checkin-day-points">{dayStatus === "claimed" ? "✓ ได้รับแล้ว"
-                    : dayStatus === "missed" ? "พลาด" : isToday ? busy ? "กำลังรับ..." : "รับ +50" : "+50"}</span>
-                  <span className="qa-sparks-checkin-day-symbol" aria-hidden="true">{dayStatus === "claimed" ? "✓" : dayStatus === "missed" ? "×" : isToday ? "✦" : "○"}</span>
+                    : dayStatus === "missed" ? "พลาด" : isToday ? busy ? "กำลังรับ..." : "รับ +" + reward : "+" + reward}</span>
+                  {isSpecial ? <span className="qa-sparks-checkin-special-amount">+200 Sparks</span> :
+                    <span className="qa-sparks-checkin-day-symbol" aria-hidden="true">{dayStatus === "claimed" ? "✓" : dayStatus === "missed" ? "×" : isToday ? "✦" : "○"}</span>}
                 </button>;
               })}
             </div>
             {loaded && !upcoming && !finished && checkinStatus(currentDay, today, saved) === "today" ?
               <button type="button" className="qa-sparks-checkin-claim-primary" disabled={!sessionId || busy}
                 onClick={() => void claim(currentDay)}>
-                {busy ? "กำลังบันทึก..." : "รับ 50 Sparks วันนี้"}
+                {busy ? "กำลังบันทึก..." : "รับ " + checkinRewardForDay(currentDay,viewPhase) + " Sparks วันนี้"}
               </button> : null}
             <div className="qa-sparks-checkin-legend">
               <span><i className="claimed"/> รับแล้ว</span><span><i className="today"/> รับได้วันนี้</span>
@@ -266,6 +277,7 @@ export default function DailyCheckinQuest({ username, sessionId, claimedDays, cl
             <div className="qa-sparks-checkin-rules">
               <h3>กติกาการรับรางวัล</h3>
               <p>กดที่ช่องวันที่ปัจจุบันเพื่อรับ 50 Sparks วันละ 1 ครั้ง ไม่มีการแจกคะแนนอัตโนมัติ</p>
+              {viewPhase === 2 ? <p className="qa-sparks-checkin-special-note">พิเศษวันลอยกระทง 24 พฤศจิกายน 2026 รับ 200 Sparks แทน 50 Sparks (รับได้ครั้งเดียวในวันนั้น)</p> : null}
               <p>หากไม่ได้เข้ามาเช็กอินในวันใด วันนั้นจะพลาดถาวร ไม่สามารถรับย้อนหลังหรือล่วงหน้าได้ แต่ยังรับของวันต่อไปได้ตามปกติ</p>
               <p>รางวัลจะเพิ่มในยอด Sparks, History และคะแนนสะสม Member Level เมื่อบันทึกสำเร็จ</p>
             </div>

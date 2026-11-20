@@ -1093,3 +1093,30 @@
   border:1px solid #e9d9ea;color:var(--sparks-dark,#583468);background:#fff;cursor:pointer;padding:7px 12px}
 .qa-sparks-checkin-phase-switch button[aria-pressed="true"]{border-color:#bd85cf;background:#f6ecfa;color:#612377;font-weight:700}
 .qa-sparks-checkin-phase-switch button:focus-visible{outline:2px solid #a757d3;outline-offset:2px}
+
+/* 24 November 2026: Loy Krathong Daily Check-in +200 (Phase 2 only).
+   Keep the special date visually distinct even while locked or already claimed. */
+.qa-sparks-checkin-day.special-day{
+  border:2px solid #e2aa36;
+  background:linear-gradient(155deg,#fff3c4 0%,#ffe5ee 100%);
+  color:#8a5011;
+  box-shadow:0 2px 10px rgba(156,98,19,.15);
+  min-height:106px;
+}
+.qa-sparks-checkin-day.special-day.today{border-color:#d78a12;box-shadow:0 0 0 3px #ffe8a0,0 5px 18px #9e681e40}
+.qa-sparks-checkin-day.special-day.claimed{background:linear-gradient(145deg,#e3f7e8,#fff1c9);color:#256c46}
+.qa-sparks-checkin-day.special-day.missed{background:#f9f1e5;color:#97836e}
+.qa-sparks-checkin-special-label{
+  font-size:9px;font-weight:800;line-height:1.2;
+  color:#955308;white-space:normal;overflow-wrap:anywhere;
+}
+.qa-sparks-checkin-special-amount{
+  display:block;border-radius:8px;padding:2px 3px;
+  background:#f8d77e;color:#723a00;font-size:9px;font-weight:850;line-height:1.2;
+}
+.qa-checkin-special-stats{display:block;margin-top:3px;color:#a25f0b!important;font-weight:700!important}
+.qa-sparks-checkin-special-note{font-weight:700;color:#9b5b0b;background:#fff8e4;border-radius:9px;padding:9px 12px}
+@media(max-width:530px){
+  .qa-sparks-checkin-day.special-day{min-height:104px;padding:5px 1px}
+  .qa-sparks-checkin-special-label,.qa-sparks-checkin-special-amount{font-size:8px}
+}

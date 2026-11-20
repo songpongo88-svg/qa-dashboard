@@ -61,6 +61,7 @@ const DAILY_CHECKIN_PHASE_2 = Object.freeze({
   start: "2026-11-23",
   end: "2026-11-30",
   reward: 50,
+  specialDate: "2026-11-24", specialReward: 200,
   walletField: "dailyCheckin202611Phase2Days",
   firstDay: 23, lastDay: 30,
 });
@@ -1049,6 +1050,8 @@ async function claimDailyCheckin(body, actor) {
   if (today < DAILY_CHECKIN_QUEST.start) fail("Daily Check-in เปิดให้รับรางวัลตั้งแต่วันที่ 9 พฤศจิกายน 2026", 400);
   if (today > DAILY_CHECKIN_PHASE_2.end) fail("Daily Check-in สิ้นสุดแล้ว ไม่สามารถรับรางวัลย้อนหลังได้", 400);
   const quest = today >= DAILY_CHECKIN_PHASE_2.start ? DAILY_CHECKIN_PHASE_2 : DAILY_CHECKIN_QUEST;
+  const isLoyKrathong = quest === DAILY_CHECKIN_PHASE_2 && today === quest.specialDate;
+  const reward = isLoyKrathong ? quest.specialReward : quest.reward;
   const selected = String(body.questDate || "");
   if (selected !== today) fail("รับรางวัลได้เฉพาะวันที่ปัจจุบัน (เวลาไทย) ไม่สามารถรับย้อนหลังหรือล่วงหน้าได้", 400);
   const dayNumber = Number(today.slice(-2));
@@ -1065,7 +1068,7 @@ async function claimDailyCheckin(body, actor) {
       const wallet = recordValue(walletDoc);
       const claimedDays = normalizedCheckinDays(wallet, quest);
       if (claimDoc || claimedDays.includes(dayNumber)) {
-        return { updated: false, alreadyClaimed: true, questId: quest.id, questDate: today,
+        return { updated: false, alreadyClaimed: true, questId: quest.id, questDate: today, amount: 0,
           claimedDays: [...new Set([...claimedDays, dayNumber])].sort((a, b) => a - b),
           balance: spendableBalance(wallet), memberYearEarned: annualEarnedFromWallet(wallet) };
       }
@@ -1074,14 +1077,14 @@ async function claimDailyCheckin(body, actor) {
       const now = new Date().toISOString();
       // Never reduce earned levels when tickets are redeemed.
       const lifetimeEarned = Math.max(intCount(wallet.totalEarned), intCount(wallet.firstLogin?.amount));
-      const nextBalance = spendableBalance(wallet,memberYear) + quest.reward;
-      const nextEarned = earnedThisYear + quest.reward;
+      const nextBalance = spendableBalance(wallet,memberYear) + reward;
+      const nextEarned = earnedThisYear + reward;
       const nextDays = [...claimedDays, dayNumber].sort((a, b) => a - b);
       const updates = {
         username: actor.username,
         balance: nextBalance,
         balanceYear: memberYear,
-        totalEarned: lifetimeEarned + quest.reward,
+        totalEarned: lifetimeEarned + reward,
         memberYear,
         memberYearEarned: nextEarned,
         [quest.walletField]: nextDays,
@@ -1090,15 +1093,17 @@ async function claimDailyCheckin(body, actor) {
       const history = {
         createdAt: now, type: "earn", source: "quest-daily-checkin",
         questId: quest.id, questDate: today,
-        title: quest === DAILY_CHECKIN_PHASE_2 ? "Daily Check-in Phase 2 Reward" : "Daily Check-in Reward",
-        detail: (quest === DAILY_CHECKIN_PHASE_2 ? "Phase 2 · " : "") + "เช็กอินวันที่ " + dayNumber + " พฤศจิกายน 2026",
-        amount: quest.reward, balanceAfter: nextBalance,
+        title: isLoyKrathong ? "Loy Krathong Special Reward"
+          : quest === DAILY_CHECKIN_PHASE_2 ? "Daily Check-in Phase 2 Reward" : "Daily Check-in Reward",
+        detail: isLoyKrathong ? "วันลอยกระทง 24 พฤศจิกายน 2026 · Daily Check-in Phase 2 · 200 Sparks"
+          : (quest === DAILY_CHECKIN_PHASE_2 ? "Phase 2 · " : "") + "เช็กอินวันที่ " + dayNumber + " พฤศจิกายน 2026",
+        amount: reward, balanceAfter: nextBalance,
         performedBy: actor.username, status: "Completed",
       };
       await firestoreRequest(":commit", "POST", {
         transaction, writes: [updateWrite(walletPath, updates, walletDoc), createWrite(historyPath, history)],
       });
-      return { updated: true, alreadyClaimed: false, questId: quest.id, questDate: today,
+      return { updated: true, alreadyClaimed: false, questId: quest.id, questDate: today, amount: reward,
         claimedDays: nextDays, balance: nextBalance, memberYearEarned: nextEarned };
     } catch (error) {
       if (["ABORTED", "FAILED_PRECONDITION"].includes(error?.firestoreStatus) && attempt < 3) continue;

@@ -97,11 +97,33 @@ try{
   assert.ok(secondModal.textContent.includes("Phase 2"));
   assert.equal(secondModal.querySelectorAll(".qa-sparks-checkin-day").length,8);
   assert.equal(secondModal.querySelectorAll(".qa-sparks-checkin-day:not(:disabled)").length,1);
-  assert.ok(secondModal.textContent.includes("400 Sparks"));
+  assert.ok(secondModal.textContent.includes("550 Sparks"));
+  assert.equal(mod.DAILY_CHECKIN_PHASE_2.maxPoints,550);
+  assert.equal(mod.checkinRewardForDay(24,2),200);
+  assert.equal(mod.checkinRewardForDay(24,1),50);
+  assert.equal(mod.checkinRewardForDay(23,2),50);
+  assert.equal(mod.checkinRewardForDay(25,2),50);
+  const holidayCard=secondModal.querySelector(".qa-sparks-checkin-day.special-day");
+  assert.ok(holidayCard,"24 Nov should be visibly highlighted");
+  assert.ok(holidayCard.getAttribute("aria-label").includes("วันลอยกระทง"));
+  assert.ok(holidayCard.textContent.includes("200 Sparks"));
+  assert.equal(holidayCard.disabled,true,"24 Nov cannot be claimed on 23 Nov");
   await act(async()=>secondModal.querySelector(".qa-sparks-checkin-day.today")
     .dispatchEvent(new MouseEvent("click",{bubbles:true})));
   assert.equal(calls.at(-1).questDate,"2026-11-23");
   assert.equal(secondModal.querySelectorAll(".qa-sparks-checkin-day.claimed").length,1);
+  assert.equal(secondModal.querySelectorAll(".qa-sparks-checkin-day:not(:disabled)").length,0);
+  fakeTime="2026-11-24T05:00:00.000Z";
+  await act(async()=>window.dispatchEvent(new Event("focus")));
+  const activeHoliday=secondModal.querySelector(".qa-sparks-checkin-day.special-day.today");
+  assert.ok(activeHoliday,"24 Nov tile becomes claimable only on that date");
+  assert.equal(activeHoliday.disabled,false);
+  assert.ok(secondModal.querySelector(".qa-sparks-checkin-claim-primary").textContent.includes("200 Sparks"));
+  await act(async()=>activeHoliday.dispatchEvent(new MouseEvent("click",{bubbles:true})));
+  assert.equal(calls.at(-1).questDate,"2026-11-24");
+  assert.equal(secondModal.querySelectorAll(".qa-sparks-checkin-day.claimed").length,2);
+  assert.ok(secondModal.textContent.includes("250"),"Nov 23 50 plus Nov 24 200 must show 250");
+  assert.ok(secondModal.textContent.includes("+200 QA Sparks"),"server-confirmed success must show special award");
   assert.equal(secondModal.querySelectorAll(".qa-sparks-checkin-day:not(:disabled)").length,0);
   const phase1Tab=secondModal.querySelector('.qa-sparks-checkin-phase-switch button[aria-pressed="false"]');
   assert.ok(phase1Tab);
@@ -110,9 +132,9 @@ try{
   assert.ok(secondModal.textContent.includes("700 Sparks"));
   const phase2Tab=secondModal.querySelector('.qa-sparks-checkin-phase-switch button[aria-pressed="false"]');
   await act(async()=>phase2Tab.dispatchEvent(new MouseEvent("click",{bubbles:true})));
-  assert.equal(secondModal.querySelectorAll(".qa-sparks-checkin-day.claimed").length,1,"Phase 2 rewards must survive phase switching");
+  assert.equal(secondModal.querySelectorAll(".qa-sparks-checkin-day.claimed").length,2,"Both Phase 2 rewards must survive phase switching");
   await act(async()=>secondModal.querySelector(".qa-sparks-checkin-close").dispatchEvent(new MouseEvent("click",{bubbles:true})));
-  console.log("PASS Quest UI: original 14-cell Phase 1 and independent 8-cell Phase 2, 50/day, 400 total, midnight boundary, reward and phase switching");
+  console.log("PASS Quest UI: Phase 1 unchanged; Phase 2 special Nov 24 +200, earned total 250 after two days, max 550, accessible highlighted tile and phase switching");
 } finally{
   await act(async()=>root.unmount());
   globalThis.Date=RealDate;globalThis.fetch=oldFetch;
