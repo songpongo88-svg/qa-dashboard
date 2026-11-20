@@ -153,3 +153,11 @@ source-verified read is not continuous-source parity or permission proof.
 - No execution on the user's Windows host has happened from this PR.
   The installer must be run locally and its output inspected before any
   future manual source listener probe.
+
+## Private verified point-read candidate journal — staged, NOT active (20 Nov 2026)
+
+- Added `qa_windows_probe_v1.verified_source_candidates` as a Windows-only, private, deny-by-default table. It records an immutable **single document read candidate** linked to one existing metadata signal and frozen 11-dataset snapshot; it does not update `qa_failover_v1.source_delta_events`, `source_delta_latest` or production.
+- New `server/qaWindowsVerifiedCandidateJournal.js` requires an explicit feature gate, a separate trusted budgeted REST read attestor, exact Firestore update revision + SHA-256 document hash, local signal match, transaction lock on frozen snapshot, idempotent event identity, and rejects deletes/races. No HTTP route or scheduler is provided.
+- Windows installation, credentials, real data capture and production connection **have not been performed**; existing 2,226-row snapshot remains untouched. All three Windows source journal tables were 0 at last operator check. No Firestore reads were made by these edits.
+- CI runs the new test only against a **disposable PostgreSQL 17** database. The migration and writer remain uninstalled on real Windows, off by default; no reactivation of the 11 Firestore listeners is authorized, and **zero-read continuous replication is still not established**.
+- Remaining release blockers are a trusted server-only mutation gateway with full coverage of all eleven direct browser writers, source attestation/real-time transport, exact deletion history, budget-aware reconciliation, and audited failback. Keep `QA_FAILOVER=OFF` and `write_frozen=true`.
