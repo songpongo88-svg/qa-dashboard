@@ -1089,9 +1089,18 @@ function validBirthdayMMDD(raw) {
   const date=new Date(Date.UTC(2024,mm-1,dd));
   return date.getUTCMonth()===mm-1 && date.getUTCDate()===dd;
 }
+function validBirthdayDate(value) {
+  if (!/^\\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$/.test(value)) return false;
+  const [y,m,d]=value.split("-").map(Number);
+  if (y < 1900 || y > 2026) return false;
+  const date=new Date(Date.UTC(y,m-1,d));
+  return date.getUTCFullYear()===y && date.getUTCMonth()===m-1 && date.getUTCDate()===d &&
+    value<=bangkokQuestDate();
+}
 async function saveMemberBirthday(body,actor) {
-  const mmdd=String(body.birthdayMMDD||"");
-  if(!validBirthdayMMDD(mmdd))fail("วันเกิดไม่ถูกต้อง",400);
+  const birthdayDate=String(body.birthdayDate||"");
+  if(!validBirthdayDate(birthdayDate))fail("กรุณาระบุวัน เดือน และปีเกิด ค.ศ. ที่ถูกต้อง",400);
+  const mmdd=birthdayDate.slice(5);
   const walletPath=walletDocumentPath(actor.username);
   for(let attempt=0;attempt<4;attempt++){
     const begin=await firestoreRequest(":beginTransaction","POST",{options:{readWrite:{}}});
@@ -1100,14 +1109,20 @@ async function saveMemberBirthday(body,actor) {
     try {
       const doc=await readDoc(walletPath,transaction);
       const wallet=recordValue(doc);
-      if(wallet.birthdayMMDD===mmdd)return {ok:true,birthdayMMDD:mmdd,alreadySaved:true};
-      if(wallet.birthdayClaimed2026At || wallet.birthdayLockedAt)
-        fail("วันเกิดถูกยืนยันแล้ว หากต้องการแก้ไขกรุณาติดต่อ Admin",409);
+      if(wallet.birthdayDate){
+        if(wallet.birthdayDate===birthdayDate)
+          return {ok:true,birthdayDate,alreadySaved:true};
+        fail("บันทึกวันเกิดครบแล้ว ไม่สามารถเปลี่ยนได้ด้วยตนเอง กรุณาติดต่อ Admin",409);
+      }
+      // Earlier records stored only MM-DD. Complete the year once without changing the recorded day/month.
+      if(wallet.birthdayMMDD && wallet.birthdayMMDD!==mmdd)
+        fail("วันและเดือนเกิดเดิมไม่ตรงกัน กรุณาติดต่อ Admin",409);
       const now=new Date().toISOString();
       await firestoreRequest(":commit","POST",{transaction,writes:[updateWrite(walletPath,{
-        username:actor.username,birthdayMMDD:mmdd,birthdayUpdatedAt:now,updatedAt:now
+        username:actor.username,birthdayDate,birthdayMMDD:mmdd,birthdayLockedAt:now,
+        birthdayUpdatedAt:now,updatedAt:now
       },doc)]});
-      return {ok:true,birthdayMMDD:mmdd,updated:true};
+      return {ok:true,birthdayDate,updated:true};
     }catch(error){
       if(["ABORTED","FAILED_PRECONDITION"].includes(error?.firestoreStatus)&&attempt<3)continue;
       throw error;
@@ -1130,8 +1145,9 @@ async function claimMemberBirthday(body,actor) {
       if(claimed||wallet.birthdayClaimed2026At)
         return {ok:true,alreadyClaimed:true,claimedAt:wallet.birthdayClaimed2026At||recordValue(claimed).createdAt};
       if(year!==2026)fail("การรับของขวัญย้อนหลังปี 2569 สิ้นสุดแล้ว",400);
-      const mmdd=String(wallet.birthdayMMDD||"");
-      if(!validBirthdayMMDD(mmdd))fail("กรุณาบันทึกวันเกิดก่อนรับของขวัญ",400);
+      const dob=String(wallet.birthdayDate||"");
+      const mmdd=dob.slice(5);
+      if(!validBirthdayDate(dob)||!validBirthdayMMDD(mmdd))fail("กรุณาบันทึกวัน เดือน และปีเกิดก่อนรับของขวัญ",400);
       // Retroactive eligibility for every 2026 birthday already elapsed.
       // Feb 29 is observed on Feb 28 in 2026 (non-leap year).
       const observed=mmdd==="02-29"?"02-28":mmdd;
