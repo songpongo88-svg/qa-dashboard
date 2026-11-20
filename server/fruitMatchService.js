@@ -1,5 +1,5 @@
 import { createHash, createHmac, randomInt, randomUUID, timingSafeEqual } from "node:crypto";
-import { FRUIT_MATCH, FRUIT_WEEKLY, matchThemeAt, fruitWeekPeriod, compareFruitRecords, replayFruitRound } from "../src/fruitMatchRules.js";
+import { FRUIT_MATCH, FRUIT_WEEKLY, MATCH_THEMES, matchThemeAt, fruitWeekPeriod, compareFruitRecords, replayFruitRound } from "../src/fruitMatchRules.js";
 
 const COLLECTION = "qa_sparks_fruit_players_v1";
 const BOARD_COLLECTION = "qa_sparks_fruit_boards";
@@ -30,13 +30,17 @@ function readTicket(value, actor, session) {
   return data;
 }
 const today = () => new Intl.DateTimeFormat("en-CA", {timeZone:"Asia/Bangkok",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
-function publicStats(stats) {
+const themes=Object.keys(MATCH_THEMES);
+const validTheme=value=>themes.includes(value)?value:matchThemeAt();
+const themeStats=(stats,theme)=>stats.byTheme?.[theme]||(theme==="fruit"?stats:{});
+function publicStats(stats,theme=matchThemeAt()) {
+  const t=themeStats(stats,theme);
   return {
-    played: number(stats.played), wins: number(stats.wins), completed: number(stats.completed),
-    best: stats.best || null, history: Array.isArray(stats.history) ? stats.history.slice(-10) : [],
+    played: number(t.played), wins: number(t.wins), completed: number(t.completed),
+    best: t.best || null, history: Array.isArray(t.history) ? t.history.slice(-10) : [],
     dailyRewardCount: stats.rewardDay === today() ? number(stats.dailyRewardCount) : 0,
     dailyPlayCount: stats.playDay === today() ? number(stats.dailyPlayCount) : stats.rewardDay === today() ? number(stats.dailyRewardCount) : 0,
-    playDay: today(), totalSparks: number(stats.totalSparks), rewardDay: today(),
+    playDay: today(), totalSparks: number(t.totalSparks), rewardDay: today(),
   };
 }
 function rows(board) {
@@ -48,9 +52,9 @@ export function createFruitMatchService(db) {
   const { firestoreRequest, readDoc, recordValue, path, updateWrite, createWrite, walletDocumentPath,
     currentMemberYear, annualEarnedFromWallet, spendableBalance } = db;
   const playerPath = actor => path(COLLECTION, actor.username);
-  const boardPath=p=>path(BOARD_COLLECTION,p.index<0?FRUIT_MATCH.version:FRUIT_MATCH.version+"-week-"+p.key);
+  const boardPath=(p,theme="fruit")=>path(BOARD_COLLECTION,(p.index<0?FRUIT_MATCH.version:FRUIT_MATCH.version+"-week-"+p.key)+(theme==="fruit"?"":"-"+theme));
   const previousPeriod=p=>p.index>0?fruitWeekPeriod(FRUIT_WEEKLY.firstResetAt+(p.index-1)*FRUIT_WEEKLY.weekMs):null;
-  const meta=(p,prev)=>({weekKey:p.key,startAt:p.startAt,nextResetAt:p.nextResetAt,
+  const meta=(p,prev,theme)=>({theme,weekKey:p.key,startAt:p.startAt,nextResetAt:p.nextResetAt,
     previousChampion:prev?.weeklyChampion||null,previousPending:Boolean(prev?.rows?.length&&!prev?.settledAt),
     championSparks:FRUIT_WEEKLY.championSparks});
   async function transact(work) {
@@ -71,12 +75,12 @@ export function createFruitMatchService(db) {
     }
     reject("มีการบันทึกพร้อมกัน กรุณาลองใหม่", 409);
   }
-  async function data(actor) {
-    const period=fruitWeekPeriod(),previous=previousPeriod(period);
-    const [statsDoc,boardDoc,lastDoc]=await Promise.all([readDoc(playerPath(actor)),readDoc(boardPath(period)),
-      previous?readDoc(boardPath(previous)):Promise.resolve(null)]);
-    return {stats:publicStats(recordValue(statsDoc)),leaderboard:rows(recordValue(boardDoc)),
-      week:meta(period,recordValue(lastDoc))};
+  async function data(actor,requestedTheme) {
+    const theme=validTheme(requestedTheme),period=fruitWeekPeriod(),previous=previousPeriod(period);
+    const [statsDoc,boardDoc,lastDoc]=await Promise.all([readDoc(playerPath(actor)),readDoc(boardPath(period,theme)),
+      previous?readDoc(boardPath(previous,theme)):Promise.resolve(null)]);
+    return {theme,stats:publicStats(recordValue(statsDoc),theme),leaderboard:rows(recordValue(boardDoc)),
+      week:meta(period,recordValue(lastDoc),theme)};
   }
   async function start(body, actor) {
     if (!/^[a-zA-Z0-9_-]{12,100}$/.test(String(body.requestId || ""))) reject("รหัสเริ่มเกมไม่ถูกต้อง");
@@ -88,11 +92,11 @@ export function createFruitMatchService(db) {
       let round;
       if (previous?.requestId === body.requestId && previous.sessionHash === sessionHash(body.sessionId)
           && now >= previous.startedAt && now - previous.startedAt < FRUIT_MATCH.durationMs) round = previous;
-      if (round) return {writes:[],result:{token:ticket(round),deck:round.deck,theme:round.theme||"fruit",numbers:round.numbers||[],stats:publicStats(stats)}};
+      if (round) return {writes:[],result:{token:ticket(round),deck:round.deck,theme:round.theme||"fruit",numbers:round.numbers||[],stats:publicStats(stats,round.theme||"fruit")}};
       if (previous && now - previous.startedAt < 1000) reject("กรุณารอสักครู่ก่อนเริ่มรอบใหม่", 429);
       const date=today();
       const dailyPlayCount=stats.playDay===date?number(stats.dailyPlayCount):stats.rewardDay===date?number(stats.dailyRewardCount):0;
-      if (dailyPlayCount>=FRUIT_MATCH.dailyPlayLimit) reject("ครบสิทธิ์เล่น Fruit Match 2 ครั้งวันนี้แล้ว กรุณาเล่นอีกครั้งวันถัดไป",409);
+      if (dailyPlayCount>=FRUIT_MATCH.dailyPlayLimit) reject("ครบสิทธิ์เล่นเกมจับคู่ 2 ครั้งวันนี้แล้ว กรุณาเล่นอีกครั้งวันถัดไป",409);
       const year=currentMemberYear(),balance=spendableBalance(wallet,year);
       if (!walletDoc || balance<FRUIT_MATCH.entryFee) reject("Sparks ไม่เพียงพอ ต้องมีอย่างน้อย 1 Spark เพื่อเริ่มเล่น",409);
       const theme=matchThemeAt(now);
@@ -104,7 +108,9 @@ export function createFruitMatchService(db) {
       for (let i=deck.length-1;i>0;i--) { const j=randomInt(i+1); [deck[i],deck[j]]=[deck[j],deck[i]]; }
       round = {version:FRUIT_MATCH.version,id:randomUUID(),username:actor.username,sessionHash:sessionHash(body.sessionId),
         requestId:body.requestId,startedAt:now,deck,theme,numbers};
-      const updates = {username:actor.username,displayName:actor.displayName.slice(0,120),played:number(stats.played)+1,
+      const previousTheme=themeStats(stats,theme);
+      const byTheme={...(stats.byTheme||{}),[theme]:{...previousTheme,played:number(previousTheme.played)+1}};
+      const updates = {username:actor.username,displayName:actor.displayName.slice(0,120),played:number(stats.played)+1,byTheme,
         activeRound:round,playDay:date,dailyPlayCount:dailyPlayCount+1,updatedAt:new Date(now).toISOString()};
       const nextBalance=balance-FRUIT_MATCH.entryFee;
       const writes=[
@@ -116,7 +122,7 @@ export function createFruitMatchService(db) {
           performedBy:actor.username,status:"Completed",roundId:round.id,
         }),
       ];
-      return {writes,result:{token:ticket(round),deck,theme,numbers,stats:publicStats({...stats,...updates})}};
+      return {writes,result:{token:ticket(round),deck,theme,numbers,stats:publicStats({...stats,...updates},theme)}};
     });
   }
   async function finish(body, actor) {
@@ -124,38 +130,46 @@ export function createFruitMatchService(db) {
     const replay = replayFruitRound(round.deck,body.trace);
     const receiptPath = path(RECEIPTS,round.id), docPath = playerPath(actor);
     return transact(async transaction => {
-      const period=fruitWeekPeriod(),previous=previousPeriod(period);
+      const theme=validTheme(round.theme||"fruit"),period=fruitWeekPeriod(round.startedAt),previous=previousPeriod(period);
       const [receiptDoc,statsDoc,boardDoc,walletDoc,lastDoc]=await Promise.all([
-        readDoc(receiptPath,transaction),readDoc(docPath,transaction),readDoc(boardPath(period),transaction),
+        readDoc(receiptPath,transaction),readDoc(docPath,transaction),readDoc(boardPath(period,theme),transaction),
         readDoc(walletDocumentPath(actor.username),transaction),
-        previous?readDoc(boardPath(previous),transaction):Promise.resolve(null),
+        previous?readDoc(boardPath(previous,theme),transaction):Promise.resolve(null),
       ]);
       const stats=recordValue(statsDoc),board=recordValue(boardDoc),wallet=recordValue(walletDoc);
-      const week=meta(period,recordValue(lastDoc));
-      if(receiptDoc)return {writes:[],result:{alreadyApplied:true,result:recordValue(receiptDoc),stats:publicStats(stats),leaderboard:rows(board),week}};
+      const week=meta(period,recordValue(lastDoc),theme);
+      if(receiptDoc)return {writes:[],result:{alreadyApplied:true,result:recordValue(receiptDoc),stats:publicStats(stats,theme),leaderboard:rows(board),week}};
       const age = Date.now()-round.startedAt;
-      if (age < 0 || age > FRUIT_MATCH.durationMs+5000 || replay.elapsedMs > age+250) reject("รอบเกมหมดอายุหรือเวลาการเล่นไม่ถูกต้อง กรุณาเริ่มรอบใหม่");
-      if (!replay.won && age < FRUIT_MATCH.durationMs) reject("รอบนี้ยังไม่หมดเวลา");
+      if (age < 0 || (replay.won && (age > FRUIT_MATCH.durationMs+5000 || replay.elapsedMs > age+250))
+          || (!replay.won && age > 86400000)) reject("รอบเกมหมดอายุหรือเวลาการเล่นไม่ถูกต้อง กรุณาเริ่มรอบใหม่");
+      if (!replay.won && age < FRUIT_MATCH.durationMs-1500) reject("รอบนี้ยังไม่หมดเวลา");
       if (stats.activeRound?.id !== round.id) reject("บัญชีนี้เริ่มรอบใหม่แล้ว กรุณาเล่นในรอบล่าสุด",409);
       const date=today(), year=currentMemberYear(), annual=annualEarnedFromWallet(wallet,year);
       const claimed=stats.rewardDay===date?number(stats.dailyRewardCount):0;
       const earned=replay.won && claimed<FRUIT_MATCH.dailyRewardLimit ? FRUIT_MATCH.reward:0;
       const now=new Date().toISOString();
       const reason=earned?"earned":!replay.won?"timeout":"daily-limit";
-      const result={roundId:round.id,...replay,earned,reason,createdAt:now,balanceAfter:spendableBalance(wallet,year)+earned};
+      const result={roundId:round.id,theme,...replay,earned,reason,createdAt:now,balanceAfter:spendableBalance(wallet,year)+earned};
       const candidate={username:actor.username,displayName:actor.displayName.slice(0,120),elapsedMs:replay.elapsedMs,moves:replay.moves,achievedAt:now};
+      const previousTheme=themeStats(stats,theme);
+      const improvedTheme=replay.won && (!previousTheme.best || compareFruitRecords(candidate,previousTheme.best)<0);
       const improved=replay.won && (!stats.best || compareFruitRecords(candidate,stats.best)<0);
       let leaderboard=rows(board);
       const existing=leaderboard.find(row=>row.username===actor.username);
       const improvedThisWeek=replay.won && (!existing || compareFruitRecords(candidate,existing)<0);
+      const nextByTheme={...previousTheme,completed:number(previousTheme.completed)+1,
+        wins:number(previousTheme.wins)+(replay.won?1:0),totalSparks:number(previousTheme.totalSparks)+earned,
+        best:improvedTheme?candidate:previousTheme.best||null,
+        history:[...(Array.isArray(previousTheme.history)?previousTheme.history:[]),result].slice(-10)};
       const nextStats={username:actor.username,displayName:candidate.displayName,completed:number(stats.completed)+1,
+        byTheme:{...(stats.byTheme||{}),[theme]:nextByTheme},
         wins:number(stats.wins)+(replay.won?1:0),totalSparks:number(stats.totalSparks)+earned,
         best:improved?candidate:stats.best||null,history:[...(Array.isArray(stats.history)?stats.history:[]),result].slice(-10),
         activeRound:null,rewardDay:date,dailyRewardCount:claimed+(earned?1:0),updatedAt:now};
       const writes=[updateWrite(docPath,nextStats,statsDoc),createWrite(receiptPath,result)];
       if (improvedThisWeek) {
         leaderboard=[...leaderboard.filter(row=>row.username!==actor.username),candidate].sort(compareFruitRecords).slice(0,100);
-        writes.push(updateWrite(boardPath(period),{
+        writes.push(updateWrite(boardPath(period,theme),{
           version:FRUIT_MATCH.version,weekKey:period.key,weekStartAt:period.startAt,rows:leaderboard,updatedAt:now,
         },boardDoc));
       }
@@ -165,20 +179,20 @@ export function createFruitMatchService(db) {
         writes.push(updateWrite(walletDocumentPath(actor.username),{username:actor.username,balance,balanceYear:year,totalEarned:lifetime+earned,
           memberYear:year,memberYearEarned:annual+earned,updatedAt:now},walletDoc));
         writes.push(createWrite(path("qa_sparks_wallets",encodeURIComponent(actor.username),"history","fruit-match-"+round.id),{
-          createdAt:now,type:"earn",source:"mini-game-fruit-match",title:"Fruit Match Reward",amount:earned,
+          createdAt:now,type:"earn",source:"mini-game-fruit-match",title:MATCH_THEMES[theme].title+" Reward",amount:earned,
           detail:"จับคู่ครบ 12 คู่ · "+(replay.elapsedMs/1000).toFixed(2)+" วินาที",balanceAfter:balance,
           performedBy:actor.username,status:"Completed",roundId:round.id,
         }));
       }
-      return {writes,result:{alreadyApplied:false,result,stats:publicStats({...stats,...nextStats}),leaderboard,week}};
+      return {writes,result:{alreadyApplied:false,result,stats:publicStats({...stats,...nextStats},theme),leaderboard,week}};
     });
   }
   // Atomic weekly payout; settledAt and deterministic wallet ledger prevent duplicates.
-  async function settleOne(index) {
+  async function settleOne(index,theme="fruit") {
     const period=fruitWeekPeriod(FRUIT_WEEKLY.firstResetAt+index*FRUIT_WEEKLY.weekMs);
     if(index<0||Date.now()<Date.parse(period.nextResetAt))return {weekKey:period.key,status:"not-due"};
     return transact(async transaction=>{
-      const key=boardPath(period),boardDoc=await readDoc(key,transaction),board=recordValue(boardDoc);
+      const key=boardPath(period,theme),boardDoc=await readDoc(key,transaction),board=recordValue(boardDoc);
       if(!boardDoc)return {writes:[],result:{weekKey:period.key,status:"no-players"}};
       if(board.settledAt)return {writes:[],result:{weekKey:period.key,status:"already-settled"}};
       const champion=rows(board)[0]||null,now=new Date().toISOString();
@@ -198,9 +212,9 @@ export function createFruitMatchService(db) {
           totalEarned:lifetime+award,memberYear:year,memberYearEarned:annual+award,updatedAt:now},walletDoc),
         updateWrite(playerKey,{totalSparks:number(stats.totalSparks)+award,updatedAt:now},playerDoc),
         createWrite(path("qa_sparks_wallets",encodeURIComponent(champion.username),"history",
-          "fruit-match-weekly-"+period.key),{createdAt:now,type:"earn",source:"mini-game-fruit-match-weekly",
-          title:"Fruit Match Weekly Champion",amount:award,
-          detail:"อันดับ 1 Fruit Match สัปดาห์ "+period.key+" ถึง "+period.nextResetAt,
+          "fruit-match-weekly-"+period.key+(theme==="fruit"?"":"-"+theme)),{createdAt:now,type:"earn",source:"mini-game-fruit-match-weekly",
+          title:MATCH_THEMES[theme].title+" Weekly Champion",amount:award,
+          detail:"อันดับ 1 "+MATCH_THEMES[theme].title+" สัปดาห์ "+period.key+" ถึง "+period.nextResetAt,
           balanceAfter:balance,performedBy:"system",status:"Completed",weekKey:period.key}),
       ];
       return {writes,result:{weekKey:period.key,status:"awarded",champion:winner}};
@@ -210,7 +224,7 @@ export function createFruitMatchService(db) {
     const current=fruitWeekPeriod();
     if(current.index<=0)return {status:"not-due",nextResetAt:current.nextResetAt,results:[]};
     const results=[];
-    for(let i=Math.max(0,current.index-8);i<current.index;i++)results.push(await settleOne(i));
+    for(let i=Math.max(0,current.index-8);i<current.index;i++)for(const theme of themes)results.push({...await settleOne(i,theme),theme});
     return {status:"checked",results};
   }
   return {data,start,finish,settleWeekly};
