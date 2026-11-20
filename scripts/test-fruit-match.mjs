@@ -79,6 +79,8 @@ try{
   const old=await start();clock+=1200;await start();clock+=6000;r=await invoke("fruit-match-finish",{token:old.token,trace:traceFor(old.deck)});assert.equal(r.status,409,"a superseded round cannot grant rewards");
   const lastYearBalance=wallet().balance;
   clock=OriginalDate.parse("2026-12-31T17:00:01Z"); // Jan 1, 2027 Bangkok
+  assert.equal((await invoke("fruit-match-start",{requestId:"fruit-new-year-no-sparks"})).status,409,"entry fee cannot use expired Sparks");
+  wallet().balance=1;wallet().balanceYear=2027;wallet().memberYear=2027;wallet().memberYearEarned=0;
   r=await win(4000);assert.equal(r.body.result.earned,20);
   assert(lastYearBalance>20);assert.equal(wallet().balance,20-FRUIT_MATCH.entryFee,"expired 2026 balance cannot be carried into new reward");
   assert.equal(wallet().balanceYear,2027);assert.equal(wallet().memberYearEarned,20,"Member Level resets in 2027");
