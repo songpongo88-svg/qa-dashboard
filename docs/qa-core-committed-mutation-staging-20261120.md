@@ -54,3 +54,31 @@
 
 **No operator action needed for this stage. Do not rerun any full Firestore
 scan or promote the 2,427-document candidate.**
+
+
+## Repository-wide QA writer audit, run on isolated CI (20 Nov)
+
+- **649** JavaScript/TypeScript source files inspected, **0** skipped.
+- **11** QA Core collections remain in the explicitly reviewed scope.
+- **13 additional runtime files** with direct QA Core mutation paths were
+  identified and added to the known-writer coverage map. Examples:
+  - src/App.tsx and src/CorporateUserDirectoryProfile.tsx (user profiles)
+  - src/usernamePolicyMigrationStore.ts (profiles, evaluation/progress and
+    session controls; this also touches other collections outside the 11)
+  - src/monthlyResultLockStore.ts and src/paymentCarryOverStore.ts
+    (signature documents and monthly payment states)
+  - src/evaluationTagStore.ts and src/maintenanceControlStore.ts
+    (QA system settings)
+  - profileHistoryStore.ts and character/theme/line-drawing stores
+    (user profiles/settings)
+- After incorporating those runtime leads: **39** additional lexical writer
+  leads remain; **16** mention QA collections. Most are scripts/tests.
+  src/knowledge/termsStore.ts reads QA profiles/permissions but its shown
+  transaction writes a separate terms-acceptance collection, so it must
+  not be falsely labeled as an 11-collection write without review.
+- Operational scripts that can modify QA data (e.g. signature resets and
+  password updates) must be catalogued as potential bypass paths even
+  when ordinary browser writes are migrated.
+- Every count is a static-code audit result, not a claim of full client,
+  external tool, dynamic route, admin job, or attachment coverage.
+  **QA_NO_BILLING_MIRROR_STATUS remains BLOCKED.**
