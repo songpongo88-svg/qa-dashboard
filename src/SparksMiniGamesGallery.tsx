@@ -1,7 +1,7 @@
 import React from "react";
 import "./sparksMiniGamesGallery.css";
 
-export type SparksGameChoice="snakes"|"fruit"|"angel";
+export type SparksGameChoice="snakes"|"fruit"|"angel"|"fifteen";
 
 function AngelCover(){
  return <svg viewBox="0 0 660 350" className="qa-game-cover-svg" role="img" aria-label="เลขนางฟ้า 0–100 ลุ้น Jackpot สะสม">
@@ -86,7 +86,7 @@ export default function SparksMiniGamesGallery({onSelect,privateSnakes=false,adm
  return <section className="qa-games-gallery" aria-label="เลือกมินิเกมจากภาพ">
    <div className="qa-games-gallery-heading">
      <div><span>QA SPARKS GAME ZONE</span><h2>เลือกเกมที่ต้องการเล่น</h2><p>กดที่รูปเกมเพื่อเข้าเล่นหรือกลับไปยังเกมที่เล่นค้างไว้</p></div>
-     <div className="qa-games-gallery-count">{privateSnakes?"2 เกม + Private Test":"2 เกม"}</div>
+     <div className="qa-games-gallery-count">{privateSnakes?"3 เกม + Private Test":"3 เกม"}</div>
    </div>
    <div className="qa-games-gallery-grid">
      {privateSnakes?<button type="button" data-sparks-game-card="snakes" className="qa-games-gallery-card qa-games-gallery-card--snakes" onClick={()=>onSelect("snakes")}>
@@ -96,6 +96,13 @@ export default function SparksMiniGamesGallery({onSelect,privateSnakes=false,adm
      <button type="button" data-sparks-game-card="angel" className="qa-games-gallery-card qa-games-gallery-card--angel" onClick={()=>onSelect("angel")}>
        <span className="qa-games-gallery-art"><AngelCover/><span className="qa-games-gallery-tag">เริ่ม 6 ธ.ค. 2569 · เข้าจาก Mini Games เท่านั้น</span></span>
        <span className="qa-games-gallery-details"><strong>เลขนางฟ้า · Angel Number</strong><span>นางฟ้า 101 คาแรกเตอร์ · เปิดไม่เจอคืนค่าเล่นพร้อมโบนัส 5–50 Sparks · ลุ้น Jackpot และแบ่งรางวัลให้เพื่อน</span>{adminAngel?<span className="qa-games-gallery-admin-hint">Admin: เข้าเกมเพื่อกำหนดเลขลับ 0–100 และเปิดรอบ</span>:null}<span className="qa-games-gallery-play">เข้าสู่เกมเลขนางฟ้า <span aria-hidden="true">↗</span></span></span>
+     </button>
+     <button type="button" data-sparks-game-card="fifteen" className="qa-games-gallery-card qa-games-gallery-card--fifteen" onClick={()=>onSelect("fifteen")}>
+       <span className="qa-games-gallery-art" style={{display:"grid",placeItems:"center",background:"linear-gradient(145deg,#2e105d,#9055d8)",padding:22}}>
+         <span style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:5,maxWidth:270,width:"90%",aspectRatio:"1"}}>
+           {[5,14,2,9,11,3,1,13,7,15,6,12,10,4,8,0].map((n,i)=><span key={i} style={{display:"grid",placeItems:"center",borderRadius:10,background:n?"linear-gradient(130deg,#e4b0ff,#7541c2)":"#190d35",border:"1px solid #f4ccff",boxShadow:"0 2px 5px #160633",color:"#fff5e8",fontFamily:"Georgia,serif",fontWeight:900,fontSize:"clamp(15px,3vw,32px)"}}>{n||""}</span>)}
+         </span><span className="qa-games-gallery-tag">ทดลองเล่น · ยังไม่จ่าย Sparks จริง</span>
+       </span><span className="qa-games-gallery-details"><strong>15-Puzzle · เลื่อนตัวเลข 4×4</strong><span>จัดเรียงตัวเลข 1–15 · ลายช่องซับซ้อน · จับเวลาและนับจำนวนครั้งที่เลื่อน</span><span className="qa-games-gallery-play">ทดลองเล่นเกม ↗</span></span>
      </button>
      <button type="button" data-sparks-game-card="fruit" className="qa-games-gallery-card qa-games-gallery-card--fruit" onClick={()=>onSelect("fruit")}>
        <span className="qa-games-gallery-art"><FruitCover/><span className="qa-games-gallery-tag">เกมจับคู่ผลไม้</span></span>
