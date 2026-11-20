@@ -20,7 +20,7 @@ export default function FruitMatchGame({username,sessionId}:{username:string;ses
   const [error,setError]=useState("");
   const [now,setNow]=useState(()=>Date.now());
   const [todayTheme,setTodayTheme]=useState(()=>matchThemeAt());
-  const [viewTheme,setViewTheme]=useState(()=>matchThemeAt());
+  const [viewTheme,setViewTheme]=useState<keyof typeof MATCH_THEMES>(()=>matchThemeAt());
   useEffect(()=>{if(tab!=="rank")return;const clock=window.setInterval(()=>setNow(Date.now()),1000);
     return()=>window.clearInterval(clock);},[tab]);
   useEffect(()=>{const timer=window.setInterval(()=>setTodayTheme(matchThemeAt()),30000);return()=>window.clearInterval(timer);},[]);
