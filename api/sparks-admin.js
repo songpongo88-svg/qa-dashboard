@@ -1699,7 +1699,8 @@ const fruitMatch = createFruitMatchService({firestoreRequest,readDoc,recordValue
 const fifteenPuzzle = createFifteenPuzzleService({firestoreRequest,readDoc,recordValue,path,updateWrite,createWrite,
   walletDocumentPath,currentMemberYear,annualEarnedFromWallet,spendableBalance});
 const sparksTransfer = createSparksTransferService({firestoreRequest,readDoc,recordValue,path,updateWrite,createWrite,
-  walletDocumentPath,currentMemberYear,spendableBalance,findProfileByUsername,isSuspendedProfile,listCollection});
+  walletDocumentPath,currentMemberYear,spendableBalance,findProfileByUsername,isSuspendedProfile,listCollection,
+  activeDirectory:sparksAngelDirectory});
 const sparkJourney = createSparkJourneyService({firestoreRequest,readDoc,recordValue,updateWrite,createWrite,
   walletDocumentPath,currentMemberYear,annualEarnedFromWallet,spendableBalance});
 const qaLottery = createQaLotteryService({firestoreRequest,readDoc,listCollection,recordValue,path,updateWrite,createWrite,
@@ -1944,7 +1945,11 @@ async function sparksHandler(req, res) {
     }
     if (["sparks-transfer-state","sparks-transfer-recipients","sparks-transfer-submit"].includes(body.action)) {
       if(process.env.SPARKS_DATA_BACKEND!=="supabase")fail("การโอน Sparks เปิดใช้งานเฉพาะระบบ Supabase",423);
-      const actor=await authorizeRewardUser(body);
+      // Transfers require independently verified Supabase Auth, never Firestore QA sessions.
+      // The same verified JWT authorizes active recipient directory lookups.
+      const actor=await getSparksRequestActor();
+      if (safeUsername(body.actorUsername)!==actor.username)
+        fail("QA Sparks account does not match signed-in user",403);
       const result=body.action==="sparks-transfer-state"?await sparksTransfer.readState(actor)
         :body.action==="sparks-transfer-recipients"?await sparksTransfer.recipients(actor)
         :await sparksTransfer.transfer(body,actor);
