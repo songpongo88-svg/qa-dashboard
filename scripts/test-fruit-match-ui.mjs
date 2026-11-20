@@ -9,6 +9,9 @@ const work=await mkdtemp(resolve(".fruit-match-test-"));
 const dom=new JSDOM("<!doctype html><div id='root'></div>",{url:"https://qa.test",pretendToBeVisual:true});
 for(const key of ["window","document","HTMLElement","Event","MouseEvent"])globalThis[key]=dom.window[key];
 globalThis.IS_REACT_ACT_ENVIRONMENT=true;
+const OriginalDate=Date;
+class TestDate extends OriginalDate {constructor(...args){super(...(args.length?args:[OriginalDate.parse("2026-11-05T05:00:00Z")]));}static now(){return OriginalDate.parse("2026-11-05T05:00:00Z");}}
+globalThis.Date=TestDate;
 const originalFetch=fetch,originalImage=globalThis.Image,originalNow=Object.getOwnPropertyDescriptor(performance,"now");
 const originalCrypto=Object.getOwnPropertyDescriptor(globalThis,"crypto");
 Object.defineProperty(globalThis,"crypto",{value:{},configurable:true});
@@ -57,4 +60,4 @@ try{
   await click(document.querySelector("#qfm-tab-stats"));assert(document.querySelector("#qfm-stats").textContent.includes("12 / 12"));
   assert.equal(calls.length,4,"tab changes do not fetch again");
   console.log("PASS Weekly Matching UI: 24 cards, 12 two-digit number pairs, mismatch lock, local-only flips, real server result, same-round retry, personal stats/ranking, no fake rows or polling.");
-}finally{await act(async()=>root.unmount());globalThis.fetch=originalFetch;globalThis.Image=originalImage;if(originalCrypto)Object.defineProperty(globalThis,"crypto",originalCrypto);else delete globalThis.crypto;if(originalNow)Object.defineProperty(performance,"now",originalNow);else delete performance.now;dom.window.close();await rm(work,{recursive:true,force:true});}
+}finally{await act(async()=>root.unmount());globalThis.fetch=originalFetch;globalThis.Image=originalImage;globalThis.Date=OriginalDate;if(originalCrypto)Object.defineProperty(globalThis,"crypto",originalCrypto);else delete globalThis.crypto;if(originalNow)Object.defineProperty(performance,"now",originalNow);else delete performance.now;dom.window.close();await rm(work,{recursive:true,force:true});}
