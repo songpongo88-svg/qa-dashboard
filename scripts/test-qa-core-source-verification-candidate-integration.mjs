@@ -8,6 +8,7 @@ import {stageQaCoreSourceVerificationCandidate}
  from '../server/qaCoreSourceVerificationCandidateStage.js';
 import {createQaCoreIndependentSourceRead}
  from '../server/qaCoreIndependentSourceReadStage.js';
+import {createQaSourceReadBudget} from '../server/qaSourceReadBudget.js';
 if(process.env.QA_PG_ISOLATED_TEST!=='1'||!process.env.QA_TEST_DATABASE_URL)
  throw Error('qa_disposable_database_only');
 const pool=new pg.Pool({connectionString:process.env.QA_TEST_DATABASE_URL,max:3});
@@ -44,8 +45,11 @@ const readAdapter=createQaCoreIndependentSourceRead({
  reserveRead:async req=>{
   assert.equal(req.requestedPageSize,1);
   assert.equal(req.documentPath,sourcePath);
-  return{estimatedNotBilledReads:true,budgetDayUtc:'2026-11-20',
-   reservedDocumentUnits:1,reservedRequests:1};
+  return createQaSourceReadBudget({
+   client:pool,projectId:project,dailyDocumentLimit:15,
+   dailyRequestLimit:11,
+   now:()=>new Date('2026-11-20T08:15:00.000Z'),
+  }).reserve(req);
  },
  fetchImpl:async (url,options)=>{
   assert.equal(options.method,'GET');
@@ -67,6 +71,12 @@ try{
  const ddl=await readFile(new URL(
   '../migration/qa-core-source-verification-candidate-stage.sql',import.meta.url),'utf8');
  await pool.query(ddl);
+ // The one-document REST adapter reserves against the same durable SQL
+ // counter used by the Windows source reader. No actual Firestore request.
+ await pool.query('CREATE SCHEMA IF NOT EXISTS qa_failover_v1');
+ const ledgerSql=await readFile(new URL(
+  '../migration/qa-source-read-budget-daily.sql',import.meta.url),'utf8');
+ await pool.query(ledgerSql);
  await pool.query('INSERT INTO qa_core_replication_stage.change_outbox'+
   ' (operation_id,collection_name,document_path,operation,document_json,payload_sha256)'+
   " VALUES ($1,'qa_evaluations',$2,'upsert',$3::jsonb,$4)",
@@ -100,6 +110,12 @@ try{
  assert.equal(first.deliveryEligible,false);
  assert.equal(first.failoverReady,false);
  assert.equal((await run()).replay,true);
+ const ledger=(await pool.query(
+  'SELECT reserved_document_units,reserved_requests FROM '+
+  'qa_failover_v1.source_read_budget_daily WHERE project_id=$1',
+  [project])).rows[0];
+ assert.equal(ledger.reserved_document_units,2);
+ assert.equal(ledger.reserved_requests,2);
  const row=(await pool.query('SELECT observed_revision,field_hash,document_hash,'+
   ' review_status,delivery_eligible,source_continuity_certified'+
   ' FROM '+table+' WHERE operation_id=$1',[event.operationId])).rows[0];
