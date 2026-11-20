@@ -193,9 +193,9 @@ jobs:
         run: |
           node scripts/test-qa-core-private-outbox-stage-integration.mjs
           node scripts/test-qa-core-mutation-coordinator-integration.mjs
-          node scripts/test-qa-core-source-verification-candidate-integration.mjs
           node scripts/test-qa-windows-source-signal-integration.mjs
           node scripts/test-qa-windows-verified-candidate-integration.mjs
           node scripts/test-qa-windows-firestore-one-read-budget-integration.mjs
           node scripts/test-qa-source-read-budget-integration.mjs
           node scripts/test-qa-windows-reconciliation-integration.mjs
+          node scripts/test-qa-core-source-verification-candidate-integration.mjs
