@@ -13,7 +13,14 @@ function replaceOnce(source, before, after, label) {
 }
 
 let source = fs.readFileSync(signatureCenterPath, "utf8");
-if (!source.includes(marker)) {
+// Newer native payment-cycle integration already provides per-document
+// carry-over selection, visible-ink verification and confirmed-payment guards.
+// Do not reapply the legacy string-replacement v90 patch: it would replace the
+// safer payment selection and restore _Consolidated suffixes.
+const nativeCarryOver = source.includes("const selectedMonthCarryOverDocs = useMemo(") &&
+  source.includes("lateSignaturePaymentCycle(") &&
+  source.includes("fetchMonthlyPaymentBatch");
+if (!source.includes(marker) && !nativeCarryOver) {
   source = replaceOnce(
     source,
     '} from "./signatureStore";',
@@ -165,4 +172,6 @@ if (!source.includes(marker)) {
   fs.writeFileSync(signatureCenterPath, source, "utf8");
 }
 
-console.log("Patched Signature Center: consolidated on-time PDF/Excel roster and separate immutable payment batch history.");
+console.log(nativeCarryOver
+  ? "Skipped obsolete Signature Center carry-over v90 patch: native next-cycle and signature integrity rules are installed."
+  : "Patched Signature Center: consolidated on-time PDF/Excel roster and separate immutable payment batch history.");
