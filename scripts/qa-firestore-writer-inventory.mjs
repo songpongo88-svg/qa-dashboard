@@ -9,17 +9,22 @@ export const QA_CORE_COLLECTIONS=Object.freeze([
  'qa_signature_library','qa_evaluation_progress',
 ]);
 export const REVIEWED_WRITERS=Object.freeze({
- qa_evaluations:['src/evaluationStore.ts'],
+ qa_evaluations:['src/evaluationStore.ts','src/usernamePolicyMigrationStore.ts'],
  qa_appeal_events:['src/appealStore.ts'],
- qa_signature_documents:['src/signatureStore.ts'],
- qa_user_profiles:['src/userRoleStore.ts'],
+ qa_signature_documents:['src/signatureStore.ts','src/monthlyResultLockStore.ts','src/paymentCarryOverStore.ts'],
+ qa_user_profiles:['src/userRoleStore.ts','src/App.tsx',
+  'src/CorporateUserDirectoryProfile.tsx','src/profileHistoryStore.ts',
+  'src/characterThemes/account.ts','src/lineDrawing/account.ts',
+  'src/specialThemes/usage.ts','src/usernamePolicyMigrationStore.ts'],
  qa_role_permissions:['src/userRoleStore.ts'],
  qa_user_sessions:['src/sessionStore.ts'],
- qa_user_session_controls:['src/sessionStore.ts'],
+ qa_user_session_controls:['src/sessionStore.ts','src/usernamePolicyMigrationStore.ts'],
  qa_role_definitions:['src/userRoleStore.ts'],
- qa_system_settings:['src/userRoleStore.ts'],
+ qa_system_settings:['src/userRoleStore.ts','src/evaluationTagStore.ts',
+  'src/maintenanceControlStore.ts','src/lineDrawing/release.ts'],
  qa_signature_library:['src/signatureStore.ts'],
- qa_evaluation_progress:['src/qaEvaluationProgressStore.ts','src/evaluationStore.ts'],
+ qa_evaluation_progress:['src/qaEvaluationProgressStore.ts',
+  'src/evaluationStore.ts','src/usernamePolicyMigrationStore.ts'],
 });
 const extension=/\.(?:js|jsx|ts|tsx|mjs|cjs)$/i;
 const ignored=new Set(['node_modules','dist','build','.git','.vercel','coverage','vendor']);
