@@ -1090,7 +1090,8 @@ async function claimDailyCheckin(body, actor) {
       const history = {
         createdAt: now, type: "earn", source: "quest-daily-checkin",
         questId: quest.id, questDate: today,
-        title: "Daily Check-in Reward", detail: "เช็กอินวันที่ " + dayNumber + " พฤศจิกายน 2026",
+        title: quest === DAILY_CHECKIN_PHASE_2 ? "Daily Check-in Phase 2 Reward" : "Daily Check-in Reward",
+        detail: (quest === DAILY_CHECKIN_PHASE_2 ? "Phase 2 · " : "") + "เช็กอินวันที่ " + dayNumber + " พฤศจิกายน 2026",
         amount: quest.reward, balanceAfter: nextBalance,
         performedBy: actor.username, status: "Completed",
       };
