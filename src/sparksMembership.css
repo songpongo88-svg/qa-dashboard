@@ -254,3 +254,22 @@
 .qa-birthday-gift .qa-birthday-saved,.qa-birthday-gift .qa-birthday-claimed {font-weight:500;color:#65468b}
 
 .qa-sparks-membership .qa-mcard-number {display:block;margin-top:2px;color:var(--muted-ink);font-size:clamp(8px,2.35cqi,11px);line-height:1.15;letter-spacing:.045em;font-weight:500;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+
+/* 12-digit card number in the user-highlighted area beneath the tier finish.
+   Leave every tier's existing artwork, foil, palette and card proportions intact. */
+.qa-sparks-membership .qa-mcard-main { position:relative;z-index:3; }
+.qa-sparks-membership .qa-mcard-cardid { display:flex;flex-direction:column;align-items:flex-start;gap:2px;margin-top:clamp(8px,2.7cqi,13px);max-width:80%; }
+.qa-sparks-membership .qa-mcard-cardid span { font-size:clamp(7px,2cqi,9px);letter-spacing:.12em;font-weight:600;color:var(--muted-ink); }
+.qa-sparks-membership .qa-mcard-cardid strong {
+  font-family:inherit;font-size:clamp(13px,4cqi,19px);line-height:1.14;font-variant-numeric:tabular-nums;
+  letter-spacing:.09em;font-weight:650;color:var(--ink);
+  text-shadow:0 1px 9px color-mix(in srgb,var(--foil) 20%,transparent);
+  overflow-wrap:normal;white-space:nowrap;
+}
+.qa-sparks-membership .qa-mcard-dob { display:flex;align-items:baseline;flex-wrap:wrap;gap:3px 7px;margin-top:clamp(3px,1cqi,6px); }
+.qa-sparks-membership .qa-mcard-dob span { color:var(--muted-ink);font-size:clamp(7px,1.9cqi,9px);letter-spacing:.055em; }
+.qa-sparks-membership .qa-mcard-dob strong { font-size:clamp(9px,2.7cqi,12px);font-weight:600;white-space:nowrap; }
+@container (max-width:340px) {
+ .qa-sparks-membership .qa-mcard-cardid strong {letter-spacing:.045em;font-size:clamp(12px,4cqi,15px);}
+ .qa-sparks-membership .qa-mcard-cardid { margin-top:5px; }
+}
