@@ -32,7 +32,13 @@ function readTicket(value, actor, session) {
 const today = () => new Intl.DateTimeFormat("en-CA", {timeZone:"Asia/Bangkok",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
 const themes=Object.keys(MATCH_THEMES);
 const validTheme=value=>themes.includes(value)?value:matchThemeAt();
-const themeStats=(stats,theme)=>stats.byTheme?.[theme]||(theme==="fruit"?stats:{});
+const themeStats=(stats,theme)=> {
+  if(stats.byTheme?.[theme])return stats.byTheme[theme];
+  if(theme!=="fruit")return {};
+  return {played:stats.played,wins:stats.wins,completed:stats.completed,best:stats.best||null,
+    history:Array.isArray(stats.history)?stats.history.filter(row=>!row.theme||row.theme==="fruit").slice(-10):[],
+    totalSparks:stats.totalSparks};
+};
 function publicStats(stats,theme=matchThemeAt()) {
   const t=themeStats(stats,theme);
   return {
