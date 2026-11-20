@@ -95,6 +95,26 @@ try{
  const cursor=(await pool.query('SELECT last_sequence FROM qa_windows_receiver_lab.stream_cursor'+
   ' WHERE stream_id=$1',[streamId])).rows[0];
  assert.equal(Number(cursor.last_sequence),3);
+ // A second envelope with an already used operation ID cannot become a
+ // different sequence, even if it is correctly signed by the fixture key.
+ const reusedOperation={...mkEvent(4,{
+  docId:'AA_SYNTH_0004',rev:'2026-11-20T08:45:00.123456Z'}),
+  operationId:first.operationId};
+ await assert.rejects(run(reusedOperation),e=>e.code==='23505');
+ assert.equal(Number((await pool.query(
+  'SELECT last_sequence FROM qa_windows_receiver_lab.stream_cursor'+
+  ' WHERE stream_id=$1',[streamId])).rows[0].last_sequence),3);
+ // SQL must reject wildcard-like lookalikes for collection prefixes.
+ await assert.rejects(pool.query(
+  'INSERT INTO qa_windows_receiver_lab.inbox'+
+  ' (stream_id,sequence,operation_id,collection_name,document_path,operation,'+
+  ' observed_revision,document_json,payload_sha256,envelope_sha256,signer_spki_sha256)'+
+  ' SELECT stream_id,4,$1,collection_name,$2,operation,observed_revision,'+
+  ' document_json,payload_sha256,envelope_sha256,signer_spki_sha256'+
+  ' FROM qa_windows_receiver_lab.inbox WHERE stream_id=$3 AND sequence=1',
+  ['qa-wildcard-stage-20261120-0004','qaXevaluations/AA_SYNTH_0001',streamId]),
+  e=>e.code==='23514');
+
  await assert.rejects(pool.query('UPDATE '+inbox+" SET review_status='delivered'"),e=>e.code==='23514');
  await assert.rejects(pool.query('UPDATE '+inbox+' SET delivery_eligible=true'),e=>e.code==='23514');
  await assert.rejects(pool.query('UPDATE '+inbox+' SET failover_eligible=true'),e=>e.code==='23514');
