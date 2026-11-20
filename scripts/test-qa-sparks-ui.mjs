@@ -237,8 +237,9 @@ try{
   }
   assert.ok(!main.querySelector(".qa-sparks-notes"), "remove mockup-only explanatory box");
   assert.ok(!main.textContent.includes("QA Learning"),"no QA Learning added against user's request");
-  assert.equal(main.querySelectorAll('[role="tab"]').length,7);
-   assert.ok(main.querySelector('#qa-sparks-tab-transfer')?.textContent.includes("โอน Sparks"),"transfer tab is visible to QA users");
+  assert.equal(main.querySelectorAll('[role="tab"]').length,6);
+  assert.ok(!main.querySelector('#qa-sparks-tab-transfer'),"transfer is no longer a separate tab");
+  assert.ok(main.querySelector('.qa-sparks-overview-transfer .sparks-transfer'),"transfer form is visible in Overview");
   assert.ok(main.querySelector('#qa-sparks-tab-games')?.textContent.includes("Mini Games"));
   assert.ok(!main.textContent.includes("Sparks Admin"), "ordinary users must not see admin management");
   assert.ok(!main.querySelector(".qa-sparks-reward-detail-primary"), "purchase action must be inside the detail modal only");
