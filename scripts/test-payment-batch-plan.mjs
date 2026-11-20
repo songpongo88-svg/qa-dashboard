@@ -39,7 +39,11 @@ assert.ok(!script.includes("generatePaymentPdfFile(selectedMonth, batchEligible,
   "do not export additional-only recipient list as the monthly summary");
 assert.ok(script.includes('batchEligible = onTimeRoster.filter'),
   "original and supplemental ledger continues to deduplicate generated batches");
-assert.ok(script.includes('"_Consolidated"'),"revised consolidated report uses distinct filename");
+assert.ok(script.includes('"_Consolidated"'),"consolidated state remains available internally for PDF labeling");
+const signatureSource=await fs.readFile(new URL("../src/SignatureCenterMockup.tsx",import.meta.url),"utf8");
+assert.ok(signatureSource.includes('return `Incentive_QA_Monthly_${label || monthKey}.pdf`;'),"all monthly payment PDFs have the canonical month filename without _Consolidated");
+assert.ok(signatureSource.includes('return `Incentive_QA_Monthly_${label || monthKey}.xlsx`;'),"all monthly payment Excel exports have the canonical month filename without _Consolidated");
+assert.ok(!signatureSource.includes('monthKey}${suffix}.pdf`'),"no historical suffix may leak into PDF filename");
 const pdf=await fs.readFile(new URL("../build/signaturePaymentPdfPatch.js",import.meta.url),"utf8");
 assert.ok(pdf.includes("ALL ELIGIBLE AGENTS"),"consolidated PDF includes original and new recipients");
 assert.ok(pdf.includes("Eligible Agents"),"file must not claim that generating the PDF paid anyone");

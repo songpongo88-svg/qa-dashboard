@@ -1831,9 +1831,11 @@ function getOverallPdfGradeLabel(avgScore: number) {
 }
 
 
-function makePaymentFileName(monthKey: string, suffix = "") {
+function makePaymentFileName(monthKey: string, _suffix = "") {
   const label = getMonthLabel(monthKey).replace(/\s+/g, "_").replace(/[^a-zA-Z0-9_ก-๙]+/g, "");
-  return `Incentive_QA_Monthly_${label || monthKey}${suffix}.xlsx`;
+  // Additional/consolidated batch status belongs inside the document and ledger,
+  // not in the user-facing monthly export filename.
+  return `Incentive_QA_Monthly_${label || monthKey}.xlsx`;
 }
 
 function getDocumentIncentive(doc: SignatureDocument) {
@@ -2024,9 +2026,10 @@ function generatePaymentExcelFile(
   XLSX.writeFile(workbook, makePaymentFileName(monthKey,suffix));
 }
 
-function makePaymentPdfFileName(monthKey: string, suffix = "") {
+function makePaymentPdfFileName(monthKey: string, _suffix = "") {
   const label = getMonthLabel(monthKey).replace(/\s+/g, "_").replace(/[^a-zA-Z0-9_ก-๙]+/g, "");
-  return `Incentive_QA_Monthly_${label || monthKey}${suffix}.pdf`;
+  // Always expose the canonical month filename, even for consolidated batches.
+  return `Incentive_QA_Monthly_${label || monthKey}.pdf`;
 }
 
 function generatePaymentPdfFile(
