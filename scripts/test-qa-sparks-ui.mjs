@@ -134,7 +134,8 @@ try{
   assert.ok(profileQuest.classList.contains("qa-sparks-mini-item"), "Profile Makeover uses mini slot");
   const lotteryQuest=main.querySelector('[data-quest-item="qa-lottery"]');
   assert.ok(lotteryQuest && lotteryQuest.classList.contains("qa-sparks-mini-item"), "QA Lottery uses the same compact Quest slot");
-  assert.equal(main.querySelectorAll(".qa-sparks-quest-grid > .qa-sparks-mini-item").length,3, "all three Quests align in one grid");
+  assert.equal(main.querySelectorAll(".qa-sparks-quest-grid > .qa-sparks-mini-item").length,4, "three Quests plus Spark Transfer Item align in one grid");
+  assert.ok(main.querySelector('[data-quest-item="spark-transfer"]'),"Overview shows compact Spark Transfer Item");
   assert.equal(main.querySelectorAll(".qa-sparks-reward-grid .qa-sparks-mini-item").length,9, "Reward Center includes Mining Lucky Boost, Auto-Pass, Typing Relief, Shield, TrueMoney and four brand rewards");
   assert.ok(main.querySelector('[data-reward-item="mining-lucky-boost"]'),"Mining Lucky Boost 25 Sparks is present");
   const overviewPanels=main.querySelectorAll(".qa-sparks-dual > .qa-sparks-panel");
@@ -239,7 +240,8 @@ try{
   assert.ok(!main.textContent.includes("QA Learning"),"no QA Learning added against user's request");
   assert.equal(main.querySelectorAll('[role="tab"]').length,6);
   assert.ok(!main.querySelector('#qa-sparks-tab-transfer'),"transfer is no longer a separate tab");
-  assert.ok(main.querySelector('.qa-sparks-overview-transfer .sparks-transfer'),"transfer form is visible in Overview");
+  assert.ok(main.querySelector('[data-quest-item="spark-transfer"]'),"transfer item is visible in Overview");
+  assert.ok(!main.querySelector(".qa-sparks-overview-transfer"),"no large Overview form");
   assert.ok(main.querySelector('#qa-sparks-tab-games')?.textContent.includes("Mini Games"));
   assert.ok(!main.textContent.includes("Sparks Admin"), "ordinary users must not see admin management");
   assert.ok(!main.querySelector(".qa-sparks-reward-detail-primary"), "purchase action must be inside the detail modal only");
