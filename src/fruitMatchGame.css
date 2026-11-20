@@ -45,3 +45,5 @@
 .qfm-face img.qfm-cat-photo{width:100%;height:100%;object-fit:cover;border-radius:8px}
 .qfm-root .qfm-heading{align-items:flex-start}
 @media(max-width:530px){.qfm-color-swatch{height:52px}.qfm-hero--cat img{height:63px}.qfm-hero--number>strong{font-size:24px;letter-spacing:3px}}
+
+.qfm-hero--color .qfm-color-swatch{position:static;top:auto;right:auto}
