@@ -38,7 +38,8 @@ CREATE TABLE IF NOT EXISTS qa_windows_receiver_lab.inbox (
   CHECK (failover_eligible=false),
  received_at timestamptz NOT NULL DEFAULT now(),
  PRIMARY KEY(stream_id,sequence),
- CHECK (document_path LIKE collection_name || '/%' AND
+ CHECK (left(document_path,length(collection_name)+1)=collection_name || '/' AND
+  length(document_path)>length(collection_name)+1 AND
   position('/' IN substring(document_path FROM length(collection_name)+2))=0)
 );
 CREATE INDEX IF NOT EXISTS qa_windows_receiver_lab_path_seq_idx
