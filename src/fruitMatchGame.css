@@ -62,3 +62,8 @@
 .qfm-rank-icon{display:inline-block;width:25px;height:25px;border-radius:6px;vertical-align:middle;margin-right:5px;border:1px solid #cad9e9}
 .qfm-rank-number{background:#e8f0ff;color:#153b84;font-weight:700;font-size:12px;text-align:center;line-height:24px}
 .qfm-player-fruit.qfm-rank-cat{object-fit:cover;border-radius:7px}
+
+.qfm-recovery{margin-top:12px;padding:11px;border:1px solid #f2cf8b;background:#fff9ea;border-radius:12px}
+.qfm-recovery p{font-size:12px;color:#805510;margin:0 0 8px}
+.qfm-recovery button{width:100%;min-height:42px;border:0;border-radius:9px;background:#aa661a;color:#fff;font-weight:600;font-size:12px}
+.qfm-recovery button:disabled{opacity:.6}
