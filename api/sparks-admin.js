@@ -1046,6 +1046,97 @@ async function markTrueMoneyPaid(body,admin){
   }
   fail("รายการนี้ถูกยืนยันพร้อมกันแล้ว กรุณารีเฟรช Tracker",409);
 }
+
+const BIRTHDAY_2026_POINTS = [50,75,100,150,200,300,400,500,750,1000];
+const MEMBERSHIP_THRESHOLDS = [0,1000,5000,20000,50000,100000,150000,200000,300000,500000];
+const MEMBER_CHECKIN_BONUS = [0,5,5,10,10,15,15,20,20,25];
+function sparksMemberIndex(earned) {
+  let tier=0;
+  for(let i=1;i<MEMBERSHIP_THRESHOLDS.length;i++)
+    if(intCount(earned)>=MEMBERSHIP_THRESHOLDS[i])tier=i;
+  return tier;
+}
+function validBirthdayMMDD(raw) {
+  const value=String(raw||"");
+  if(!/^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$/.test(value))return false;
+  // Feb 29 is valid in leap years. All other impossible dates must be rejected.
+  const [mm,dd]=value.split("-").map(Number);
+  const date=new Date(Date.UTC(2024,mm-1,dd));
+  return date.getUTCMonth()===mm-1 && date.getUTCDate()===dd;
+}
+async function saveMemberBirthday(body,actor) {
+  const mmdd=String(body.birthdayMMDD||"");
+  if(!validBirthdayMMDD(mmdd))fail("วันเกิดไม่ถูกต้อง",400);
+  const walletPath=walletDocumentPath(actor.username);
+  for(let attempt=0;attempt<4;attempt++){
+    const begin=await firestoreRequest(":beginTransaction","POST",{options:{readWrite:{}}});
+    const transaction=begin?.transaction;
+    if(!transaction)fail("Birthday registration unavailable",503);
+    try {
+      const doc=await readDoc(walletPath,transaction);
+      const wallet=recordValue(doc);
+      if(wallet.birthdayMMDD===mmdd)return {ok:true,birthdayMMDD:mmdd,alreadySaved:true};
+      if(wallet.birthdayClaimed2026At || wallet.birthdayLockedAt)
+        fail("วันเกิดถูกยืนยันแล้ว หากต้องการแก้ไขกรุณาติดต่อ Admin",409);
+      const now=new Date().toISOString();
+      await firestoreRequest(":commit","POST",{transaction,writes:[updateWrite(walletPath,{
+        username:actor.username,birthdayMMDD:mmdd,birthdayUpdatedAt:now,updatedAt:now
+      },doc)]});
+      return {ok:true,birthdayMMDD:mmdd,updated:true};
+    }catch(error){
+      if(["ABORTED","FAILED_PRECONDITION"].includes(error?.firestoreStatus)&&attempt<3)continue;
+      throw error;
+    }
+  }
+  fail("ไม่สามารถบันทึกวันเกิดพร้อมกันได้",409);
+}
+async function claimMemberBirthday(body,actor) {
+  const today=bangkokQuestDate();
+  const year=Number(today.slice(0,4));
+  const walletPath=walletDocumentPath(actor.username);
+  const historyPath=path("qa_sparks_wallets",walletKey(actor.username),"history","birthday-gift-2026");
+  for(let attempt=0;attempt<4;attempt++){
+    const begin=await firestoreRequest(":beginTransaction","POST",{options:{readWrite:{}}});
+    const transaction=begin?.transaction;
+    if(!transaction)fail("Birthday Gift unavailable",503);
+    try {
+      const [snap,claimed]=await Promise.all([readDoc(walletPath,transaction),readDoc(historyPath,transaction)]);
+      const wallet=recordValue(snap);
+      if(claimed||wallet.birthdayClaimed2026At)
+        return {ok:true,alreadyClaimed:true,claimedAt:wallet.birthdayClaimed2026At||recordValue(claimed).createdAt};
+      if(year!==2026)fail("การรับของขวัญย้อนหลังปี 2569 สิ้นสุดแล้ว",400);
+      const mmdd=String(wallet.birthdayMMDD||"");
+      if(!validBirthdayMMDD(mmdd))fail("กรุณาบันทึกวันเกิดก่อนรับของขวัญ",400);
+      // Retroactive eligibility for every 2026 birthday already elapsed.
+      // Feb 29 is observed on Feb 28 in 2026 (non-leap year).
+      const observed=mmdd==="02-29"?"02-28":mmdd;
+      if(observed>today.slice(5))fail("ยังไม่ถึงวันเกิดของคุณในปี 2569",400);
+      const annual=annualEarnedFromWallet(wallet,2026);
+      const amount=BIRTHDAY_2026_POINTS[sparksMemberIndex(annual)];
+      const now=new Date().toISOString();
+      const nextBalance=spendableBalance(wallet,2026)+amount;
+      const nextAnnual=annual+amount;
+      await firestoreRequest(":commit","POST",{transaction,writes:[
+        updateWrite(walletPath,{
+          username:actor.username,birthdayClaimed2026At:now,birthdayLockedAt:now,
+          balance:nextBalance,balanceYear:2026,totalEarned:intCount(wallet.totalEarned)+amount,
+          memberYear:2026,memberYearEarned:nextAnnual,updatedAt:now
+        },snap),
+        createWrite(historyPath,{
+          createdAt:now,type:"earn",source:"membership-birthday",title:"Birthday Gift 2026",
+          detail:"โบนัสวันเกิดประจำปี 2569 (รวมสิทธิ์ย้อนหลัง)",amount,
+          balanceAfter:nextBalance,performedBy:actor.username,status:"Completed"
+        })
+      ]});
+      return {ok:true,updated:true,amount,balance:nextBalance,memberYearEarned:nextAnnual};
+    }catch(error) {
+      if(["ABORTED","FAILED_PRECONDITION"].includes(error?.firestoreStatus)&&attempt<3)continue;
+      throw error;
+    }
+  }
+  fail("ไม่สามารถรับโบนัสพร้อมกันได้",409);
+}
+
 async function claimDailyCheckin(body, actor) {
   // This must be checked on the server, never inferred from user device time.
   const today = bangkokQuestDate();
@@ -1053,7 +1144,7 @@ async function claimDailyCheckin(body, actor) {
   if (today > DAILY_CHECKIN_PHASE_2.end) fail("Daily Check-in สิ้นสุดแล้ว ไม่สามารถรับรางวัลย้อนหลังได้", 400);
   const quest = today >= DAILY_CHECKIN_PHASE_2.start ? DAILY_CHECKIN_PHASE_2 : DAILY_CHECKIN_QUEST;
   const isLoyKrathong = quest === DAILY_CHECKIN_PHASE_2 && today === quest.specialDate;
-  const reward = isLoyKrathong ? quest.specialReward : quest.reward;
+  const baseReward = isLoyKrathong ? quest.specialReward : quest.reward;
   const selected = String(body.questDate || "");
   if (selected !== today) fail("รับรางวัลได้เฉพาะวันที่ปัจจุบัน (เวลาไทย) ไม่สามารถรับย้อนหลังหรือล่วงหน้าได้", 400);
   const dayNumber = Number(today.slice(-2));
@@ -1076,6 +1167,7 @@ async function claimDailyCheckin(body, actor) {
       }
       const memberYear = currentMemberYear();
       const earnedThisYear = annualEarnedFromWallet(wallet, memberYear);
+      const reward = baseReward + MEMBER_CHECKIN_BONUS[sparksMemberIndex(earnedThisYear)];
       const now = new Date().toISOString();
       // Never reduce earned levels when tickets are redeemed.
       const lifetimeEarned = Math.max(intCount(wallet.totalEarned), intCount(wallet.firstLogin?.amount));
@@ -1997,6 +2089,12 @@ async function sparksHandler(req, res) {
     if (body.action === "claim-profile-makeover") {
       const actor = await authorizeRewardUser(body);
       return res.status(200).json(await claimProfileMakeover(actor));
+    }
+    if (body.action === "save-member-birthday" || body.action === "claim-member-birthday") {
+      const actor = await authorizeRewardUser(body);
+      const result = body.action === "save-member-birthday"
+        ? await saveMemberBirthday(body,actor) : await claimMemberBirthday(body,actor);
+      return res.status(200).json(result);
     }
     if (body.action === "claim-daily-checkin") {
       const actor = await authorizeRewardUser(body);
