@@ -19,7 +19,7 @@ for(const key of ["window","document","HTMLElement","MutationObserver","Event","
 globalThis.IS_REACT_ACT_ENVIRONMENT=true;
 const oldFetch=globalThis.fetch;
 const calls=[];
-const state={price:120,maxPerDraw:2,draw:{date:"2026-11-16",status:"pending",tickets:[]},
+const state={price:80,maxPerDraw:2,draw:{date:"2026-11-16",status:"pending",tickets:[]},
   previous:{date:"2026-11-01",status:"published",officialResult:{
     date:"2026-11-01",first:"123456",back3:["456","100"],last2:"56",
     source:"GLO"
@@ -31,7 +31,7 @@ globalThis.fetch=async (url,opts)=>{
   if(data.action==="qa-lottery-state")return {ok:true,json:async()=>structuredClone(state)};
   if(data.action==="qa-lottery-buy"){
     state.draw.tickets.push({id:data.requestId,number:data.number,createdAt:new Date().toISOString(),paidAt:null,prize:0,matched:[]});
-    return {ok:true,json:async()=>({alreadyPurchased:false,number:data.number,drawDate:data.drawDate,balance:380})};
+    return {ok:true,json:async()=>({alreadyPurchased:false,number:data.number,drawDate:data.drawDate,balance:420})};
   }
   throw Error("Unexpected QA Lottery request "+data.action);
 };
@@ -50,7 +50,7 @@ try{
   assert.ok(card.matches("button.qa-sparks-mini-item.qa-sparks-mini-item--lottery"));
   assert.ok(card.querySelector(".qa-sparks-mini-art--lottery"));
   assert.ok(card.textContent.includes("QA Lottery"));
-  assert.ok(card.textContent.includes("120 Sparks"));
+  assert.ok(card.textContent.includes("80 Sparks"));
   assert.equal(rootNode.querySelector(".ql-card"),null,"old full-width banner removed");
   assert.equal(document.querySelector(".ql-modal"),null,"details must not render before click");
   assert.equal(calls.length,0,"the quest card must not poll the backend");
