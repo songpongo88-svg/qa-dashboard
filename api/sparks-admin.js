@@ -1334,7 +1334,7 @@ async function loadUserHistory(username) {
   const history = appendKnownItemExpirations(rows.documents.map(toHistory),recordValue(walletDoc))
     .sort((a,b) => b.createdAt.localeCompare(a.createdAt));
   const refunded = new Set(history.filter((x) => x.source === "reward-refund").map((x) => x.referenceId));
-  const enriched = history.map((entry) => entry.source === "reward-redemption" && refunded.has(entry.id)
+  const enriched = history.map((entry) => ["reward-redemption","mining-boost-purchase"].includes(entry.source) && refunded.has(entry.id)
     ? { ...entry, status: "Refunded" } : entry);
   const calculatedEarned = enriched.filter((x) => x.amount > 0).reduce((a, x) => a + x.amount, 0);
   const calculatedSpent = enriched.filter((x) => x.amount < 0).reduce((a, x) => a - x.amount, 0);
@@ -1579,9 +1579,11 @@ async function adjustBalance(body, admin) {
       let signedAmount = operation === "add" ? quantity : -quantity;
       let typingReliefRefund = false;
       let autoPassRefund = false;
+      let miningBoostRefund = false;
+      let nextMiningBoostQueue = null;
       if (operation === "refund") {
         const originalRow = recordValue(original);
-        if (originalRow.source !== "reward-redemption" || !Number.isSafeInteger(Number(originalRow.amount)) || Number(originalRow.amount) >= 0) {
+        if (!["reward-redemption","mining-boost-purchase"].includes(originalRow.source) || !Number.isSafeInteger(Number(originalRow.amount)) || Number(originalRow.amount) >= 0) {
           fail("ไม่พบรายการแลกรางวัลที่สามารถคืนคะแนนได้", 400);
         }
         // A redeemed reward may remain usable, but expired Sparks cannot be
@@ -1592,6 +1594,24 @@ async function adjustBalance(body, admin) {
           fail("ไม่สามารถคืน Sparks ของรายการแลกจากปีก่อน เพราะคะแนนหมดอายุแล้ว",400);
         }
         signedAmount = -Number(originalRow.amount);
+        if (originalRow.source === "mining-boost-purchase") {
+          if (originalRow.rewardId !== "mining-lucky-boost" || signedAmount !== 25 ||
+              !/^mining-boost-buy-\d{4}-\d{2}-\d{2}-[12]$/.test(referenceId))
+            fail("รายการ Mining Lucky Boost ไม่ถูกต้อง",400);
+          const available = intCount(data.miningBoostOwned);
+          const queue = Array.isArray(data.miningBoostAvailablePurchaseIds)
+            ? data.miningBoostAvailablePurchaseIds.filter(x=>typeof x==="string") : [];
+          if(available<1)fail("ไม่สามารถคืน Item ที่ใช้ไปแล้วได้",400);
+          if(queue.includes(referenceId)){
+            nextMiningBoostQueue=queue.filter(x=>x!==referenceId);
+          }else{
+            // Legacy purchases created before per-unit tracking was available:
+            // only refund when an untracked physical unit remains.
+            if(available<=queue.length)fail("Item รายการนี้ถูกใช้แล้วหรือไม่อยู่ในคลัง",400);
+            nextMiningBoostQueue=queue;
+          }
+          miningBoostRefund=true;
+        }
         if (originalRow.rewardId === "typing-relief") {
           if (intCount(data.typingReliefOwned) < 1) fail("ไม่สามารถคืนคะแนน Typing Relief ที่ใช้ไปแล้วได้", 400);
           typingReliefRefund = true;
@@ -1622,6 +1642,11 @@ async function adjustBalance(body, admin) {
         totalSpent: spending + Math.max(0, -signedAmount),
         updatedAt: now,
       };
+      if (miningBoostRefund) {
+        updated.miningBoostOwned = intCount(data.miningBoostOwned) - 1;
+        updated.miningBoostAvailablePurchaseIds = nextMiningBoostQueue;
+        updated.miningBoostRefunded = intCount(data.miningBoostRefunded) + 1;
+      }
       if (typingReliefRefund) {
         updated.typingReliefOwned = intCount(data.typingReliefOwned) - 1;
         updated.typingReliefRefunded = intCount(data.typingReliefRefunded) + 1;
@@ -1638,6 +1663,7 @@ async function adjustBalance(body, admin) {
         performedByName: admin.displayName, referenceId: operation === "refund" ? referenceId : "",
         requestId,
         status: "Completed",
+        ...(miningBoostRefund ? { rewardId: "mining-lucky-boost", quantity:-1, inventoryAfter:updated.miningBoostOwned } : {}),
         ...(typingReliefRefund ? { rewardId: "typing-relief" } : {}),
         ...(autoPassRefund ? { rewardId: "qa-access-auto-pass" } : {}),
       };
