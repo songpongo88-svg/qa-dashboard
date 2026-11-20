@@ -21,6 +21,8 @@ const report={
  collectionCount:records.length,records,
  sourceFilesScanned:inventory.sourceFilesScanned,
  sourceFilesSkipped:inventory.filesSkipped,
+ skippedPaths:inventory.skippedPaths,
+ qaCollectionWriterLeads:inventory.unreviewed.filter(v=>v.possibleCollections.length>0),
  candidateFirestoreWriterFiles:inventory.writerFiles,
  additionalUnreviewedWriterFiles:inventory.unreviewed.length,
  additionalUnreviewedWriters:inventory.unreviewed,
@@ -42,6 +44,9 @@ else{
  console.log('QA_NO_BILLING_FILES_SCANNED='+report.sourceFilesScanned);
  console.log('QA_NO_BILLING_ADDITIONAL_WRITER_LEADS='+report.additionalUnreviewedWriterFiles);
  console.log('QA_NO_BILLING_SOURCE_FILES_SKIPPED='+report.sourceFilesSkipped);
+ console.log('QA_NO_BILLING_QA_COLLECTION_LEADS='+report.qaCollectionWriterLeads.length);
+ console.log('QA_NO_BILLING_QA_LEAD_PATHS='+report.qaCollectionWriterLeads.slice(0,30).map(x=>x.path).join(','));
+ console.log('QA_NO_BILLING_SKIPPED_PATHS='+report.skippedPaths.slice(0,10).join(','));
  console.log('QA_NO_BILLING_MIRROR_STATUS=BLOCKED');
  console.log('QA_NO_BILLING_GUARANTEE=NOT_PROVEN');
  console.log('QA_FIRESTORE_READS_BY_AUDIT=0');
