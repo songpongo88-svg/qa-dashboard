@@ -29,3 +29,7 @@ A source write callback returning success is not by itself source-proof. A later
 No more Windows operator commands are needed for this CI stage. Do not repeat the 2,850 reserved-unit Firestore scan, deploy, merge the draft PR, enable the listener, or turn on Failover.
 
 **`QA_FAILOVER=OFF`**.
+
+## Test evidence
+
+GitHub Actions isolated safety run [#84](https://github.com/songpongo88-svg/qa-dashboard/actions/runs/44701060741) completed successfully in both **no-network-unit** and **isolated-postgres** jobs. The PostgreSQL 17 run explicitly passed the new source-proof integration fixture, including exact revision/fields checks, duplicate identity, RLS, and protection against marking candidate delivery-ready. These are synthetic tests only, not source Firestore or Windows acceptance.
