@@ -281,7 +281,7 @@ try{
   assert.ok(main.querySelector(".fifteen-board"),"15-Puzzle board must mount");
   assert.equal(main.querySelectorAll(".fifteen-tile").length,15,"15-Puzzle contains exactly 15 numbered tiles");
   assert.equal(main.querySelectorAll(".fifteen-blank").length,1,"15-Puzzle has one empty slot");
-  assert.ok(main.querySelectorAll(".fifteen-tile:not(:disabled)").length>=2,"adjacent tiles are movable");
+  assert.equal(main.querySelectorAll(".fifteen-tile:not(:disabled)").length,0,"15-Puzzle must charge 1 Spark on server before enabling board moves");
   await click('[data-sparks-back-to-games="true"]');
   await click('[data-sparks-game-card="fruit"]');
   assert.ok(main.querySelector('[data-sparks-back-to-games="true"]'),"Fruit Match retains back control");
