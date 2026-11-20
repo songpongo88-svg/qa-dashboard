@@ -4,6 +4,8 @@ import { jsPDF } from "jspdf";
 import { registerTHSarabunNew } from "./THSarabunNew-jsPDF";
 import { fetchStoredCoachingRecords, type StoredCoachingRecord } from "./coachingStore";
 import { canonicalAgentIdentityKey } from "./lib/agentIdentity";
+import { isAssignedSeniorSignature, isDaruneeOctober } from "./lib/monthlySeniorAssignment.mjs";
+import { signatureImageContainsInk } from "./lib/signatureInk.mjs";
 
 export type FinalSignedRole = "QA" | "Supervisor" | "Senior" | "Agent";
 
@@ -494,7 +496,22 @@ export async function renderFinalSignedPdf({
     ? [...topicRowsWithScore].sort((a, b) => Number(a.avgPercent) - Number(b.avgPercent))[0]
     : null;
 
-  const signedRoles = SIGNATURE_FLOW.filter((role) => Boolean(getCompletedEntry(entries, role))).length;
+  // Count only roles with visible image ink. A stored Signed timestamp alone
+  // does not establish that the PDF contains a genuine visible signature.
+  const strictInkVerification = selectedDocument.monthKey >= "2026-09";
+  const verifiedSignatureImage = new Map<FinalSignedRole, string>();
+  await Promise.all(SIGNATURE_FLOW.map(async role => {
+    const signed = getSignedEntry(entries, role);
+    if (!signed || !signed.signatureDataUrl || !await signatureImageContainsInk(signed.signatureDataUrl)) return;
+    // Preserve existing evidence, but do not attribute an old user's ink
+    // to newly assigned Senior Suphitcha on Darunee's October report.
+    if (role === "Senior" && isDaruneeOctober(selectedDocument.monthKey, selectedDocument.agentName) &&
+      !isAssignedSeniorSignature(selectedDocument, signed)) return;
+    verifiedSignatureImage.set(role, signed.signatureDataUrl || "");
+  }));
+  const signedRoles = SIGNATURE_FLOW.filter(role =>
+    Boolean(getWaivedEntry(entries, role)) ||
+    Boolean(getSignedEntry(entries,role) && (!strictInkVerification || verifiedSignatureImage.has(role)))).length;
   const isComplete = signedRoles === SIGNATURE_FLOW.length;
   const criticalCases = 0;
   const documentStatus = isComplete ? "Completed Signature" : "Incomplete Signature";
@@ -628,9 +645,11 @@ export async function renderFinalSignedPdf({
   };
   const signerDate = (role: FinalSignedRole) => {
     const signed = getSignedEntry(entries, role);
-    return signed ? formatDateTime(String(signed.signedAt || "")) : "";
+    // Never place a previous user's timestamp below the new assigned Senior.
+    return signed && (!strictInkVerification || verifiedSignatureImage.has(role))
+      ? formatDateTime(String(signed.signedAt || "")) : "";
   };
-  const signatureData = (role: FinalSignedRole) => getSignedEntry(entries, role)?.signatureDataUrl || "";
+  const signatureData = (role: FinalSignedRole) => verifiedSignatureImage.get(role) || "";
   const normalizedSignatures = new Map<FinalSignedRole, string>();
   for (const role of SIGNATURE_FLOW) {
     const signature = signatureData(role);
@@ -686,6 +705,10 @@ export async function renderFinalSignedPdf({
     drawCell(x, signatureAreaY, w, signatureAreaH, "", palePurple, { size: 6, align: "center" });
     drawSignedLine("ลงชื่อ", x, w, signLineY);
     const signature = normalizedSignatures.get(role) || "";
+    if (strictInkVerification && !signature && getSignedEntry(entries, role)) {
+      setTemplateFont(5.6, false, muted);
+      pdf.text("Signature requires verification", centerX, signLineY - 1.8, { align: "center" });
+    }
     if (signature) {
       try {
         const imageProps = pdf.getImageProperties(signature);

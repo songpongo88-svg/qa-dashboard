@@ -321,7 +321,7 @@ const replacement = String.raw`function generatePaymentPdfFile(
     }
     x += agentSignatureW;
 
-    const rowStatus = agentWaived ? "Waived - Resigned" : agentSigned ? "Completed" : "Pending";
+    const rowStatus = doc.carryOverFrom ? "Carry Over " + doc.carryOverFrom : agentWaived ? "Waived - Resigned" : agentSigned ? "Completed" : "Pending";
     drawTableCell(x, y, rankingHeaders[8][1], rowH, rowStatus, {
       fill,
       color: agentSigned ? green : agentWaived ? amber : muted,

@@ -31,6 +31,7 @@ const signatureStore = `
 `;
 const stubs = {
   signatureStore,
+  monthlyPaymentBatchStore: `export async function fetchMonthlyPaymentBatch(){return null}`,
   coachingStore: `export const fetchStoredCoachingRecords = async () => globalThis.__monthlyPdfFixture.coaching;`,
   evaluationStore: `export const fetchStoredEvaluations = async () => globalThis.__monthlyPdfFixture.evaluations;
     export const getStoredEvaluationMonthKey = record => record.auditDate?.slice(0, 7) || '';
@@ -114,7 +115,7 @@ try {
     setup(builder) {
       builder.onResolve({ filter: /\?url$/ }, () => ({ path: "fixture-worker", namespace: "pdf-worker-fixture" }));
       builder.onLoad({ filter: /.*/, namespace: "pdf-worker-fixture" }, () => ({ contents: 'export default "/fixture-worker.mjs";', loader: "js" }));
-      builder.onResolve({ filter: /(?:^|\/)(signatureStore|coachingStore|evaluationStore|appealStore|AppealRequestsMockup|jspdf)$/ }, (args) => {
+      builder.onResolve({ filter: /(?:^|\/)(signatureStore|monthlyPaymentBatchStore|coachingStore|evaluationStore|appealStore|AppealRequestsMockup|jspdf)$/ }, (args) => {
         if (args.namespace === "pdf-fixture") return { path: args.path, external: true };
         const key = args.path.split("/").pop();
         return { path: key, namespace: "pdf-fixture" };

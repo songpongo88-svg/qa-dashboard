@@ -22,6 +22,10 @@ import { canonicalAgentIdentityKey, canonicalizeAgentName } from "./lib/agentIde
 import { resolveMonthlySignatureDocument } from "./lib/monthlyPdfExport";
 import { fetchStoredCoachingRecords, type StoredCoachingRecord } from "./coachingStore";
 import { monthlyCoachingPaymentStatus } from "./monthlyCoachingPayment";
+import { assignedMonthlySenior, isAssignedSeniorSignature, isDaruneeOctober } from "./lib/monthlySeniorAssignment.mjs";
+import { canvasContainsSignatureInk, signatureImageContainsInk } from "./lib/signatureInk.mjs";
+import { carryOverCycle } from "./lib/paymentCarryOverCycle.mjs";
+import { fetchMonthlyPaymentBatch } from "./monthlyPaymentBatchStore";
 import { monthlyResultKey, monthlyResultScope } from "./monthlyResultLockStore";
 import { COACHING_WORKFLOW_START } from "./monthlyCoachingModel";
 import {
@@ -72,6 +76,7 @@ type SignatureEntry = {
   status: SignStatus;
   note?: string;
   signatureDataUrl?: string;
+  previousSignerEvidence?: { signerName: string; signedBy: string; signedAt: string };
   resetBy?: string;
   resetAt?: string;
   waiverReason?: string;
@@ -111,6 +116,9 @@ type SignatureDocument = {
   grade: string;
   eligibleByScore: boolean;
   documentHash: string;
+  // Payment cycle metadata only; never changes the performance month or QA score.
+  paymentCycle?: string;
+  carryOverFrom?: string;
   cases: SignatureCaseDetail[];
 };
 
@@ -1296,7 +1304,7 @@ export async function loadCanonicalSignatureDocuments(accounts: UserAccountSnaps
       document = {
         id, monthKey, monthLabel: getMonthLabel(monthKey), agentName,
         ...(account ? { agentId: account.username } : {}),
-        seniorName: resolveSeniorNameForAgent(account, item.seniorName || ""),
+        seniorName: assignedMonthlySenior(monthKey, agentName, resolveSeniorNameForAgent(account, item.seniorName || "")),
         supervisorName: resolveSupervisorName(item.supervisorName || ""),
         qaName: safeName(item.evaluatorName, getQaSignerNameByMonth(monthKey)),
         teamName: safeName(account?.teamName || item.teamName, "-"),
@@ -1382,7 +1390,7 @@ function getQaSignerNameByMonth(monthKey: string, fallback = "Quality Assurance"
 function getRoleSigner(doc: SignatureDocument, role: SignRole) {
   if (role === "QA") return getQaSignerNameByMonth(doc.monthKey, doc.qaName);
   if (role === "Supervisor") return resolveSupervisorName(doc.supervisorName);
-  if (role === "Senior") return resolveFallbackSignerName(doc.seniorName, DEFAULT_SUPERVISOR_SIGNER);
+  if (role === "Senior") return assignedMonthlySenior(doc.monthKey, doc.agentName, resolveFallbackSignerName(doc.seniorName, DEFAULT_SUPERVISOR_SIGNER));
   return doc.agentName;
 }
 
@@ -1743,7 +1751,8 @@ function isPaymentReadyDocument(
   pendingAppealCaseMap: Map<string, PendingAppealCase>,
   coachingRecords: StoredCoachingRecord[] = []
 ) {
-  const signedComplete = SIGNATURE_FLOW.every((role) => Boolean(getCompletedEntry(entries, role)));
+  const signedComplete = SIGNATURE_FLOW.every((role) => Boolean(getCompletedEntry(entries, role))) &&
+    isAssignedSeniorSignature(doc, getSignedEntry(entries, "Senior"));
   const hasPending = !isHistoricalPaidPeriod(doc.monthKey) && doc.cases.some((item) => pendingAppealCaseMap.has(item.caseId));
   const signedWithinCycle = SIGNATURE_FLOW.every((role) => {
     const waived = getWaivedEntry(entries, role);
@@ -1779,6 +1788,10 @@ function paymentExclusionReasons(
   if (incompleteRoles.length) {
     reasons.push("ลายเซ็นยังไม่ครบ: " + incompleteRoles.map(roleThaiLabel).join(", "));
   }
+  if (isDaruneeOctober(doc.monthKey, doc.agentName) &&
+      !isAssignedSeniorSignature(doc, getSignedEntry(entries, "Senior"))) {
+    reasons.push("Senior ผู้รับผิดชอบคือ Suphitcha Keawliam แต่ผู้ลงนามที่บันทึกยังไม่ตรง ต้องตรวจสอบหรือเซ็นใหม่");
+  }
   for (const role of SIGNATURE_FLOW) {
     const entry = getCompletedEntry(entries, role);
     if (!entry) continue;
@@ -1811,7 +1824,8 @@ function isLateSignedDocument(
   pendingAppealCaseMap: Map<string, PendingAppealCase>,
   coachingRecords: StoredCoachingRecord[] = []
 ) {
-  const signedComplete = SIGNATURE_FLOW.every((role) => Boolean(getCompletedEntry(entries, role)));
+  const signedComplete = SIGNATURE_FLOW.every((role) => Boolean(getCompletedEntry(entries, role))) &&
+    isAssignedSeniorSignature(doc, getSignedEntry(entries, "Senior"));
   const hasPending = !isHistoricalPaidPeriod(doc.monthKey) && doc.cases.some((item) => pendingAppealCaseMap.has(item.caseId));
   const hasLateCompletion = SIGNATURE_FLOW.some((role) => {
     const waived = getWaivedEntry(entries, role);
@@ -1823,6 +1837,20 @@ function isLateSignedDocument(
   });
   const coaching = monthlyCoachingPaymentStatus(doc.monthKey, doc.agentName, coachingRecords, doc.agentId);
   return signedComplete && (hasLateCompletion || !coaching.onTime) && !hasPending && coaching.complete;
+}
+
+function lateSignaturePaymentCycle(
+  doc: SignatureDocument, entries: SignatureEntry[], records: StoredCoachingRecord[],
+) {
+  const timestamps = SIGNATURE_FLOW.map(role => {
+    const entry = getCompletedEntry(entries, role);
+    return Date.parse(entry?.signedAt || entry?.waivedAt || "");
+  }).filter(Number.isFinite);
+  if (timestamps.length !== SIGNATURE_FLOW.length) return "";
+  const latest = new Date(Math.max(...timestamps)).toISOString();
+  const coaching = monthlyCoachingPaymentStatus(doc.monthKey, doc.agentName, records, doc.agentId);
+  if (!coaching.complete) return "";
+  return carryOverCycle(doc.monthKey, latest, coaching.completedAt);
 }
 
 function getSignatureValidationRoleText(
@@ -1968,7 +1996,7 @@ function generatePaymentExcelFile(
     const supervisorSigner = getSignatureValidationRoleText(doc, entries, "Supervisor");
     const seniorSigner = getSignatureValidationRoleText(doc, entries, "Senior");
     const agentSigner = getSignatureValidationRoleText(doc, entries, "Agent");
-    const rowStatus = getSignatureValidationStatus(doc, entries);
+    const rowStatus = doc.carryOverFrom ? `Carry Over From ${doc.carryOverFrom}` : getSignatureValidationStatus(doc, entries);
     const lastSignedAt =
       SIGNATURE_FLOW.map((role) => {
         const completed = getCompletedEntry(entries, role);
@@ -2275,7 +2303,7 @@ function generatePaymentPdfFile(
     if (y === 24) drawTableHeader(rankingHeaders);
 
     const entries = effectiveEntriesForDoc(doc, signatures);
-    const statusText = getSignatureValidationStatus(doc, entries);
+    const statusText = doc.carryOverFrom ? `Carry Over From ${doc.carryOverFrom}` : getSignatureValidationStatus(doc, entries);
     const incentive = getDocumentIncentive(doc);
     const incentiveText = totalPromoAmount > 0
       ? `${formatBahtAmount(incentive.cash)} + ${formatBahtAmount(incentive.promo)}`
@@ -2509,8 +2537,8 @@ function SignaturePadModal({
   const saveSignature = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    if (!hasDrawnRef.current) {
-      window.alert("กรุณาวาดลายเซ็นก่อนกดยืนยันเซ็นใหม่");
+    if (!hasDrawnRef.current || !canvasContainsSignatureInk(canvas)) {
+      window.alert("ลายเซ็นว่างหรือยังไม่มีเส้นจริง กรุณาวาดลายเซ็นก่อนกดยืนยัน");
       return;
     }
     onSave(canvas.toDataURL("image/png"), saveToLibrary);
@@ -2677,6 +2705,7 @@ export default function SignatureCenterMockup({
   const [coachingRecords, setCoachingRecords] = useState<StoredCoachingRecord[]>([]);
   const [coachingStatusVerified, setCoachingStatusVerified] = useState(false);
   const [signatures, setSignatures] = useState<Record<string, SignatureEntry[]>>(() => readSignatureStore());
+  const [monthlyInkIntegrity, setMonthlyInkIntegrity] = useState<Record<string, Partial<Record<SignRole, boolean>>>>({});
   const [signatureLibrary, setSignatureLibrary] = useState<Record<string, string>>(() => readSignatureLibraryStore());
   const [signatureStatusClock, setSignatureStatusClock] = useState(() => Date.now());
   const [confirmedDocs, setConfirmedDocs] = useState<Record<string, string>>(() => readConfirmedStore());
@@ -3075,23 +3104,42 @@ export default function SignatureCenterMockup({
     return documents.filter((doc) => doc.monthKey === selectedMonth);
   }, [documents, selectedMonth]);
 
+  // Read-only integrity check on Darunee October's previously recorded images.
+  // Do not silently convert a transparent PNG into a valid Signed status.
+  useEffect(() => {
+    let active = true;
+    const targets = documents.filter(doc => isDaruneeOctober(doc.monthKey, doc.agentName));
+    if (!targets.length) return;
+    void Promise.all(targets.map(async doc => {
+      const entries = effectiveEntriesForDoc(doc, signatures);
+      const checks = await Promise.all(SIGNATURE_FLOW.map(async role => {
+        const signed = getSignedEntry(entries, role);
+        return [role, Boolean(signed && await signatureImageContainsInk(signed.signatureDataUrl || ""))] as const;
+      }));
+      return [doc.id, Object.fromEntries(checks)] as const;
+    })).then(items => {
+      if (active) setMonthlyInkIntegrity(Object.fromEntries(items));
+    }).catch(error => console.warn("Monthly ink integrity verification failed", error));
+    return () => { active = false; };
+  }, [documents, signatures]);
+
   // Read-only audit: show why a monthly evaluated agent is absent from Payment.
   // This never changes signature, coaching, appeal, recipient, or payment data.
   const selectedMonthPaymentAudit = useMemo(() => {
     if (selectedMonth === "all") return [];
-    return selectedMonthAllDocs.map(doc => ({
-      doc,
-      reasons: paymentExclusionReasons(
-        doc,
-        effectiveEntriesForDoc(doc, signatures),
-        pendingAppealCaseMap,
-        coachingRecords,
-        coachingStatusVerified,
-        appealStatusVerified,
-        currentUser,
-      ),
-    })).filter(item => item.reasons.length > 0);
-  }, [appealStatusVerified, coachingRecords, coachingStatusVerified, currentUser, pendingAppealCaseMap, selectedMonth, selectedMonthAllDocs, signatures]);
+    return selectedMonthAllDocs.map(doc => {
+      const reasons = paymentExclusionReasons(
+        doc, effectiveEntriesForDoc(doc, signatures), pendingAppealCaseMap,
+        coachingRecords, coachingStatusVerified, appealStatusVerified, currentUser,
+      );
+      if (isDaruneeOctober(doc.monthKey, doc.agentName) &&
+          getSignedEntry(effectiveEntriesForDoc(doc, signatures), "Agent") &&
+          monthlyInkIntegrity[doc.id]?.Agent === false) {
+        reasons.push("Agent มีบันทึก Signed แต่ไฟล์ภาพลายเซ็นว่าง ต้องรีเซ็ตและให้เจ้าตัวเซ็นใหม่");
+      }
+      return { doc, reasons };
+    }).filter(item => item.reasons.length > 0);
+  }, [appealStatusVerified, coachingRecords, coachingStatusVerified, currentUser, monthlyInkIntegrity, pendingAppealCaseMap, selectedMonth, selectedMonthAllDocs, signatures]);
 
   const selectedMonthPaymentDocs = useMemo(() => {
     if (selectedMonth === "all" || !appealStatusVerified || (!coachingStatusVerified && selectedMonth >= COACHING_WORKFLOW_START)) return [];
@@ -3106,10 +3154,30 @@ export default function SignatureCenterMockup({
     return selectedMonthPaymentDocs;
   }, [selectedMonth, selectedMonthPaymentDocs]);
 
+  // A late October signature belongs to the NEXT payment cycle, not a
+  // retroactively backdated October document. Keep its original document ID.
+  const selectedMonthCarryOverDocs = useMemo(() => {
+    if (selectedMonth === "all" || !appealStatusVerified ||
+        (!coachingStatusVerified && selectedMonth >= COACHING_WORKFLOW_START)) return [];
+    return documents
+      .filter(doc => doc.monthKey < selectedMonth && !isHistoricalPaidPeriod(doc.monthKey))
+      .filter(doc => canExportMonthlyPaymentDocument(currentUser, doc))
+      .filter(doc => {
+        const entries = effectiveEntriesForDoc(doc, signatures);
+        return isLateSignedDocument(doc, entries, pendingAppealCaseMap, coachingRecords) &&
+          lateSignaturePaymentCycle(doc, entries, coachingRecords) === selectedMonth;
+      })
+      .map(doc => ({
+        ...doc,
+        carryOverFrom: doc.monthKey,
+        paymentCycle: selectedMonth,
+      }));
+  }, [appealStatusVerified, coachingStatusVerified, coachingRecords, currentUser, documents, pendingAppealCaseMap, selectedMonth, signatures]);
+
   const selectedMonthPaymentExportDocs = useMemo(() => {
     if (selectedMonth === "all") return [];
-    return selectedMonthExportDocs;
-  }, [selectedMonth, selectedMonthExportDocs]);
+    return [...selectedMonthExportDocs, ...selectedMonthCarryOverDocs];
+  }, [selectedMonth, selectedMonthExportDocs, selectedMonthCarryOverDocs]);
 
   const selectedMonthLateSignedDocs = useMemo(() => {
     if (selectedMonth === "all" || !appealStatusVerified || (!coachingStatusVerified && selectedMonth >= COACHING_WORKFLOW_START)) return [];
@@ -3212,7 +3280,7 @@ export default function SignatureCenterMockup({
   const selectedMonthReportOnTimeDocs = selectedMonthPaymentExportDocs.filter(doc =>
     doc.monthKey === selectedMonth && !doc.carryOverFrom);
   const canGenerateMonthlyPayment = canExportMonthlyPayment(currentUser) && selectedMonth !== "all" &&
-    (reportExportOnly ? selectedMonthReportOnTimeDocs.length : selectedMonthPaymentExportDocs.length) > 0;
+    selectedMonthPaymentExportDocs.length > 0;
 
   const selectedDocumentSource = selectedDocumentId
     ? documents.find((item) => item.id === selectedDocumentId) || null
@@ -3235,7 +3303,13 @@ export default function SignatureCenterMockup({
   const hasPendingAppeal = !appealStatusVerified || selectedPendingAppeals.length > 0;
   const pendingRoles = getPendingRoles(selectedEntries);
   const lastSignedRole = [...SIGNATURE_FLOW].reverse().find((role) => Boolean(getSignedEntry(selectedEntries, role)));
-  const signedCount = SIGNATURE_FLOW.filter((role) => Boolean(getCompletedEntry(selectedEntries, role))).length;
+  const signedCount = SIGNATURE_FLOW.filter(role => {
+    if (!getCompletedEntry(selectedEntries, role)) return false;
+    if (!selectedDocument || !isDaruneeOctober(selectedDocument.monthKey, selectedDocument.agentName)) return true;
+    if (role === "Senior" && !isAssignedSeniorSignature(selectedDocument, getSignedEntry(selectedEntries, "Senior"))) return false;
+    if (role === "Agent" && monthlyInkIntegrity[selectedDocument.id]?.Agent !== true) return false;
+    return true;
+  }).length;
   const isComplete = Boolean(selectedDocument && signedCount === SIGNATURE_FLOW.length);
   const selectedCoachingStatus = selectedDocument ? monthlyCoachingPaymentStatus(selectedDocument.monthKey, selectedDocument.agentName, coachingRecords, selectedDocument.agentId) : null;
   const selectedCoachingVerified = coachingStatusVerified || Boolean(selectedDocument && selectedDocument.monthKey < COACHING_WORKFLOW_START);
@@ -3401,15 +3475,24 @@ export default function SignatureCenterMockup({
       window.alert("เซ็นแทนกันไม่ได้ กรุณาให้เจ้าของลายเซ็นตาม Role เป็นผู้ลงนามเอง");
       return false;
     }
+    if (!await signatureImageContainsInk(signatureDataUrl)) {
+      window.alert("ภาพลายเซ็นว่างหรือไม่ถูกต้อง กรุณาวาดใหม่ก่อนบันทึก");
+      return false;
+    }
     const entries = effectiveEntriesForDoc(selectedDocument, signatures);
     const existingSigned = getSignedEntry(entries, role);
     const nextEntry: SignatureEntry = {
       role,
-      signerName: existingSigned?.signerName || getRoleSigner(selectedDocument, role),
+      signerName: getRoleSigner(selectedDocument, role),
       status: "Signed",
-      signedBy: existingSigned?.signedBy || currentUser.displayName || currentUser.username,
-      signedAt: existingSigned?.signedAt || new Date().toISOString(),
-      note: existingSigned?.note,
+      signedBy: currentUser.displayName || currentUser.username,
+      signedAt: new Date().toISOString(),
+      note: existingSigned ? "Signature image corrected; current signing date used" : undefined,
+      previousSignerEvidence: existingSigned ? {
+        signerName: existingSigned.signerName,
+        signedBy: existingSigned.signedBy,
+        signedAt: existingSigned.signedAt,
+      } : entries.find(item => item.role === role)?.previousSignerEvidence,
       signatureDataUrl,
     };
 
@@ -3447,6 +3530,10 @@ export default function SignatureCenterMockup({
       window.alert("Agent ต้องกดยืนยันรับทราบข้อมูลก่อน จึงจะสามารถลงนามในเอกสารของตัวเองได้");
       return false;
     }
+    if (!await signatureImageContainsInk(signatureDataUrl || "")) {
+      window.alert("ภาพลายเซ็นว่างหรือไม่ถูกต้อง กรุณาวาดลายเซ็นใหม่");
+      return false;
+    }
 
     const signerName = getRoleSigner(selectedDocument, role);
     const nextEntry: SignatureEntry = {
@@ -3455,6 +3542,7 @@ export default function SignatureCenterMockup({
       status: "Signed",
       signedBy: currentUser.displayName || currentUser.username,
       signedAt: new Date().toISOString(),
+      previousSignerEvidence: entries.find(entry => entry.role === role)?.previousSignerEvidence,
       signatureDataUrl,
     };
 
@@ -3494,6 +3582,9 @@ export default function SignatureCenterMockup({
     if (!selectedDocument || isHistoricalPaidPeriod(selectedDocument.monthKey)) return;
     if (getTimelineStatus(selectedDocument.monthKey) !== "Signature Deadline Passed") return;
     if (currentUser.role !== "Quality Assurance") return;
+    const prior = getSignedEntry(selectedEntries, role);
+    if (isDaruneeOctober(selectedDocument.monthKey,selectedDocument.agentName) && prior &&
+        !window.confirm("รีเซ็ตลายเซ็นเดิมและให้เจ้าของลงนามใหม่ตามเวลาจริง? หากเซ็นหลังวันที่ 15 จะเข้ารอบจ่ายถัดไปตามเงื่อนไข")) return;
     const resetAt = new Date().toISOString();
     const resetEntry: SignatureEntry = {
       role,
@@ -3504,6 +3595,11 @@ export default function SignatureCenterMockup({
       note: SIGNATURE_DEADLINE_RESET_NOTE,
       resetBy: currentUser.displayName || currentUser.username,
       resetAt,
+      previousSignerEvidence: prior ? {
+        signerName: prior.signerName,
+        signedBy: prior.signedBy,
+        signedAt: prior.signedAt,
+      } : selectedEntries.find(entry => entry.role === role)?.previousSignerEvidence,
     };
     const nextEntriesForRemote = [...selectedEntries.filter((entry) => entry.role !== role), resetEntry];
 
@@ -4969,12 +5065,43 @@ export default function SignatureCenterMockup({
         throw new Error("Coaching / QA Review Verification Failed. Refresh before exporting payment.");
       }
     }
-    const eligible = selectedMonthAllDocs.filter(doc =>
-      isPaymentReadyDocument(doc, effectiveEntriesForDoc(doc, signatures), pendingAppealCaseMap, records));
+    const eligible = selectedMonthPaymentExportDocs.filter(doc => {
+      const entries = effectiveEntriesForDoc(doc, signatures);
+      if (doc.carryOverFrom) {
+        return isLateSignedDocument(doc, entries, pendingAppealCaseMap, records) &&
+          lateSignaturePaymentCycle(doc, entries, records) === selectedMonth;
+      }
+      return isPaymentReadyDocument(doc, entries, pendingAppealCaseMap, records);
+    });
     const scopedEligible = eligible.filter(doc => canExportMonthlyPaymentDocument(currentUser, doc));
-    if (!scopedEligible.length) throw new Error("ยังไม่มี Agent ที่ลงนามและมีผล Coaching / QA Review ครบภายในวันที่ 15 ของรอบนี้");
-    await assertAppealsResolved(scopedEligible);
-    return scopedEligible;
+    const verifiedEligible: SignatureDocument[] = [];
+    for (const doc of scopedEligible) {
+      const entries = effectiveEntriesForDoc(doc, signatures);
+      const valid = await Promise.all(SIGNATURE_FLOW.map(async role => {
+        if (getWaivedEntry(entries, role)) return role === "Agent";
+        const signed = getSignedEntry(entries, role);
+        if (role === "Senior" && !isAssignedSeniorSignature(doc, signed)) return false;
+        return Boolean(signed && (doc.monthKey < "2026-09" ||
+          await signatureImageContainsInk(signed.signatureDataUrl || "")));
+      }));
+      if (valid.every(Boolean)) verifiedEligible.push(doc);
+      else console.warn("Payment export skipped unverified signature image/identity", doc.id);
+    }
+    if (!verifiedEligible.length) throw new Error("ไม่มี Agent ที่มีลายเซ็นจริงครบและผ่าน Coaching/QA Review ในรอบนี้");
+    // Do not authorize a carry-over again if the earlier batch was actually
+    // marked Sent and it already included this document. A PDF is not payment.
+    for (const doc of verifiedEligible.filter(item => item.carryOverFrom)) {
+      const sourceBatch = await fetchMonthlyPaymentBatch(doc.carryOverFrom!);
+      const priorIds = [
+        ...(sourceBatch?.documentIds || []),
+        ...(sourceBatch?.supplementalBatches || []).flatMap(batch => batch.documentIds),
+      ];
+      if (sourceBatch?.confirmedSentAt && priorIds.includes(doc.id)) {
+        throw new Error(`${doc.agentName} อยู่ในรอบจ่ายเดิมที่ยืนยันส่งจ่ายแล้ว กรุณาตรวจสอบ Payment History ก่อนสร้างซ้ำ`);
+      }
+    }
+    await assertAppealsResolved(verifiedEligible);
+    return verifiedEligible;
   };
 
   const generatePaymentExcel = async () => {
@@ -5068,7 +5195,7 @@ export default function SignatureCenterMockup({
           </label>
         </div>
         <div className="mt-4 rounded-xl bg-slate-50 p-4 text-xs text-slate-600">
-          {selectedMonth === "all" ? "กรุณาเลือกเดือน" : `เดือน ${getMonthLabel(selectedMonth)} · รายชื่อเข้าเงื่อนไข (ลายเซ็นครบภายในวันที่ 15) ${selectedMonthReportOnTimeDocs.length} คน · รวมทั้งผู้มีสิทธิ์เดิมและผู้ที่เพิ่ง Closed`}
+          {selectedMonth === "all" ? "กรุณาเลือกเดือน" : `เดือน ${getMonthLabel(selectedMonth)} · เข้าเงื่อนไขลงนามทันรอบ ${selectedMonthReportOnTimeDocs.length} คน · ยกมาจากรอบก่อน ${selectedMonthCarryOverDocs.length} คน · ไม่ถือว่าได้จ่ายเงินจริงแล้ว`}
         </div>
         <div className="mt-5 flex flex-wrap gap-2">
           <button type="button" onClick={generatePaymentPdf} disabled={!canGenerateMonthlyPayment} className="rounded-xl bg-violet-700 px-4 py-3 text-sm font-semibold text-white disabled:bg-slate-300">Monthly Payment PDF</button>
@@ -5570,7 +5697,7 @@ export default function SignatureCenterMockup({
               <div className="mt-1 text-sm font-semibold text-slate-500">
                 {selectedMonth === "all"
                   ? "เลือกเดือนเพื่อสร้างเอกสารส่งจ่าย"
-                  : `${getMonthLabel(selectedMonth)} • พร้อมส่งออก ${selectedMonthPaymentExportDocs.length} คน`}
+                  : `${getMonthLabel(selectedMonth)} • พร้อมส่งออก ${selectedMonthPaymentExportDocs.length} คน (ยกมารอบถัดไป ${selectedMonthCarryOverDocs.length} คน)`}
               </div>
             </div>
             <div className="flex flex-wrap gap-2" data-signature-payment-export-restored="true">
@@ -6656,7 +6783,8 @@ export default function SignatureCenterMockup({
                       currentUser.role === "Quality Assurance" &&
                       !isHistoricalPaidPeriod(selectedDocument.monthKey) &&
                       getTimelineStatus(selectedDocument.monthKey) === "Signature Deadline Passed" &&
-                      !completed &&
+                      (!completed || (isDaruneeOctober(selectedDocument.monthKey,selectedDocument.agentName) &&
+                        (role === "Agent" || role === "Senior"))) &&
                       !activeResetAfterDeadline;
                     const canOpenSignaturePad = !hasPendingAppeal && ((!completed && allowSign) || canAddFirstDrawnSignature);
                     const waitingForAutomaticWaiver =

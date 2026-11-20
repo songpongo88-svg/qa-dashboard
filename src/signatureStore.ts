@@ -12,6 +12,8 @@ export type StoredSignatureEntry = {
   status: "Signed" | "Pending" | "Waived";
   note?: string;
   signatureDataUrl?: string;
+  // Original signer/time are kept for audit when QA resets/replaces the ink.
+  previousSignerEvidence?: { signerName: string; signedBy: string; signedAt: string };
   resetBy?: string;
   resetAt?: string;
   waiverReason?: string;
@@ -50,6 +52,12 @@ function toStoredDocument(row: any, fallbackId = ""): StoredSignatureDocument {
         status: entry.status === "Waived" ? "Waived" : entry.status === "Pending" ? "Pending" : "Signed",
         note: entry.note ? String(entry.note) : undefined,
         signatureDataUrl: entry.signatureDataUrl || entry.signature_data_url || undefined,
+        previousSignerEvidence: entry.previousSignerEvidence && typeof entry.previousSignerEvidence === "object"
+          ? {
+              signerName: canonicalizeAgentName(entry.previousSignerEvidence.signerName),
+              signedBy: canonicalizeAgentName(entry.previousSignerEvidence.signedBy),
+              signedAt: String(entry.previousSignerEvidence.signedAt || ""),
+            } : undefined,
         resetBy: entry.resetBy || entry.reset_by ? canonicalizeAgentName(entry.resetBy || entry.reset_by) : undefined,
         resetAt: entry.resetAt || entry.reset_at ? String(entry.resetAt || entry.reset_at) : undefined,
         waiverReason: entry.waiverReason || entry.waiver_reason ? String(entry.waiverReason || entry.waiver_reason) : undefined,
@@ -80,6 +88,13 @@ function sanitizeEntry(entry: StoredSignatureEntry) {
 
   if (entry.note) cleanEntry.note = String(entry.note);
   if (entry.signatureDataUrl) cleanEntry.signatureDataUrl = String(entry.signatureDataUrl);
+  if (entry.previousSignerEvidence) {
+    cleanEntry.previousSignerEvidence = {
+      signerName: canonicalizeAgentName(entry.previousSignerEvidence.signerName),
+      signedBy: canonicalizeAgentName(entry.previousSignerEvidence.signedBy),
+      signedAt: String(entry.previousSignerEvidence.signedAt || ""),
+    };
+  }
   if (entry.resetBy) cleanEntry.resetBy = canonicalizeAgentName(entry.resetBy);
   if (entry.resetAt) cleanEntry.resetAt = String(entry.resetAt);
   if (entry.waiverReason) cleanEntry.waiverReason = String(entry.waiverReason);

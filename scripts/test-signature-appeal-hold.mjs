@@ -61,6 +61,7 @@ const oldResult = [submission, reviewed];
 const pendingAdditional = [...oldResult, access, approved, opened, additional];
 const complete = [...pendingAdditional, event("appeal_request_reviewed", 0, { roundId: "round-1", reviewId: "second-review",
   reviewedAt: at(0), decision: "Approved", topics: [{ ...topic, decision: "Approved", revisedScore: 100 }] })];
+const inkPixel = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAYAAAD0In+KAAAADklEQVR4XmNgYGD4D8IABgMB/7I8x4cAAAAASUVORK5CYII=";
 const names = { Agent: agent, Senior: "Fixture Senior", Supervisor: "Phrommarin Thaithorn", QA: "Songpon Phothong" };
 const account = name => ({ username: name, displayName: name, agentName: name, role: "Admin Live Chat",
   teamName: "Fixture Team", teamLead: names.Senior, status: "Active" });
@@ -70,7 +71,7 @@ fixture.evaluations = [agent, "Fixture Agent B"].flatMap((name, owner) => Array.
   auditDate: "2026-09-20", auditTimestamp: "2026-09-20T03:00:00Z", finalScore: 90,
   evaluatorName: names.QA, inquiry: "ข้อมูลทดสอบ", topics: [topic], evidenceUrls: [],
 })));
-const signed = role => ({ role, signerName: names[role], signedBy: names[role], status: "Signed", signedAt: at(-1) });
+const signed = role => ({ role, signerName: names[role], signedBy: names[role], status: "Signed", signedAt: at(-1), signatureDataUrl: inkPixel });
 const coaching = name => ({ id: `coaching-${name}`, agent: name, agentId: name, monthKey: '2026-09',
   status: 'Follow-up Next Month', updatedAt: at(-1), qaReviewedAt: at(-1), qaReviewedBy: names.QA,
   qaSummary: 'QA recommends Process', recommendedTopics: ['Process'], qaReviewComment: 'Reviewed and accepted',
@@ -113,12 +114,13 @@ try {
           export async function clearStoredSignatureConfirm(){}
         `,
         "./paymentCarryOverStore": "export async function fetchPaymentCarryOverStates(){return {}};export async function markPaymentCarryOverExported(input){return input}",
+        "./monthlyPaymentBatchStore": "export async function fetchMonthlyPaymentBatch(){return null}",
         "./coachingStore": `export async function fetchStoredCoachingRecords(options){const f=globalThis.__signatureAppealFixture;f.coachingReads.push(options);if(f.coachingFailed)throw new Error('offline fixture');return structuredClone(f.coaching)}`,
         "./evaluationStore": "export async function fetchStoredEvaluations(){return globalThis.__signatureAppealFixture.evaluations};export async function fetchStoredEvaluationsForCases(){return globalThis.__signatureAppealFixture.evaluations};export const getStoredEvaluationMonthKey=record=>record.auditDate?.slice(0,7)||'';export const excludeTestEvaluations=records=>records.filter(record=>!record.isTestCase);export const isTestCaseEvaluation=record=>!!record.isTestCase;export const isNoCaseEvaluation=()=>false;export const getOriginalEvaluationTimestamp=record=>record.auditTimestamp;export const getEvaluationLastUpdatedAt=record=>record.updatedAt||''",
         "./userRoleStore": "export async function fetchStoredUserProfiles(){return []};export async function fetchStoredRolePermissions(){return []}",
         "./PageHero": "export default function Hero(){return null}",
       };
-      builder.onResolve({ filter: /^\.\/(appealStore|signatureStore|paymentCarryOverStore|coachingStore|evaluationStore|userRoleStore|PageHero)$/ },
+      builder.onResolve({ filter: /^\.\/(appealStore|signatureStore|paymentCarryOverStore|monthlyPaymentBatchStore|coachingStore|evaluationStore|userRoleStore|PageHero)$/ },
         args => ({ path: args.path, namespace: "fixture" }));
       builder.onLoad({ filter: /.*/, namespace: "fixture" }, args => ({ loader: "js", contents: mocks[args.path] }));
       builder.onLoad({ filter: /\/SignatureCenterMockup\.tsx$/ }, async args => {
@@ -196,8 +198,8 @@ try {
     assert.ok(confirm?.disabled, `${role}: acknowledgement button disabled`);
     await act(async () => {
       await fixture.actions.confirmPreview();
-      assert.equal(await fixture.actions.signRole(role, "fixture-ink"), false);
-      assert.equal(await fixture.actions.saveDrawnSignature(role, "fixture-ink"), false);
+      assert.equal(await fixture.actions.signRole(role, inkPixel), false);
+      assert.equal(await fixture.actions.saveDrawnSignature(role, inkPixel), false);
     });
     assert.equal(fixture.writes.length, 0, `${role}: no signature or confirmation persisted`);
   }
@@ -211,8 +213,8 @@ try {
     fixture.logs = changedLogs;
     await act(async () => {
       if (action === "confirm") await fixture.actions.confirmPreview();
-      if (action === "sign") assert.equal(await fixture.actions.signRole(role, "fixture-ink"), false);
-      if (action === "ink") assert.equal(await fixture.actions.saveDrawnSignature(role, "fixture-ink"), false);
+      if (action === "sign") assert.equal(await fixture.actions.signRole(role, inkPixel), false);
+      if (action === "ink") assert.equal(await fixture.actions.saveDrawnSignature(role, inkPixel), false);
       if (action === "excel") await fixture.actions.generatePaymentExcel();
       if (action === "pdf") await fixture.actions.generatePaymentPdf();
     });
@@ -223,7 +225,7 @@ try {
   console.log("PASS stale open pages cannot acknowledge, sign, add ink or export current/late payments after additional submission");
   await mount("QA", oldResult);
   fixture.failed = true;
-  await act(async () => assert.equal(await fixture.actions.signRole("QA", "fixture-ink"), false));
+  await act(async () => assert.equal(await fixture.actions.signRole("QA", inkPixel), false));
   assert.equal(fixture.writes.length, 0);
   assert.equal(fixture.view.appealStatusVerified, false);
   assert.equal(fixture.view.hasPendingAppeal, true);
@@ -233,11 +235,11 @@ try {
   console.log("PASS failed appeal reads keep acknowledgement, signing and payment exports locked");
   await mount("QA", oldResult);
   fixture.logs = complete;
-  await act(async () => assert.equal(await fixture.actions.signRole("QA", "fixture-ink"), false));
+  await act(async () => assert.equal(await fixture.actions.signRole("QA", inkPixel), false));
   assert.equal(fixture.writes.length, 0, "new review cannot sign stale scores");
   assert.ok(fixture.alerts.some(message => message.includes("Appeal Results Updated")));
   await mount("QA", complete);
-  await act(async () => assert.equal(await fixture.actions.signRole("QA", "fixture-ink"), true));
+  await act(async () => assert.equal(await fixture.actions.signRole("QA", inkPixel), true));
   assert.equal(fixture.writes.length, 1, "reviewed additional round releases signing");
   await mount("Agent", [...oldResult, access, approved, opened]);
   await act(async () => fixture.actions.confirmPreview());

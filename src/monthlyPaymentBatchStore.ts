@@ -1,4 +1,4 @@
-import { doc, runTransaction, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc, runTransaction, serverTimestamp } from "firebase/firestore";
 import { firebaseDb } from "./firebaseClient";
 import { planMonthlyPaymentBatch, type AdditionalPaymentBatch } from "./lib/monthlyPaymentBatchPlan";
 const COACHING_COLLECTION="qa_coaching_records";
@@ -31,4 +31,18 @@ export async function markMonthlyPaymentBatchExported(monthKey:string,documentId
     }
     return plan;
   });
+}
+
+export async function fetchMonthlyPaymentBatch(monthKey:string):Promise<MonthlyPaymentBatch|null>{
+  const snapshot=await getDoc(monthlyPaymentBatchReference(monthKey));
+  if(!snapshot.exists())return null;
+  const row=snapshot.data();
+  return {
+    monthKey,
+    documentIds:Array.isArray(row.documentIds)?row.documentIds.map(String):[],
+    exportedAt:String(row.exportedAt||""),
+    exportedBy:String(row.exportedBy||""),
+    supplementalBatches:Array.isArray(row.supplementalBatches)?row.supplementalBatches:[],
+    confirmedSentAt:String(row.confirmedSentAt||""),
+  };
 }
