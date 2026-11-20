@@ -48,7 +48,7 @@ type AdminHistoryItem = {
 };
 type DetailResponse = {
   username: string;
-  wallet: Pick<AdminUser, "balance" | "earned" | "spent" | "rewardOrders" | "firstLogin">;
+  wallet: Pick<AdminUser, "balance" | "earned" | "spent" | "rewardOrders" | "firstLogin" | "miningBoostOwned" | "miningBoostAvailablePurchaseIds">;
   history: AdminHistoryItem[];
   truncated: boolean;
 };
