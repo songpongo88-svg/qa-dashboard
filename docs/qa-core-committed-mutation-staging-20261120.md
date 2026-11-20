@@ -60,7 +60,7 @@ scan or promote the 2,427-document candidate.**
 
 - **649** JavaScript/TypeScript source files inspected, **0** skipped.
 - **11** QA Core collections remain in the explicitly reviewed scope.
-- **13 additional runtime files** with direct QA Core mutation paths were
+- **12 additional runtime files** with direct QA Core mutation paths were
   identified and added to the known-writer coverage map. Examples:
   - src/App.tsx and src/CorporateUserDirectoryProfile.tsx (user profiles)
   - src/usernamePolicyMigrationStore.ts (profiles, evaluation/progress and
