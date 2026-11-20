@@ -32,6 +32,9 @@ on:
       - "migration/qa-core-signed-review-sender-lab.sql"
       - "scripts/test-qa-core-windows-signed-review-loopback-integration.mjs"
       - "migration/qa-windows-signed-replay-receiver-lab.sql"
+      - "migration/qa-windows-signed-receiver-inactive.sql"
+      - "scripts/Install-QA-Windows-Signed-Receiver-Inactive.ps1"
+      - "scripts/test-qa-windows-signed-receiver-inactive-integration.mjs"
       - "scripts/test-qa-windows-signed-replay-receiver-integration.mjs"
       - "scripts/test-qa-windows-verified-candidate-integration.mjs"
       - "server/qaWindowsSourceSignalJournal.js"
@@ -150,6 +153,7 @@ jobs:
         run: |
           $scripts = @(
             'scripts/Install-QA-Windows-Private-Signal-Stage.ps1'
+            'scripts/Install-QA-Windows-Signed-Receiver-Inactive.ps1'
             'scripts/Check-QA-Windows-Private-Stage.ps1'
             'scripts/Check-QA-Windows-Firestore-Auth.ps1'
             'scripts/Check-QA-Windows-Firestore-Metadata.ps1'
@@ -209,3 +213,4 @@ jobs:
           node scripts/test-qa-core-source-verification-candidate-integration.mjs
           node scripts/test-qa-windows-signed-replay-receiver-integration.mjs
           node scripts/test-qa-core-windows-signed-review-loopback-integration.mjs
+          node scripts/test-qa-windows-signed-receiver-inactive-integration.mjs
