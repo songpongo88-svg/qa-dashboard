@@ -24,8 +24,8 @@ import { fetchStoredCoachingRecords, type StoredCoachingRecord } from "./coachin
 import { monthlyCoachingPaymentStatus } from "./monthlyCoachingPayment";
 import { assignedMonthlySenior, isAssignedSeniorSignature, isDaruneeOctober } from "./lib/monthlySeniorAssignment.mjs";
 import { canvasContainsSignatureInk, signatureImageContainsInk } from "./lib/signatureInk.mjs";
-import { carryOverCycle } from "./lib/paymentCarryOverCycle.mjs";
-import { fetchMonthlyPaymentBatch } from "./monthlyPaymentBatchStore";
+import { carryOverCycle, shiftPaymentMonth } from "./lib/paymentCarryOverCycle.mjs";
+import { currentMonthIncentiveDocuments, requireCurrentMonthIncentiveDocuments } from "./lib/monthlyIncentiveExportScope.mjs";
 import { monthlyResultKey, monthlyResultScope } from "./monthlyResultLockStore";
 import { COACHING_WORKFLOW_START } from "./monthlyCoachingModel";
 import {
@@ -1938,7 +1938,8 @@ function getDashboardMonthSummaryForExport(
   allMonthDocs: SignatureDocument[],
   fallbackDocs: SignatureDocument[]
 ) {
-  const sourceDocs = allMonthDocs.length ? allMonthDocs : fallbackDocs;
+  const monthDocs = currentMonthIncentiveDocuments(monthKey, allMonthDocs);
+  const sourceDocs = monthDocs.length ? monthDocs : currentMonthIncentiveDocuments(monthKey, fallbackDocs);
   const totalCases = sourceDocs.reduce((sum, doc) => sum + Math.max(Number(doc.caseCount) || 0, 0), 0);
   const weightedScore = sourceDocs.reduce(
     (sum, doc) => sum + (Number(doc.averageScore) || 0) * Math.max(Number(doc.caseCount) || 0, 0),
@@ -1959,7 +1960,8 @@ function generatePaymentExcelFile(
   allMonthDocs: SignatureDocument[] = readyDocs,
   suffix = ""
 ) {
-  const sortedDocs = [...readyDocs].sort((a, b) => a.agentName.localeCompare(b.agentName, "th"));
+  const sortedDocs = [...requireCurrentMonthIncentiveDocuments(monthKey, readyDocs)]
+    .sort((a, b) => a.agentName.localeCompare(b.agentName, "th"));
   const dashboardSummary = getDashboardMonthSummaryForExport(monthKey, allMonthDocs, sortedDocs);
   const exportRuleText = monthKey >= COACHING_WORKFLOW_START
     ? "4 Signed / Agent Waived + Coaching and QA Review by day 15; no open Appeal"
@@ -2114,7 +2116,8 @@ function generatePaymentPdfFile(
   allMonthDocs: SignatureDocument[] = readyDocs,
   suffix = ""
 ) {
-  const sortedDocs = [...readyDocs].sort((a, b) => a.agentName.localeCompare(b.agentName, "th"));
+  const sortedDocs = [...requireCurrentMonthIncentiveDocuments(monthKey, readyDocs)]
+    .sort((a, b) => a.agentName.localeCompare(b.agentName, "th"));
   const dashboardSummary = getDashboardMonthSummaryForExport(monthKey, allMonthDocs, sortedDocs);
   const exportRuleText = monthKey >= COACHING_WORKFLOW_START
     ? "4 Signed / Agent Waived + Coaching and QA Review by day 15; no open Appeal"
@@ -3160,7 +3163,10 @@ export default function SignatureCenterMockup({
     if (selectedMonth === "all" || !appealStatusVerified ||
         (!coachingStatusVerified && selectedMonth >= COACHING_WORKFLOW_START)) return [];
     return documents
-      .filter(doc => doc.monthKey < selectedMonth && !isHistoricalPaidPeriod(doc.monthKey))
+      // Deferred recipients from only the preceding performance month;
+      // historical records cannot reappear many months later.
+      .filter(doc => doc.monthKey === shiftPaymentMonth(selectedMonth, -1) &&
+        !isHistoricalPaidPeriod(doc.monthKey))
       .filter(doc => canExportMonthlyPaymentDocument(currentUser, doc))
       .filter(doc => {
         const entries = effectiveEntriesForDoc(doc, signatures);
@@ -3174,10 +3180,12 @@ export default function SignatureCenterMockup({
       }));
   }, [appealStatusVerified, coachingStatusVerified, coachingRecords, currentUser, documents, pendingAppealCaseMap, selectedMonth, signatures]);
 
+  // Performance-month payment documents must NEVER include prior months.
+  // Next-cycle late signatures are kept in selectedMonthCarryOverDocs only.
   const selectedMonthPaymentExportDocs = useMemo(() => {
     if (selectedMonth === "all") return [];
-    return [...selectedMonthExportDocs, ...selectedMonthCarryOverDocs];
-  }, [selectedMonth, selectedMonthExportDocs, selectedMonthCarryOverDocs]);
+    return currentMonthIncentiveDocuments(selectedMonth, selectedMonthExportDocs);
+  }, [selectedMonth, selectedMonthExportDocs]);
 
   const selectedMonthLateSignedDocs = useMemo(() => {
     if (selectedMonth === "all" || !appealStatusVerified || (!coachingStatusVerified && selectedMonth >= COACHING_WORKFLOW_START)) return [];
@@ -5065,14 +5073,9 @@ export default function SignatureCenterMockup({
         throw new Error("Coaching / QA Review Verification Failed. Refresh before exporting payment.");
       }
     }
-    const eligible = selectedMonthPaymentExportDocs.filter(doc => {
-      const entries = effectiveEntriesForDoc(doc, signatures);
-      if (doc.carryOverFrom) {
-        return isLateSignedDocument(doc, entries, pendingAppealCaseMap, records) &&
-          lateSignaturePaymentCycle(doc, entries, records) === selectedMonth;
-      }
-      return isPaymentReadyDocument(doc, entries, pendingAppealCaseMap, records);
-    });
+    const candidates = requireCurrentMonthIncentiveDocuments(selectedMonth, selectedMonthPaymentExportDocs);
+    const eligible = candidates.filter(doc =>
+      isPaymentReadyDocument(doc, effectiveEntriesForDoc(doc, signatures), pendingAppealCaseMap, records));
     const scopedEligible = eligible.filter(doc => canExportMonthlyPaymentDocument(currentUser, doc));
     const verifiedEligible: SignatureDocument[] = [];
     for (const doc of scopedEligible) {
@@ -5088,18 +5091,6 @@ export default function SignatureCenterMockup({
       else console.warn("Payment export skipped unverified signature image/identity", doc.id);
     }
     if (!verifiedEligible.length) throw new Error("ไม่มี Agent ที่มีลายเซ็นจริงครบและผ่าน Coaching/QA Review ในรอบนี้");
-    // Do not authorize a carry-over again if the earlier batch was actually
-    // marked Sent and it already included this document. A PDF is not payment.
-    for (const doc of verifiedEligible.filter(item => item.carryOverFrom)) {
-      const sourceBatch = await fetchMonthlyPaymentBatch(doc.carryOverFrom!);
-      const priorIds = [
-        ...(sourceBatch?.documentIds || []),
-        ...(sourceBatch?.supplementalBatches || []).flatMap(batch => batch.documentIds),
-      ];
-      if (sourceBatch?.confirmedSentAt && priorIds.includes(doc.id)) {
-        throw new Error(`${doc.agentName} อยู่ในรอบจ่ายเดิมที่ยืนยันส่งจ่ายแล้ว กรุณาตรวจสอบ Payment History ก่อนสร้างซ้ำ`);
-      }
-    }
     await assertAppealsResolved(verifiedEligible);
     return verifiedEligible;
   };
@@ -5195,7 +5186,7 @@ export default function SignatureCenterMockup({
           </label>
         </div>
         <div className="mt-4 rounded-xl bg-slate-50 p-4 text-xs text-slate-600">
-          {selectedMonth === "all" ? "กรุณาเลือกเดือน" : `เดือน ${getMonthLabel(selectedMonth)} · เข้าเงื่อนไขลงนามทันรอบ ${selectedMonthReportOnTimeDocs.length} คน · ยกมาจากรอบก่อน ${selectedMonthCarryOverDocs.length} คน · ไม่ถือว่าได้จ่ายเงินจริงแล้ว`}
+          {selectedMonth === "all" ? "กรุณาเลือกเดือน" : `เดือน ${getMonthLabel(selectedMonth)} · พร้อมออกไฟล์เฉพาะเอกสารประเมินเดือนนี้ ${selectedMonthReportOnTimeDocs.length} คน · รายการยกยอดจากเดือนก่อน ${selectedMonthCarryOverDocs.length} คน (ไม่รวมในไฟล์นี้)`}
         </div>
         <div className="mt-5 flex flex-wrap gap-2">
           <button type="button" onClick={generatePaymentPdf} disabled={!canGenerateMonthlyPayment} className="rounded-xl bg-violet-700 px-4 py-3 text-sm font-semibold text-white disabled:bg-slate-300">Monthly Payment PDF</button>
@@ -5697,7 +5688,7 @@ export default function SignatureCenterMockup({
               <div className="mt-1 text-sm font-semibold text-slate-500">
                 {selectedMonth === "all"
                   ? "เลือกเดือนเพื่อสร้างเอกสารส่งจ่าย"
-                  : `${getMonthLabel(selectedMonth)} • พร้อมส่งออก ${selectedMonthPaymentExportDocs.length} คน (ยกมารอบถัดไป ${selectedMonthCarryOverDocs.length} คน)`}
+                  : `${getMonthLabel(selectedMonth)} • พร้อมส่งออกเฉพาะเดือนนี้ ${selectedMonthPaymentExportDocs.length} คน · ยกยอดจากเดือนก่อน ${selectedMonthCarryOverDocs.length} คน (แยกจากไฟล์นี้)`}
               </div>
             </div>
             <div className="flex flex-wrap gap-2" data-signature-payment-export-restored="true">

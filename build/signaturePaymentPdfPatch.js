@@ -5,7 +5,8 @@ const replacement = String.raw`function generatePaymentPdfFile(
   allMonthDocs: SignatureDocument[] = readyDocs,
   suffix = ""
 ) {
-  const sortedDocs = [...readyDocs].sort((a, b) => a.agentName.localeCompare(b.agentName, "th"));
+  const sortedDocs = [...requireCurrentMonthIncentiveDocuments(monthKey, readyDocs)]
+    .sort((a, b) => a.agentName.localeCompare(b.agentName, "th"));
   const sourceDocs = allMonthDocs.length ? allMonthDocs : sortedDocs;
   const dashboardSummary = getDashboardMonthSummaryForExport(monthKey, sourceDocs, sortedDocs);
   const totalCases = dashboardSummary.totalCases;
