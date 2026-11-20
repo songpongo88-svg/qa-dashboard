@@ -39,7 +39,7 @@ export function inspectQaWriterSource(source,path='fixture.ts'){
   possibleCollections,indirectOrDynamic:false});
 }
 export async function discoverQaFirestoreWriters(root,{trees=['src','api','server','scripts'],
- maxFiles=16000,maxFileBytes=1024*1024}={}){
+ maxFiles=16000,maxFileBytes=8*1024*1024}={}){
  const files=[],reviewedPaths=new Set(Object.values(REVIEWED_WRITERS).flat());
  async function walk(abs){
   let entries;
@@ -87,6 +87,7 @@ export async function discoverQaFirestoreWriters(root,{trees=['src','api','serve
  }));
  return Object.freeze({
   status:'BLOCKED',sourceFilesScanned:byPath.size,filesSkipped:readFailures.length,
+  skippedPaths:readFailures.slice().sort(),
   knownReviewedCollectionCount:Object.keys(REVIEWED_WRITERS).length,
   known,writerFiles:discovered.length,unreviewed,
   unsupportedDynamicDiscovery:true,allSourceWritesProven:false,
