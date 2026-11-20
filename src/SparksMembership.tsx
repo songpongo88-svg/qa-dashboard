@@ -21,7 +21,9 @@ function MembershipSymbol({ level }: { level: number }) {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.15" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{marks[level - 1]}</svg>;
 }
 
-function MemberCard({ tier, year, displayName, cardNumber = "" }: { tier: MemberLevel; year: number; displayName: string; cardNumber?: string }) {
+function MemberCard({ tier, year, displayName, cardNumber = "", birthdayDate = "" }: { tier: MemberLevel; year: number; displayName: string; cardNumber?: string; birthdayDate?: string }) {
+  const formattedDOB = /^\d{4}-\d{2}-\d{2}$/.test(birthdayDate)
+    ? birthdayDate.slice(8,10)+"/"+birthdayDate.slice(5,7)+"/"+birthdayDate.slice(0,4) : "";
   return <div className="qa-card-wrap">
     <div className="qa-member-card" data-tier={tier.level} data-card-finish="metal-foil" aria-label={`บัตรสมาชิก LV.${tier.level} ${tier.name} ของ ${displayName} ปี ${year}`}>
       <div className="qa-mcard-art" aria-hidden="true"><b className="qa-shape qa-art-a"/><b className="qa-shape qa-art-b"/><b className="qa-shape qa-art-c"/><b className="qa-shape qa-art-d"/></div>
@@ -33,8 +35,10 @@ function MemberCard({ tier, year, displayName, cardNumber = "" }: { tier: Member
         </div>
         <span className="qa-level-mark">LV.{tier.level}</span>
       </div>
-      <div className="qa-mcard-main"><h3>{tier.name}</h3><p>{finishes[tier.level - 1]}</p></div>
-      <div className="qa-mcard-bottom"><div className="qa-holder"><span>MEMBER NAME</span><strong>{displayName}</strong>{cardNumber ? <small className="qa-mcard-number">{cardNumber}</small> : null}</div><div className="qa-year"><span>MEMBER YEAR</span>{year}</div></div>
+      <div className="qa-mcard-main"><h3>{tier.name}</h3><p>{finishes[tier.level - 1]}</p>
+        {/^\d{12}$/.test(cardNumber) ? <div className="qa-mcard-cardid"><span>MEMBER CARD NO.</span><strong>{cardNumber}</strong></div> : null}
+      </div>
+      <div className="qa-mcard-bottom"><div className="qa-holder"><span>MEMBER NAME</span><strong>{displayName}</strong>{formattedDOB ? <div className="qa-mcard-dob"><span>DATE OF BIRTH</span><strong>{formattedDOB}</strong></div> : null}</div><div className="qa-year"><span>MEMBER YEAR</span>{year}</div></div>
     </div>
   </div>;
 }
@@ -50,10 +54,21 @@ export function SparksWalletSummary({ balance, rewardOrders, compact = false }: 
   </div>;
 }
 
-export default function MemberJourney({ earned, year, displayName, balance, rewardOrders, username, sessionId }: { earned: number; year: number; displayName: string; balance: number; rewardOrders: number; username?: string; sessionId?: string }) {
+export default function MemberJourney({ earned, year, displayName, balance, rewardOrders, username, sessionId, birthdayDate = "" }: { earned: number; year: number; displayName: string; balance: number; rewardOrders: number; username?: string; sessionId?: string; birthdayDate?: string }) {
   const member = getSparksMemberLevel(earned);
   const [guideOpen, setGuideOpen] = useState(false);
   const [cardNumber, setCardNumber] = useState("");
+  const [storedDOB, setStoredDOB] = useState(birthdayDate);
+  useEffect(()=>setStoredDOB(birthdayDate),[birthdayDate]);
+  useEffect(()=>{
+    const listener=(event:Event)=>{
+      const detail=(event as CustomEvent<{username:string;birthdayDate:string}>).detail;
+      if(detail?.username?.toLowerCase()===username?.toLowerCase() && detail.birthdayDate)
+        setStoredDOB(detail.birthdayDate);
+    };
+    window.addEventListener("qa:sparks-birthday-updated",listener);
+    return()=>window.removeEventListener("qa:sparks-birthday-updated",listener);
+  },[username]);
   const [cardActive, setCardActive] = useState(false);
   useEffect(() => {
     if(!username||!sessionId)return;
@@ -90,7 +105,7 @@ export default function MemberJourney({ earned, year, displayName, balance, rewa
       <header className="qa-gallery-top"><div><p className="qa-member-collection">MEMBERSHIP COLLECTION · {year}</p><h2>ระดับสมาชิก QA Sparks</h2><p>10 ระดับ · เกณฑ์จาก Sparks ที่ได้รับสะสมประจำปี</p></div><button ref={closeButton} type="button" className="qa-action" onClick={() => setGuideOpen(false)}>← กลับหน้าสมาชิก</button></header>
       <div className="qa-gallery-grid">
         {SPARKS_MEMBER_LEVELS.map(tier => <article key={tier.level} className="qa-gallery-entry" data-member-state={tier.level === member.current.level ? "current" : tier.level < member.current.level ? "attained" : "upcoming"}>
-          <MemberCard tier={tier} year={year} displayName={displayName} cardNumber={cardNumber}/>
+          <MemberCard tier={tier} year={year} displayName={displayName} cardNumber={cardNumber} birthdayDate={storedDOB}/>
           <div className="qa-gallery-meta"><div><h3>LV.{tier.level} {tier.name}</h3><p>สะสมตั้งแต่ {number(tier.min)} Sparks / ปี</p></div><span className={"qa-tier-state" + (tier.level === member.current.level ? " qa-tier-state-current" : "")}>{tier.level === member.current.level ? "ระดับปัจจุบัน" : tier.level < member.current.level ? "ผ่านแล้ว" : "ยังไม่ถึงระดับ"}</span></div>
         </article>)}
       </div>
@@ -98,7 +113,7 @@ export default function MemberJourney({ earned, year, displayName, balance, rewa
       <div className="qa-gallery-bottom"><button type="button" className="qa-action" onClick={() => setGuideOpen(false)}>← กลับหน้าสมาชิก</button></div>
     </div> : <div className="qa-membership" data-member-wallet="integrated">
       <div className="qa-section-top"><div><p>ANNUAL MEMBERSHIP · {year}</p><h2>บัตรสมาชิกของคุณ</h2></div><button ref={openButton} type="button" className="qa-action" aria-expanded={false} onClick={() => setGuideOpen(true)}>ดูระดับสมาชิกทั้งหมด <span aria-hidden="true">↗</span></button></div>
-      <div className="qa-current-card"><MemberCard tier={member.current} year={year} displayName={displayName} cardNumber={cardNumber}/></div>
+      <div className="qa-current-card"><MemberCard tier={member.current} year={year} displayName={displayName} cardNumber={cardNumber} birthdayDate={storedDOB}/></div>
       <div className="qa-member-card-controls" style={{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap",padding:"10px 0 18px"}}>
         <span style={{fontSize:12,color:cardActive?"#236741":"#875b18"}}>
           {cardActive?"บัตรเปิดใช้งานแล้ว · PIN 6 หลัก":"บัตรยังไม่เปิดใช้งาน · กรุณาตั้ง PIN 6 หลัก"}
