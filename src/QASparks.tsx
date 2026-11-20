@@ -26,7 +26,7 @@ import LotteryTicketInventory from "./LotteryTicketInventory";
 import { sparksCalendarYear } from "./qaSparksMemberLevels";
 import MemberJourney, { SparksWalletSummary } from "./SparksMembership";
 
-type SparksView = "overview" | "quests" | "games" | "rewards" | "items" | "history" | "transfer" | "admin";
+type SparksView = "overview" | "quests" | "games" | "rewards" | "items" | "history" | "admin";
 type SparksIconName = "spark" | "gift" | "clock" | "grid" | "receipt" | "crown" | "calendar" | "package";
 const paths: Record<SparksIconName, React.ReactNode> = {
   spark: <path d="m12 2 2.7 6.7L22 12l-7.3 3.3L12 22l-2.7-6.7L2 12l7.3-3.3z"/>,
@@ -186,7 +186,6 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
     { key: "rewards", label: "Reward Center", icon: "gift" },
     { key: "items", label: "My Items", icon: "package" },
     { key: "history", label: "History", icon: "clock" },
-    { key: "transfer", label: "โอน Sparks", icon: "spark" },
     ...(adminAccess && (!emailAuthEnabled || (verifiedActor?.role === "Quality Assurance" && verifiedActor?.username === "songpon")) && import.meta.env?.VITE_SPARKS_CLOUD_READ_ONLY !== "1" ? [{ key: "admin" as SparksView, label: "Sparks Admin", icon: "crown" as SparksIconName }] : []),
   ];
   const walletLoaded = Boolean(lastAccountLoadAt && lastAccountUsername.toLowerCase() === username.toLowerCase());
@@ -300,6 +299,9 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
         {view === "overview" ? <div className="qa-sparks-dual">
           <section className="qa-sparks-panel"><h2><SparksIcon name="gift"/> Reward Center</h2><p className="qa-sparks-reward-tagline">แลกรางวัลสุดพิเศษด้วย Sparks ที่คุณสะสมได้จาก QA Sparks</p><div className="qa-sparks-mini-grid qa-sparks-reward-grid"><TypingReliefRewardCard username={username} sessionId={sparksSessionId} balance={account.balance} owned={account.typingReliefOwned} loaded={walletLoaded}/><QaAutoPassRewardCard username={username} sessionId={sparksSessionId} balance={account.balance} owned={account.autoPassOwned} freeClaimedAt={account.autoPassFreeClaimedAt} loaded={walletLoaded}/><TrueMoneyReward mode="reward" username={username} sessionId={sparksSessionId} balance={account.balance} loaded={walletLoaded}/><AnnouncementShieldItem mode="reward" username={username} sessionId={sparksSessionId} balance={account.balance}/><SpecialRewardCenter mode="reward" username={username} sessionId={sparksSessionId} balance={account.balance} loaded={walletLoaded}/><MiningBoostCard username={username} sessionId={sparksSessionId}/></div></section>
           <section className="qa-sparks-panel"><h2><SparksIcon name="clock"/> History</h2><SparksHistory history={account.history}/></section>
+          <section className="qa-sparks-panel qa-sparks-overview-transfer">
+            <SparksTransfer username={username} sessionId={sparksSessionId} active={active&&sparksAllowed&&view==="overview"}/>
+          </section>
         </div> : view === "quests" || view === "games" ? null : view === "rewards" ? <section className="qa-sparks-panel qa-sparks-single"><h2><SparksIcon name="gift"/> Reward Center</h2><p className="qa-sparks-reward-tagline">แลกรางวัลสุดพิเศษด้วย Sparks ที่คุณสะสมได้จาก QA Sparks</p><div className="qa-sparks-mini-grid qa-sparks-reward-grid"><TypingReliefRewardCard username={username} sessionId={sparksSessionId} balance={account.balance} owned={account.typingReliefOwned} loaded={walletLoaded}/><QaAutoPassRewardCard username={username} sessionId={sparksSessionId} balance={account.balance} owned={account.autoPassOwned} freeClaimedAt={account.autoPassFreeClaimedAt} loaded={walletLoaded}/><TrueMoneyReward mode="reward" username={username} sessionId={sparksSessionId} balance={account.balance} loaded={walletLoaded}/><AnnouncementShieldItem mode="reward" username={username} sessionId={sparksSessionId} balance={account.balance}/><SpecialRewardCenter mode="reward" username={username} sessionId={sparksSessionId} balance={account.balance} loaded={walletLoaded}/></div></section>
         : view === "items" ? <section className="qa-sparks-panel qa-sparks-single qa-sparks-items-panel" data-inventory-clock={itemClock}>
           <h2><SparksIcon name="package"/> My Items</h2>
@@ -337,7 +339,6 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
               itemShelf==="processing"?"ไม่มี Item ที่กำลังดำเนินการ":"ยังไม่มีประวัติ Item ในหมวดนี้"}
           </div>
         </section>
-        : view === "transfer" ? <SparksTransfer username={username} sessionId={sparksSessionId} active={active&&sparksAllowed}/>
         : view === "history" ? <section className="qa-sparks-panel qa-sparks-single"><h2><SparksIcon name="clock"/> History</h2><SparksHistory history={account.history} large/></section>
         : adminAccess ? <div>
           {/* Visibility is owner-role gated here. Server validates the real QA session or verified Supabase Auth on every action. */}
