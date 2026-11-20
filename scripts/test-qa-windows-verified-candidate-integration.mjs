@@ -31,16 +31,22 @@ const call=(overrides={})=>stageQaWindowsVerifiedSourceCandidate({
 try{
  assert.equal((await pool.query('SELECT current_database() AS db')).rows[0].db,
   'qa_cutover_ci_test');
- await pool.query('CREATE SCHEMA qa_failover_v1');
- await pool.query('CREATE TABLE qa_failover_v1.live_snapshot_batches'+
+ // Reuse the disposable schema created by the preceding source-signal test.
+ // Never DROP anything or run on the Windows/production database.
+ await pool.query('CREATE SCHEMA IF NOT EXISTS qa_failover_v1');
+ await pool.query('CREATE TABLE IF NOT EXISTS qa_failover_v1.live_snapshot_batches'+
   '(snapshot_id text primary key,status text,approved_for_failover boolean)');
- await pool.query('CREATE TABLE qa_failover_v1.state'+
+ await pool.query('CREATE TABLE IF NOT EXISTS qa_failover_v1.state'+
   '(id int primary key,mode text,write_frozen boolean,'+
   ' source_snapshot_verified boolean,active_snapshot_id text)');
  await pool.query('INSERT INTO qa_failover_v1.live_snapshot_batches'+
   " VALUES ($1,'copy_verified',false)",[snapshotId]);
  await pool.query('INSERT INTO qa_failover_v1.state VALUES'+
-  "(1,'disabled',true,false,$1)",[snapshotId]);
+  "(1,'disabled',true,false,$1)"+
+  ' ON CONFLICT (id) DO UPDATE SET mode=EXCLUDED.mode,'+
+  ' write_frozen=EXCLUDED.write_frozen,'+
+  ' source_snapshot_verified=EXCLUDED.source_snapshot_verified,'+
+  ' active_snapshot_id=EXCLUDED.active_snapshot_id',[snapshotId]);
  await pool.query(await readFile(new URL(
   '../migration/qa-windows-source-signal-stage.sql',import.meta.url),'utf8'));
  await pool.query(await readFile(new URL(
