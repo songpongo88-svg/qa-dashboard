@@ -59,3 +59,16 @@ PR #245 is authorized by this stage.
 
 **`QA_FAILOVER=OFF`**. The PR stays Draft until real end-to-end trust
 and recoverability are demonstrated.
+
+## Verified CI result
+
+- [GitHub Actions #44704873823](https://github.com/songpongo88-svg/qa-dashboard/actions/runs/44704873823): both `no-network-unit` and `isolated-postgres` passed.
+- Verified log: `PASS Windows signed replay lab PG17: Ed25519 pinned signer, gap/stale rejection, parallel idempotence, review-only SQL, 0 Firestore requests`.
+- After reviewing the first successful CI run, the lab now uses a
+  per-stream row lock under PostgreSQL READ COMMITTED for deterministic
+  concurrent duplicate handling, and an **exact** collection-name
+  prefix constraint (rather than SQL LIKE wildcard matching).
+  Both changes passed CI.
+- Deliberately attempted delivery/promotion flags and replay collisions
+  were rejected. This is a simulated receiver on disposable PG17; it
+  does **not** certify a live Windows or Firestore connection.
