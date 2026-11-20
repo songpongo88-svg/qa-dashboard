@@ -1,5 +1,5 @@
 export const FRUIT_MATCH = Object.freeze({
-  version: "fruit-match-12-v1", pairs: 12, durationMs: 150000,
+  version: "fruit-match-12-v1", pairs: 12, durationMs: 60000, entryFee: 1,
   reward: 20, dailyRewardLimit: 2, dailyPlayLimit: 2, mismatchMs: 650, minimumFlipMs: 80,
 });
 export const FRUIT_MATCH_FRUITS = Object.freeze([
@@ -9,6 +9,31 @@ export const FRUIT_MATCH_FRUITS = Object.freeze([
   ["dragonfruit", "แก้วมังกร"], ["strawberry", "สตรอว์เบอร์รี"], ["watermelon", "แตงโม"],
 ].map(([id, name]) => Object.freeze({ id, name, image: `/games/fruit-match/cute/${id}.svg` })));
 
+export const MATCH_THEMES = Object.freeze({
+  fruit: {title:"Fruit Match", label:"จับคู่ผลไม้", days:"จันทร์–พุธ"},
+  number: {title:"Number Match", label:"จับคู่ตัวเลข 2 หลัก", days:"พฤหัสบดี"},
+  color: {title:"Color Match", label:"จับคู่สี", days:"ศุกร์–เสาร์"},
+  cat: {title:"Cat Match", label:"จับคู่ท่าทางแมวจริง", days:"อาทิตย์"},
+});
+export const MATCH_COLORS = Object.freeze(["#ff143c","#0754df","#ffcd00","#03b93e","#9300dc","#ff8d00","#f22385","#06b5ae","#805031","#717780","#02bee9","#92db00"]);
+export const MATCH_CATS = Object.freeze([
+  ["หลับ","CAT_SLEEPING.jpg"],
+  ["อ้าปากหาว","Cat_yawning.jpg"],
+  ["ยืดตัว","2010-12-27_Cat_stretching.jpg"],
+  ["นอนขด","Cat_sleep.jpg"],
+  ["นอนพักในกล่อง","Kantaro_taking_a_rest_in_a_box_(5941709022).jpg"],
+  ["นอนหมอน","Cat_relaxing_on_the_pillow.jpg"],
+  ["เหยียดตัว","2010-03-10_cat_stretching_at_Asagaya.jpg"],
+  ["ง่วงนอน","Colossus_is_sleepy.jpg"],
+  ["หลับบนที่นอน","Domestic_cat_asleep.jpg"],
+  ["เหยียดเท้า","Cute_paw_(6882033960).jpg"],
+  ["นอนสบาย","Happy_nap_(12678277895).jpg"],
+  ["หลับตา","Coco_sleeping.jpg"],
+].map(([name,file])=>Object.freeze({name,image:"https://commons.wikimedia.org/wiki/Special:FilePath/"+encodeURIComponent(file).replace(/%2F/g,"/")+"?width=200"})));
+export function matchThemeAt(ms=Date.now()){
+  const day=new Intl.DateTimeFormat("en-US",{timeZone:"Asia/Bangkok",weekday:"short"}).format(new Date(ms));
+  return day==="Thu"?"number":day==="Fri"||day==="Sat"?"color":day==="Sun"?"cat":"fruit";
+}
 // Monday 23 November 2026 at 11:00 Bangkok time, 04:00 UTC.
 export const FRUIT_WEEKLY=Object.freeze({firstResetAt:Date.parse("2026-11-23T04:00:00Z"),
   weekMs:604800000,championSparks:100});
