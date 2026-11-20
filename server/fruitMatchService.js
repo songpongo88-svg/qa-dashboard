@@ -30,6 +30,22 @@ function readTicket(value, actor, session) {
   return data;
 }
 const today = () => new Intl.DateTimeFormat("en-CA", {timeZone:"Asia/Bangkok",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
+// Preserve legacy counters, but never treat a stale day flag as earned plays.
+const dayFor = value => new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Bangkok",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date(value));
+function verifiedRewards(stats,date=today()) {
+  const history=Array.isArray(stats.history)?stats.history:[];
+  const actual=history.filter(row=>row?.won&&number(row.earned)>0&&row.createdAt&&dayFor(row.createdAt)===date).length;
+  const recorded=stats.rewardDay===date?number(stats.dailyRewardCount):0;
+  // The original service caps this at 2/day, so all today's awards must remain within the last ten receipts.
+  return recorded>actual?actual:recorded;
+}
+function effectivePlays(stats,date=today()) {
+  if(stats.playDay!==date)return verifiedRewards(stats,date);
+  const completedToday=(Array.isArray(stats.history)?stats.history:[])
+    .filter(row=>row?.createdAt&&dayFor(row.createdAt)===date).length;
+  const active=stats.activeRound&&dayFor(stats.activeRound.startedAt)===date?1:0;
+  return Math.min(number(stats.dailyPlayCount),completedToday+active);
+}
 const themes=Object.keys(MATCH_THEMES);
 const validTheme=value=>themes.includes(value)?value:matchThemeAt();
 const themeStats=(stats,theme)=> {
@@ -44,8 +60,8 @@ function publicStats(stats,theme=matchThemeAt()) {
   return {
     played: number(t.played), wins: number(t.wins), completed: number(t.completed),
     best: t.best || null, history: Array.isArray(t.history) ? t.history.slice(-10) : [],
-    dailyRewardCount: stats.rewardDay === today() ? number(stats.dailyRewardCount) : 0,
-    dailyPlayCount: stats.playDay === today() ? number(stats.dailyPlayCount) : stats.rewardDay === today() ? number(stats.dailyRewardCount) : 0,
+    dailyRewardCount: verifiedRewards(stats),
+    dailyPlayCount: effectivePlays(stats),
     playDay: today(), totalSparks: number(t.totalSparks), rewardDay: today(),
   };
 }
@@ -101,7 +117,7 @@ export function createFruitMatchService(db) {
       if (round) return {writes:[],result:{token:ticket(round),deck:round.deck,theme:round.theme||"fruit",numbers:round.numbers||[],stats:publicStats(stats,round.theme||"fruit")}};
       if (previous && now - previous.startedAt < 1000) reject("กรุณารอสักครู่ก่อนเริ่มรอบใหม่", 429);
       const date=today();
-      const dailyPlayCount=stats.playDay===date?number(stats.dailyPlayCount):stats.rewardDay===date?number(stats.dailyRewardCount):0;
+      const dailyPlayCount=effectivePlays(stats,date);
       if (dailyPlayCount>=FRUIT_MATCH.dailyPlayLimit) reject("ครบสิทธิ์เล่นเกมจับคู่ 2 ครั้งวันนี้แล้ว กรุณาเล่นอีกครั้งวันถัดไป",409);
       const year=currentMemberYear(),balance=spendableBalance(wallet,year);
       if (!walletDoc || balance<FRUIT_MATCH.entryFee) reject("Sparks ไม่เพียงพอ ต้องมีอย่างน้อย 1 Spark เพื่อเริ่มเล่น",409);
@@ -152,7 +168,7 @@ export function createFruitMatchService(db) {
       if (!replay.won && age < FRUIT_MATCH.durationMs-1500) reject("รอบนี้ยังไม่หมดเวลา");
       if (stats.activeRound?.id !== round.id) reject("บัญชีนี้เริ่มรอบใหม่แล้ว กรุณาเล่นในรอบล่าสุด",409);
       const date=today(), year=currentMemberYear(), annual=annualEarnedFromWallet(wallet,year);
-      const claimed=stats.rewardDay===date?number(stats.dailyRewardCount):0;
+      const claimed=verifiedRewards(stats,date);
       const earned=replay.won && claimed<FRUIT_MATCH.dailyRewardLimit ? FRUIT_MATCH.reward:0;
       const now=new Date().toISOString();
       const reason=earned?"earned":!replay.won?"timeout":"daily-limit";
