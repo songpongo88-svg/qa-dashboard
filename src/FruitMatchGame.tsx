@@ -20,6 +20,7 @@ export default function FruitMatchGame({username,sessionId}:{username:string;ses
   const [error,setError]=useState("");
   const [now,setNow]=useState(()=>Date.now());
   const [todayTheme,setTodayTheme]=useState(()=>matchThemeAt());
+  const [viewTheme,setViewTheme]=useState(()=>matchThemeAt());
   useEffect(()=>{if(tab!=="rank")return;const clock=window.setInterval(()=>setNow(Date.now()),1000);
     return()=>window.clearInterval(clock);},[tab]);
   useEffect(()=>{const timer=window.setInterval(()=>setTodayTheme(matchThemeAt()),30000);return()=>window.clearInterval(timer);},[]);
@@ -135,7 +136,7 @@ export default function FruitMatchGame({username,sessionId}:{username:string;ses
   ].join(":"):"--:--:--";
   return <section className="qfm-root" aria-label={themeInfo.title+" มินิเกมจับคู่"}>
     <header className="qfm-brand"><span>✦ QA SPARKS · MINI GAMES</span><span>12 คู่ / 24 ใบ</span></header>
-    <div className="qfm-heading"><div><p>{themeInfo.days} · {themeInfo.label} แล้วทำเวลาให้ดีที่สุด</p><h2>{themeInfo.title}</h2><small>12 คู่ · 24 ใบ · 60 วินาที · ค่าเข้า 1 Spark</small></div><div className="qfm-reward">✦ +{RULES.reward}<small>Sparks / รอบที่ผ่าน</small></div></div>
+    <div className="qfm-heading"><div><p>{themeInfo.days} · {themeInfo.label} แล้วทำเวลาให้ดีที่สุด</p><h2>{themeInfo.title}</h2><small>12 คู่ · 24 ใบ · 2 นาที 30 วินาที · ค่าเข้า 1 Spark</small></div><div className="qfm-reward">✦ +{RULES.reward}<small>Sparks / รอบที่ผ่าน</small></div></div>
     <div className={"qfm-hero qfm-hero--"+theme} aria-label={themeInfo.label}>
       {theme==="fruit"?["strawberry","orange","watermelon","lychee","banana","apple"].map(id=>
         <img key={id} src={"/games/fruit-match/cute/"+id+".svg"} alt="" draggable={false}/>):
