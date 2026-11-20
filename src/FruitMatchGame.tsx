@@ -193,6 +193,12 @@ export default function FruitMatchGame({username,sessionId}:{username:string;ses
     </section>
     {error?<div className="qfm-error" role="alert">{error}</div>:null}
     <p className="qfm-note">ค่าเข้า {RULES.entryFee} Spark (ไม่คืนเมื่อแพ้/ออกกลางเกม) · ชนะรับ {RULES.reward} Sparks · เล่นได้ {RULES.dailyPlayLimit} ครั้ง/วัน · เวลาไทย · สลับแท็บแล้วยังจับเวลาต่อ</p>
-    <div className="qfm-footer-fruits" aria-hidden="true">{["strawberry","orange","watermelon","mangosteen","banana","apple"].map(id=><img key={id} src={"/games/fruit-match/cute/"+id+".svg"} alt=""/>)}</div>
+    <div className={"qfm-footer-fruits qfm-footer--"+theme} aria-hidden="true">
+      {theme==="fruit"?["strawberry","orange","watermelon","mangosteen","banana","apple"].map(id=>
+        <img key={id} src={"/games/fruit-match/cute/"+id+".svg"} alt=""/>):
+      theme==="number"?[49,80,32,64,17,90].map((n,i)=><span key={i} className="qfm-footer-number">{n}</span>):
+      theme==="color"?MATCH_COLORS.slice(0,6).map((color,i)=><span key={i} className="qfm-footer-color" style={{backgroundColor:color}}/>):
+      MATCH_CATS.slice(0,6).map((cat,i)=><img className="qfm-footer-cat" key={i} src={cat.image} alt=""/>)}
+    </div>
   </section>;
 }
