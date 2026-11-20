@@ -22,6 +22,8 @@ type AdminUser = {
   earned: number;
   spent: number;
   rewardOrders: number;
+  miningBoostOwned?: number;
+  miningBoostAvailablePurchaseIds?: string[];
   firstLogin: { cardName: string; amount: number; claimedAt: string } | null;
   balanceKnown?: boolean;
   balanceAsOf?: string;
@@ -356,11 +358,17 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount,
   ), [search, users]);
   const history = (detail?.history || []).filter((entry) => {
     if (filter === "all") return true;
-    if (filter === "redeem") return ["reward-redemption", "reward-refund"].includes(entry.source);
+    if (filter === "redeem") return ["reward-redemption", "reward-refund", "mining-boost-purchase"].includes(entry.source);
     if (filter === "items") return isItemHistoryEntry(entry);
     return entry.amount !== 0 && entry.type === filter;
   });
   const refundedIds = new Set((detail?.history || []).filter((item) => item.source === "reward-refund").map((item) => item.referenceId));
+  const canRefundMining = (entry:AdminHistoryItem) => {
+    if(entry.source!=="mining-boost-purchase"||entry.amount!==-25||refundedIds.has(entry.id))return false;
+    const inventory=detail?.wallet.miningBoostOwned??0;
+    const queue=detail?.wallet.miningBoostAvailablePurchaseIds||[];
+    return inventory>0 && (queue.includes(entry.id)||inventory>queue.length);
+  };
   const voidGrant = detail?.history.find((item) => item.source === "admin-add" && item.amount === 99800 && !item.voided);
   const voidDeduct = detail?.history.find((item) => item.source === "admin-deduct" && item.amount === -99800 && !item.voided);
   const canCorrectTest = adminReady && normalizeUser(chosen) === "chachiya" && Boolean(
@@ -665,7 +673,7 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount,
                 {entry.derived?<small>หมดอายุตามข้อมูล My Items · ไม่ได้สร้างธุรกรรมย้อนหลัง</small>:null}
               </div>
               <div className="qa-sparks-admin-history-amount"><strong className={entry.amount > 0 ? "positive" : entry.amount < 0 ? "negative" : ""}>{entry.amount === 0 ? "—" : (entry.amount > 0 ? "+" : "") + fmt(entry.amount) + " Sparks"}</strong><small>{entry.balanceAfter===null?"ยอด Sparks ตามรายการนี้: —":"เหลือ "+fmt(entry.balanceAfter)+" Sparks"}</small>
-                {entry.source === "reward-redemption" && entry.amount < 0 && !refundedIds.has(entry.id) ?
+                {(entry.source === "reward-redemption" && entry.amount < 0 && !refundedIds.has(entry.id) || canRefundMining(entry)) ?
                   <button type="button" disabled={!adminReady} onClick={() => startOperation("refund", entry)}>คืน Sparks</button> : null}
               </div>
             </article>)}
