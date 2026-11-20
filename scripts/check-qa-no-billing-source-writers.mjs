@@ -1,45 +1,29 @@
-// QA core no-Google-billing path: repository-only direct Firestore writer inventory.
-// Does not open Firestore, PostgreSQL, Cloudflare, or any user account.
-// This is a BLOCKER report, not proof that all write paths have been found.
-import assert from 'node:assert/strict';
-import {readFile} from 'node:fs/promises';
-
-const root=new URL('../',import.meta.url);
-const writers=Object.freeze({
- qa_evaluations:['src/evaluationStore.ts'],
- qa_appeal_events:['src/appealStore.ts'],
- qa_signature_documents:['src/signatureStore.ts'],
- qa_user_profiles:['src/userRoleStore.ts'],
- qa_role_permissions:['src/userRoleStore.ts'],
- qa_user_sessions:['src/sessionStore.ts'],
- qa_user_session_controls:['src/sessionStore.ts'],
- qa_role_definitions:['src/userRoleStore.ts'],
- qa_system_settings:['src/userRoleStore.ts'],
- qa_signature_library:['src/signatureStore.ts'],
- qa_evaluation_progress:['src/qaEvaluationProgressStore.ts','src/evaluationStore.ts'],
-});
-const mutation=/(?:(?:await\s+)?(?:setDoc|updateDoc|addDoc|deleteDoc|runTransaction)\s*\(|transaction\.(?:set|update|delete)\s*\()/g;
-const records=[];
-for(const [collection,paths] of Object.entries(writers)){
- const files=[];
- for(const file of paths){
-  const source=await readFile(new URL(file,root),'utf8');
-  const matches=[...source.matchAll(mutation)].length;
-  assert.ok(source.includes('firebase/firestore')||source.includes('FirestoreApi')||
-    source.includes('qa_evaluation_progress'),
-    'Expected Firestore module is missing from '+file);
-  files.push({path:file,candidateMutations:matches});
- }
- records.push({collection,files});
-}
-assert.equal(records.length,11);
-assert.ok(records.every(row=>row.files.some(file=>file.candidateMutations>0)),
- 'Direct-writer inventory changed: re-audit all 11 datasets');
+// Repo-wide, source-only QA Firestore writer audit. This script does not
+// open Firestore, Supabase, Windows PostgreSQL, Google Billing or user data.
+// A list of candidate writes is NOT proof that all source commits are covered.
+import {fileURLToPath} from 'node:url';
+import {discoverQaFirestoreWriters,REVIEWED_WRITERS}
+ from './qa-firestore-writer-inventory.mjs';
+const root=fileURLToPath(new URL('../',import.meta.url));
+const inventory=await discoverQaFirestoreWriters(root);
+if(inventory.knownReviewedCollectionCount!==11)
+ throw Error('qa_source_writer_inventory_count_changed');
+const records=Object.entries(REVIEWED_WRITERS).map(([collection,paths])=>({
+ collection,files:paths.map(path=>({
+  path,candidateMutations:inventory.known.find(x=>
+   x.collection===collection&&x.path===path)?.candidateMutations??0,
+ })),
+}));
 const report={
  status:'BLOCKED',firebaseBillingRequired:false,
  guarantee:'NOT_PROVEN',
- reason:'client_side_firestore_writes_and_no_durable_non_google_outbox',
+ reason:'direct_browser_firestore_writers_and_no_durable_committed_outbox',
  collectionCount:records.length,records,
+ sourceFilesScanned:inventory.sourceFilesScanned,
+ sourceFilesSkipped:inventory.filesSkipped,
+ candidateFirestoreWriterFiles:inventory.writerFiles,
+ additionalUnreviewedWriterFiles:inventory.unreviewed.length,
+ additionalUnreviewedWriters:inventory.unreviewed,
  assertions:{
   eventarcProducerDeployed:false,
   trustedDurableWriteGateway:false,
@@ -47,13 +31,19 @@ const report={
   deleteAndLockParityCertified:false,
   full11DatasetParityCertified:false,
   windowsFailureRecoveryCertified:false,
+  dynamicWriterCoverageProven:false,
  },
+ firestoreReads:0,firestoreWrites:0,
  failoverEnabled:false,
 };
 if(process.argv.includes('--json'))console.log(JSON.stringify(report,null,2));
 else{
  console.log('QA_NO_BILLING_SOURCE_WRITERS='+records.length);
+ console.log('QA_NO_BILLING_FILES_SCANNED='+report.sourceFilesScanned);
+ console.log('QA_NO_BILLING_ADDITIONAL_WRITER_LEADS='+report.additionalUnreviewedWriterFiles);
+ console.log('QA_NO_BILLING_SOURCE_FILES_SKIPPED='+report.sourceFilesSkipped);
  console.log('QA_NO_BILLING_MIRROR_STATUS=BLOCKED');
  console.log('QA_NO_BILLING_GUARANTEE=NOT_PROVEN');
+ console.log('QA_FIRESTORE_READS_BY_AUDIT=0');
  console.log('QA_FAILOVER=OFF');
 }
