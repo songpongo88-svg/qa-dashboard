@@ -21,7 +21,7 @@ import { issueSparksReadGrant, verifySparksReadGrant } from "../server/sparksRea
 import { issueSparksAdminReadGrant, verifySparksAdminReadGrant } from "../server/sparksAdminReadGrant.js";
 import { auditQaCredentialSource } from "../server/sparksQaCredentialPreflight.js";
 import { migrateQaPasswordsFromTrustedSource } from "../server/sparksQaMigrationRunner.js";
-import { withSparksRequest, getSparksRequestActor, sparksActiveProfile, sparksActiveDirectory, sparksAngelDirectory, hasSparksEmailAuthCookie } from "../server/sparksSupabaseAuth.js";
+import { withSparksRequest, getSparksRequestActor, sparksActiveProfile, sparksActiveDirectory, sparksAngelDirectory, sparksTransferV2, hasSparksEmailAuthCookie } from "../server/sparksSupabaseAuth.js";
 import { thankYouSupportAmount, thankYouSupportPhase, THANK_YOU_SUPPORT_ID } from "../src/thankYouSupport2026.mjs";
 
 // Use the same explicit Firebase project as src/firebaseClient.ts. VITE_* build
@@ -1849,7 +1849,7 @@ const CLOUD_PREVIEW_READ_ACTIONS = new Set([
   "special-rewards-mine", "announcement-shield-state", "treasure-state",
   "fruit-match-data", "puzzle15-data", "snakes-state", "auto-pass-state", "angel-state", "mining-state", "list-truemoney-tracker",
   "special-rewards-admin-list", "special-rewards-admin-receipt",
-  "list-reward-queues", "list", "history", "sparks-transfer-state", "sparks-transfer-recipients",
+  "list-reward-queues", "list", "history", "sparks-transfer-state", "member-card-state",
 ]);
 function sparksCloudReadOnlyEnabled() {
   return process.env.SPARKS_DATA_BACKEND==="supabase" && process.env.SPARKS_CLOUD_READ_ONLY==="1";
@@ -2060,16 +2060,26 @@ async function sparksHandler(req, res) {
         :await angelNumber.create(body,actor);
       return res.status(200).json(data);
     }
-    if (["sparks-transfer-state","sparks-transfer-recipients","sparks-transfer-submit"].includes(body.action)) {
-      if(process.env.SPARKS_DATA_BACKEND!=="supabase")fail("การโอน Sparks เปิดใช้งานเฉพาะระบบ Supabase",423);
-      // Transfers require independently verified Supabase Auth, never Firestore QA sessions.
-      // The same verified JWT authorizes active recipient directory lookups.
+    if (["member-card-state","member-card-activate","member-card-reissue","member-pin-verify","member-pin-change",
+       "sparks-transfer-state","sparks-transfer-lookup","sparks-transfer-submit","sparks-transfer-accept"].includes(body.action)) {
+      if(process.env.SPARKS_DATA_BACKEND!=="supabase")fail("ระบบบัตรสมาชิกใช้ Supabase เท่านั้น",423);
       const actor=await getSparksRequestActor();
-      if (safeUsername(body.actorUsername)!==actor.username)
-        fail("QA Sparks account does not match signed-in user",403);
-      const result=body.action==="sparks-transfer-state"?await sparksTransfer.readState(actor)
-        :body.action==="sparks-transfer-recipients"?await sparksTransfer.recipients(actor)
-        :await sparksTransfer.transfer(body,actor);
+      if(safeUsername(body.actorUsername)!==actor.username)fail("บัญชีสมาชิกไม่ตรงกับผู้เข้าสู่ระบบ",403);
+      const actions={
+        "member-card-state":"card-state","member-card-activate":"card-activate",
+        "member-card-reissue":"card-reissue","member-pin-verify":"pin-verify",
+        "member-pin-change":"pin-change","sparks-transfer-state":"transfer-state",
+        "sparks-transfer-lookup":"recipient-lookup","sparks-transfer-submit":"transfer-submit",
+        "sparks-transfer-accept":"transfer-accept"
+      };
+      const payload={
+        pin:String(body.pin||""),newPin:String(body.newPin||""),
+        confirmPin:String(body.confirmPin||""),confirm:String(body.confirm||""),
+        recipientCard:String(body.recipientCard||""),requestId:String(body.requestId||""),
+        amount:body.amount,transferId:String(body.transferId||""),
+      };
+      const result=await sparksTransferV2(actions[body.action],payload);
+      if(result.ok===false)return res.status(409).json(result);
       return res.status(200).json(result);
     }
     if (["puzzle15-data","puzzle15-start","puzzle15-finish"].includes(body.action)) {
