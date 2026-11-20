@@ -230,3 +230,16 @@ export async function sparksOwnerAuthStatus() {
     rosterUpdatedAt: String(row.roster_updated_at || ""),
   })).filter(row => Boolean(row.username));
 }
+
+/** Executes the card/PIN/escrow RPC using the current verified QA Sparks JWT. */
+export async function sparksTransferV2(action,payload={}) {
+  const actor=await getSparksRequestActor();
+  if(!actor?.username)throw failure("กรุณาเข้าสู่ระบบ QA Sparks ด้วยอีเมลที่ยืนยันแล้ว",401);
+  const jwt=context.getStore()?.accessToken;
+  if(!jwt)throw failure("QA Sparks session unavailable",401);
+  const result=await supabase("/rest/v1/rpc/sparks_transfer_v2",{
+    jwt,method:"POST",body:{p_action:action,p_payload:payload},
+  });
+  if(!result || typeof result!=="object")throw failure("ระบบบัตรสมาชิกยังไม่พร้อม",503);
+  return result;
+}
