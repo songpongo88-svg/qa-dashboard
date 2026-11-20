@@ -54,15 +54,19 @@ export default function MemberJourney({ earned, year, displayName, balance, rewa
   const member = getSparksMemberLevel(earned);
   const [guideOpen, setGuideOpen] = useState(false);
   const [cardNumber, setCardNumber] = useState("");
+  const [cardActive, setCardActive] = useState(false);
   useEffect(() => {
-    if (!username || !sessionId) return;
-    let alive = true;
-    void fetch("/api/sparks-admin", { method:"POST", credentials:"same-origin", cache:"no-store", headers:{"content-type":"application/json"},
-      body:JSON.stringify({action:"get-member-card",actorUsername:username,sessionId}) })
-      .then(async r => r.ok ? r.json() : null)
-      .then(data => { if(alive && typeof data?.memberCardNumber === "string")setCardNumber(data.memberCardNumber); })
-      .catch(()=>{});
-    return () => { alive=false; };
+    if(!username||!sessionId)return;
+    let alive=true;
+    const load=()=>{void fetch("/api/sparks-admin",{method:"POST",credentials:"same-origin",cache:"no-store",
+      headers:{"content-type":"application/json"},
+      body:JSON.stringify({action:"member-card-state",actorUsername:username,sessionId})})
+      .then(async response=>response.ok?response.json():null)
+      .then(data=>{if(alive){setCardActive(data?.cardActive===true);
+        setCardNumber(data?.cardActive?String(data.cardNumber||""):"");}})
+      .catch(()=>{});};
+    load();window.addEventListener("qa:sparks-card-updated",load);
+    return()=>{alive=false;window.removeEventListener("qa:sparks-card-updated",load);};
   },[username,sessionId]);
   const openButton = useRef<HTMLButtonElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
@@ -95,6 +99,14 @@ export default function MemberJourney({ earned, year, displayName, balance, rewa
     </div> : <div className="qa-membership" data-member-wallet="integrated">
       <div className="qa-section-top"><div><p>ANNUAL MEMBERSHIP · {year}</p><h2>บัตรสมาชิกของคุณ</h2></div><button ref={openButton} type="button" className="qa-action" aria-expanded={false} onClick={() => setGuideOpen(true)}>ดูระดับสมาชิกทั้งหมด <span aria-hidden="true">↗</span></button></div>
       <div className="qa-current-card"><MemberCard tier={member.current} year={year} displayName={displayName} cardNumber={cardNumber}/></div>
+      <div className="qa-member-card-controls" style={{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap",padding:"10px 0 18px"}}>
+        <span style={{fontSize:12,color:cardActive?"#236741":"#875b18"}}>
+          {cardActive?"บัตรเปิดใช้งานแล้ว · PIN 6 หลัก":"บัตรยังไม่เปิดใช้งาน · กรุณาตั้ง PIN 6 หลัก"}
+        </span>
+        <button type="button" className="qa-action" onClick={()=>window.dispatchEvent(new Event("qa:sparks-card-open"))}>
+          {cardActive?"จัดการบัตร / เปลี่ยน PIN":"เปิดใช้งานบัตรและตั้ง PIN"}
+        </button>
+      </div>
       <div className="qa-member-summary">
         <SparksWalletSummary balance={balance} rewardOrders={rewardOrders}/>
         <div className="qa-member-progress">
