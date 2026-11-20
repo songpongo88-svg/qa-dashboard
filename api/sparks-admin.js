@@ -1912,10 +1912,11 @@ async function sparksHandler(req, res) {
         :await fifteenPuzzle.finish(body,actor);
       return res.status(200).json(result);
     }
-    if (["fruit-match-data","fruit-match-start","fruit-match-finish"].includes(body.action)) {
+    if (["fruit-match-data","fruit-match-start","fruit-match-finish","fruit-match-recover"].includes(body.action)) {
       const actor = await authorizeRewardUser(body);
       const result = body.action === "fruit-match-data" ? await fruitMatch.data(actor,body.theme)
-        : body.action === "fruit-match-start" ? await fruitMatch.start(body,actor) : await fruitMatch.finish(body,actor);
+        : body.action === "fruit-match-start" ? await fruitMatch.start(body,actor)
+        : body.action === "fruit-match-recover" ? await fruitMatch.recover(actor) : await fruitMatch.finish(body,actor);
       return res.status(200).json(result);
     }
     if (typeof body.action==="string"&&body.action.startsWith("snakes-")) {
