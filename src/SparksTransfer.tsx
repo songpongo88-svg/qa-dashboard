@@ -5,6 +5,7 @@ type Recipient={username:string;displayName:string};
 type TransferState={month:string;monthlyLimit:number;sentThisMonth:number;remaining:number;balance:number};
 export default function SparksTransfer({username,sessionId,active}:{username:string;sessionId:string;active:boolean}){
  const [summary,setSummary]=useState<TransferState|null>(null);
+ const [loading,setLoading]=useState(true);
  const [recipients,setRecipients]=useState<Recipient[]>([]);
  const [recipient,setRecipient]=useState("");
  const [amount,setAmount]=useState(""),[pending,setPending]=useState(false);
@@ -20,15 +21,21 @@ export default function SparksTransfer({username,sessionId,active}:{username:str
   return body;
  },[username,sessionId]);
  const refresh=useCallback(async()=>{
-  const [state,people]=await Promise.all([call("sparks-transfer-state"),call("sparks-transfer-recipients")]);
-  setSummary(state);setRecipients(people.recipients||[]);
+  setLoading(true);
+  try{
+   const [state,people]=await Promise.all([call("sparks-transfer-state"),call("sparks-transfer-recipients")]);
+   setSummary(state);setRecipients(people.recipients||[]);setError("");
+  }catch(error){
+   setSummary(null);setRecipients([]);
+   throw error;
+  }finally{setLoading(false);}
  },[call]);
  useEffect(()=>{if(!active)return;let live=true;
   void refresh().catch(e=>{if(live)setError(e instanceof Error?e.message:"โหลดข้อมูลไม่สำเร็จ")});
   return()=>{live=false};
  },[refresh,active]);
  const chosen=recipients.find(x=>x.username===recipient),qty=Number(amount);
- const eligible=Boolean(chosen&&summary&&Number.isSafeInteger(qty)&&qty>=1&&qty<=Math.min(summary.remaining,summary.balance,500));
+ const eligible=Boolean(!loading&&chosen&&summary&&Number.isSafeInteger(qty)&&qty>=1&&qty<=Math.min(summary.remaining,summary.balance,500));
  const submit=async()=>{
   if(!eligible||pending)return;
   setPending(true);setError("");setNotice("");
@@ -46,18 +53,21 @@ export default function SparksTransfer({username,sessionId,active}:{username:str
  return <section className="sparks-transfer" aria-label="โอน QA Sparks ให้สมาชิก">
   <div className="sparks-transfer-head"><h2>โอน Sparks ให้กัน</h2><p>โอนจากยอด Sparks ของตัวเองให้สมาชิก QA ที่ยัง Active · ไม่เกิน 500 Sparks รวมต่อเดือน</p></div>
   <div className="sparks-transfer-summary">
-   <div><small>ยอด Sparks ของฉัน</small><strong>{(summary?.balance??0).toLocaleString("th-TH")}</strong></div>
-   <div><small>โอนไปแล้วเดือนนี้</small><strong>{summary?.sentThisMonth??0} / 500</strong></div>
-   <div><small>โอนได้อีก</small><strong>{summary?.remaining??0} Sparks</strong></div>
+   <div><small>ยอด Sparks ของฉัน</small><strong>{summary?summary.balance.toLocaleString("th-TH"):"—"}</strong></div>
+   <div><small>โอนไปแล้วเดือนนี้</small><strong>{summary?summary.sentThisMonth+" / 500":"— / 500"}</strong></div>
+   <div><small>โอนได้อีก</small><strong>{summary?summary.remaining+" Sparks":"— Sparks"}</strong></div>
   </div>
+  {!summary&&!loading?<p className="sparks-transfer-error" role="status">ยังไม่สามารถตรวจสอบยอด Sparks และรายชื่อสมาชิกได้ กรุณาเข้าสู่ระบบ QA Sparks ด้วยอีเมลที่ยืนยันแล้ว หรือลองโหลดข้อมูลใหม่</p>:null}
+  {loading?<p role="status">กำลังตรวจสอบข้อมูลโอน Sparks จาก Supabase...</p>:null}
+  {!summary?<button className="sparks-transfer-primary" type="button" disabled={loading} onClick={()=>void refresh().catch(e=>setError(e instanceof Error?e.message:"โหลดข้อมูลไม่สำเร็จ"))}>ลองโหลดข้อมูลอีกครั้ง</button>:null}
   <label htmlFor="transfer-member">ผู้รับ Sparks</label>
-  <select id="transfer-member" value={recipient} onChange={e=>{setRecipient(e.target.value);setConfirm(false);setRequestId("");}} disabled={pending}>
+  <select id="transfer-member" value={recipient} onChange={e=>{setRecipient(e.target.value);setConfirm(false);setRequestId("");}} disabled={pending||loading||!summary}>
    <option value="">เลือกสมาชิกผู้รับ</option>
    {recipients.map(person=><option key={person.username} value={person.username}>{person.displayName} ({person.username})</option>)}
   </select>
   <label htmlFor="transfer-amount">จำนวนที่ต้องการโอน (Sparks)</label>
   <input id="transfer-amount" type="number" min={1} step={1} max={Math.min(summary?.remaining??500,500)}
-   placeholder="ระบุจำนวน เช่น 100" value={amount} disabled={pending}
+   placeholder="ระบุจำนวน เช่น 100" value={amount} disabled={pending||loading||!summary}
    onChange={e=>{setAmount(e.target.value);setConfirm(false);setRequestId("");}}/>
   <p className="sparks-transfer-explain">วงเงินโอนรีเซ็ตวันที่ 1 ของเดือน เวลา 00:00 น. (ประเทศไทย) · ผู้รับได้รับคะแนนทันที · ไม่สามารถโอนให้ตัวเอง</p>
   {error?<p className="sparks-transfer-error" role="alert">{error}</p>:null}
