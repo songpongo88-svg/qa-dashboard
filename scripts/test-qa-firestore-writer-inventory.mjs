@@ -33,7 +33,7 @@ try{
   'function deleteDoc(ref){ return ref; } deleteDoc("local");');
  const report=await discoverQaFirestoreWriters(root);
  assert.equal(report.knownReviewedCollectionCount,11);
- assert.equal(report.known.length,12);
+ assert.equal(report.known.length,Object.values(REVIEWED_WRITERS).flat().length);
  assert.equal(report.unreviewed.length,1);
  assert.equal(report.unreviewed[0].path,'src/undisclosedQaWriter.ts');
  assert.equal(report.unreviewed[0].possibleCollections[0],'qa_appeal_events');
