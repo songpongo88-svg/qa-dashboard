@@ -85,7 +85,10 @@ export async function receiveQaWindowsSignedReviewEvent({
   const database=(await c.query('SELECT current_database() AS db')).rows?.[0]?.db;
   if(database!=='qa_cutover_ci_test')
    fail('qa_receiver_disposable_database_only');
-  await c.query('BEGIN ISOLATION LEVEL SERIALIZABLE');tx=true;
+  // The per-stream cursor row lock provides deterministic sequential
+  // admission across concurrent duplicate deliveries (no serializable
+  // retries that might themselves be interpreted as a second event).
+  await c.query('BEGIN ISOLATION LEVEL READ COMMITTED');tx=true;
   await c.query("SET LOCAL lock_timeout='3s'");
   // One cursor per stream, protected by row lock across the entire append.
   await c.query('INSERT INTO qa_windows_receiver_lab.stream_cursor'+
