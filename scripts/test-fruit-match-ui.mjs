@@ -22,7 +22,7 @@ let failSave=true,lastSubmission;
 globalThis.fetch=async(_url,options)=>{
   const body=JSON.parse(options.body);calls.push(body);assert.equal(body.actorUsername,"Agent");assert.equal(body.sessionId,"agent-session-123456789");
   if(body.action==="fruit-match-data")return{ok:true,json:async()=>({stats:{...stats},leaderboard:[]})};
-  if(body.action==="fruit-match-start"){stats.played++;stats.dailyPlayCount++;return{ok:true,json:async()=>({stats:{...stats},deck,token:"server-issued-ticket"})};}
+  if(body.action==="fruit-match-start"){stats.played++;stats.dailyPlayCount++;return{ok:true,json:async()=>({stats:{...stats},deck,theme:"number",numbers:[49,80,32,64,17,90,25,91,58,43,76,12],token:"server-issued-ticket"})};}
   assert.equal(body.action,"fruit-match-finish");assert.equal(body.token,"server-issued-ticket");
   if(failSave){failSave=false;lastSubmission=body;throw new Error("การเชื่อมต่อขัดข้อง กรุณาลองอีกครั้ง");}
   assert.deepEqual(body,lastSubmission,"retry must send the same round and moves");
@@ -41,7 +41,8 @@ try{
   const Game=(await import(pathToFileURL(outfile).href)).default;
   await act(async()=>root.render(React.createElement(Game,{username:"Agent",sessionId:"agent-session-123456789"})));await wait();
   assert.equal(document.querySelectorAll("[data-fruit-card]").length,24);
-  assert.equal(new Set([...document.querySelectorAll(".qfm-face img")].map(image=>image.src)).size,12);
+  assert.equal(document.querySelectorAll(".qfm-number").length,24,"number theme renders 24 matching two-digit cards");
+  assert.equal(new Set([...document.querySelectorAll(".qfm-number")].map(node=>node.textContent)).size,12,"number theme contains 12 distinct pairs");
   assert.equal(calls.length,1,"one initial stats read, no polling");assert(!document.body.textContent.includes("ผู้เล่น A"));
   await click(document.querySelector(".qfm-primary"));await wait();assert.equal(calls.length,2);
   const card=index=>document.querySelector(`[data-fruit-card="${index}"]`);
@@ -55,5 +56,5 @@ try{
   assert.equal(document.querySelector("#qfm-rank").hidden,false);assert(document.querySelector("#qfm-rank").textContent.includes("Agent One"));assert(document.querySelector(".qfm-my-rank").textContent.includes("อันดับ 1"));
   await click(document.querySelector("#qfm-tab-stats"));assert(document.querySelector("#qfm-stats").textContent.includes("12 / 12"));
   assert.equal(calls.length,4,"tab changes do not fetch again");
-  console.log("PASS Fruit Match UI: 24 photo cards, 12 types, mismatch lock, local-only flips, real server result, same-round retry, personal stats/ranking, no fake rows or polling.");
+  console.log("PASS Weekly Matching UI: 24 cards, 12 two-digit number pairs, mismatch lock, local-only flips, real server result, same-round retry, personal stats/ranking, no fake rows or polling.");
 }finally{await act(async()=>root.unmount());globalThis.fetch=originalFetch;globalThis.Image=originalImage;if(originalCrypto)Object.defineProperty(globalThis,"crypto",originalCrypto);else delete globalThis.crypto;if(originalNow)Object.defineProperty(performance,"now",originalNow);else delete performance.now;dom.window.close();await rm(work,{recursive:true,force:true});}
