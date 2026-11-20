@@ -6,10 +6,13 @@ import pg from 'pg';
 import {qaCanonicalDocumentHash} from '../server/qaLiveMirrorStage.js';
 import {stageQaCoreSourceVerificationCandidate}
  from '../server/qaCoreSourceVerificationCandidateStage.js';
+import {createQaCoreIndependentSourceRead}
+ from '../server/qaCoreIndependentSourceReadStage.js';
 if(process.env.QA_PG_ISOLATED_TEST!=='1'||!process.env.QA_TEST_DATABASE_URL)
  throw Error('qa_disposable_database_only');
 const pool=new pg.Pool({connectionString:process.env.QA_TEST_DATABASE_URL,max:3});
 const env={QA_CORE_SOURCE_VERIFICATION_STAGE:'1',
+ QA_CORE_SOURCE_READ_ADAPTER_TEST:'1',
  QA_CORE_PRIVATE_OUTBOX_STAGING:'1',QA_PG_ISOLATED_TEST:'1',QA_FAILOVER:'OFF'};
 const project='qa-dashboard-b0b5d';
 const rev='2026-11-20T08:10:02.123456Z';
@@ -36,7 +39,24 @@ const source={authority:'qa-core-independent-server-source-read',
  sourceReadVerified:true,documentJson};
 let commitChecks=0,readChecks=0;
 const attestServerCommit=async()=>{commitChecks++;return commit;};
-const readIndependentSource=async()=>{readChecks++;return source;};
+const readAdapter=createQaCoreIndependentSourceRead({
+ oauthToken:'mock-server-token-never-real-0123456789',
+ reserveRead:async req=>{
+  assert.equal(req.requestedPageSize,1);
+  assert.equal(req.documentPath,sourcePath);
+  return{estimatedNotBilledReads:true,budgetDayUtc:'2026-11-20',
+   reservedDocumentUnits:1,reservedRequests:1};
+ },
+ fetchImpl:async (url,options)=>{
+  assert.equal(options.method,'GET');
+  assert.equal(options.redirect,'error');
+  assert.ok(url.endsWith('/qa_evaluations/AA_SYNTHETIC_051'));
+  return{status:200,headers:{get:key=>key==='content-type'?'application/json':null},
+   json:async()=>documentJson};
+ },
+ env,
+});
+const readIndependentSource=async req=>{readChecks++;return readAdapter(req);};
 const run=(other={})=>stageQaCoreSourceVerificationCandidate({
  pool,event,attestServerCommit,readIndependentSource,env,...other,
 });
