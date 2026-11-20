@@ -4,6 +4,7 @@ type Round={roundId:string;board:number[];startedAt:number};
 type Result={roundId:string;won:boolean;moves:number;elapsedMs:number;base:number;fast:number;rankBonus:number;rank:number|null;earned:number;balanceAfter:number};
 type Rank={username:string;displayName:string;elapsedMs:number;moves:number;achievedAt:string};
 type Stats={dailyWins:number;won:number;best:Rank|null;active:boolean;highestAwardedRank:number|null};
+type WeeklyInfo={key:string;nextResetAt:string;previousChampions:(Rank&{rank:number;amount:number;weekKey:string})[];previousPending:boolean;rankRewards:number[]};
 const GOAL=Array.from({length:15},(_,i)=>i+1).concat(0);
 const REWARDS=[150,120,100,80,50];
 const duration=(ms:number)=>{const s=Math.floor(ms/1000);return String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0");};
@@ -14,6 +15,7 @@ export default function FifteenPuzzleGame({username,sessionId}:{username:string;
  const [phase,setPhase]=useState<"ready"|"playing"|"saving"|"won">("ready"),[elapsed,setElapsed]=useState(0),[busy,setBusy]=useState(false);
  const [error,setError]=useState(""),[notice,setNotice]=useState(""),[result,setResult]=useState<Result|null>(null);
  const [stats,setStats]=useState<Stats|null>(null),[leaderboard,setLeaderboard]=useState<Rank[]>([]);
+ const [weekly,setWeekly]=useState<WeeklyInfo|null>(null);
  const round=useRef<Round|null>(null),movesRef=useRef<number[]>([]),requestId=useRef("");
  const call=useCallback(async(action:string,extra:Record<string,unknown>={})=>{
   const response=await fetch("/api/sparks-admin",{method:"POST",credentials:"same-origin",cache:"no-store",headers:{"content-type":"application/json"},body:JSON.stringify({action,actorUsername:username,sessionId,...extra})});
@@ -21,7 +23,7 @@ export default function FifteenPuzzleGame({username,sessionId}:{username:string;
   if(!response.ok)throw new Error(String(json.error||"ไม่สามารถเชื่อมต่อ QA Sparks ได้"));
   return json;
  },[username,sessionId]);
- const refresh=useCallback(async()=>{try{const data=await call("puzzle15-data");setStats(data.stats);setLeaderboard(data.leaderboard||[]);}catch(e){setError(e instanceof Error?e.message:"โหลดข้อมูลไม่สำเร็จ");}},[call]);
+ const refresh=useCallback(async()=>{try{const data=await call("puzzle15-data");setStats(data.stats);setLeaderboard(data.leaderboard||[]);setWeekly(data.week||null);}catch(e){setError(e instanceof Error?e.message:"โหลดข้อมูลไม่สำเร็จ");}},[call]);
  useEffect(()=>{void refresh();},[refresh]);
  useEffect(()=>{if(phase!=="playing"||!round.current)return;const id=window.setInterval(()=>setElapsed(Date.now()-(round.current?.startedAt||Date.now())),100);return()=>window.clearInterval(id);},[phase]);
  const allowed=useMemo(()=>neighbors(tiles.indexOf(0)),[tiles]);
@@ -64,13 +66,17 @@ export default function FifteenPuzzleGame({username,sessionId}:{username:string;
   <div className="fifteen-board" role="group" aria-label="กระดานปริศนาขนาดสี่คูณสี่">
    {tiles.map((n,i)=>n===0?<div key="blank" className="fifteen-blank" aria-label="ช่องว่าง">✧</div>:<button type="button" key={n} aria-label={"เลื่อนเลข "+n} disabled={phase!=="playing"||busy||!allowed.includes(i)} onClick={()=>slide(i)} className={"fifteen-tile fifteen-pattern-"+n%8+(allowed.includes(i)&&phase==="playing"?" is-movable":"")}><span className="fifteen-glyph" aria-hidden="true">{["◇","✦","⬡","◈","☷","✧","⬢","❖"][n%8]}</span><span className="fifteen-number">{n}</span></button>)}
   </div>
-  {result?<div className="fifteen-victory" role="status">🏆 สำเร็จ {duration(result.elapsedMs)} · รับ {result.earned} Sparks (สำเร็จ {result.base} + โบนัสเวลา {result.fast} + อันดับ {result.rankBonus})</div>:<p className="fifteen-hint">{phase==="ready"?"กดเริ่มเกมเพื่อหักค่าเข้า 1 Spark และสุ่มโจทย์ใหม่":phase==="saving"?"กำลังยืนยันคำตอบและจ่ายรางวัลจากเซิร์ฟเวอร์":"กดตัวเลขติดช่องว่างเพื่อเลื่อนไปยังช่องว่าง"}</p>}
+  {result?<div className="fifteen-victory" role="status">🏆 สำเร็จ {duration(result.elapsedMs)} · รับ {result.earned} Sparks (สำเร็จ {result.base} + โบนัสเวลา {result.fast}) · โบนัสอันดับ Top 5 รอปิดรอบวันจันทร์</div>:<p className="fifteen-hint">{phase==="ready"?"กดเริ่มเกมเพื่อหักค่าเข้า 1 Spark และสุ่มโจทย์ใหม่":phase==="saving"?"กำลังยืนยันคำตอบและจ่ายรางวัลจากเซิร์ฟเวอร์":"กดตัวเลขติดช่องว่างเพื่อเลื่อนไปยังช่องว่าง"}</p>}
   <div className="fifteen-actions">
    {phase==="playing"&&tiles.every((n,i)=>n===GOAL[i])?<button type="button" disabled={busy} onClick={()=>void finish(movesRef.current)}>ลองบันทึกผลอีกครั้ง</button>:null}
    <button type="button" disabled={busy} onClick={()=>void begin()}>{phase==="playing"?"↻ เริ่มใหม่ (หัก 1 Spark)":"✦ เริ่มเกม (1 Spark)"}</button>
    {phase==="playing"||phase==="won"?<button type="button" disabled={busy} onClick={exit}>ออกจากเกม</button>:null}
   </div>
   <div className="fifteen-panels"><section><h3>✦ รางวัลจากการเล่น</h3><p>เล่นสำเร็จ +30 Sparks</p><p>จบภายใน 3 นาที โบนัส +50 Sparks</p><p>รับรางวัลได้ 2 ครั้ง/วัน · ออกก่อนจบไม่ตัดสิทธิ์ · ค่าเข้าไม่คืน</p></section>
-   <section><h3>♛ Leaderboard Top 5</h3><div className="fifteen-rank-list">{REWARDS.map((prize,i)=><div key={i}><span>อันดับ {i+1} · {leaderboard[i]?.displayName||"ว่าง"}</span><strong>{leaderboard[i]?duration(leaderboard[i].elapsedMs):"--:--"} · +{prize}</strong></div>)}</div><small>โบนัสอันดับใหม่สูงสุดเท่านั้น ไม่สะสมอันดับที่แซงผ่าน · จัดอันดับตามเวลาที่เซิร์ฟเวอร์ตรวจสอบ</small></section></div>
+   <section><h3>♛ Leaderboard Top 5 · รายสัปดาห์</h3>
+    <p>สรุปอันดับและจ่ายโบนัสทุกวันจันทร์ 11:00 น. (เวลาไทย) · ไม่มีโบนัสทันทีเมื่อขึ้นอันดับ</p>
+    {weekly?<p>รอบ: {weekly.key==="legacy"?"รอบแรกก่อน 23 พ.ย.":weekly.key} · ปิด {new Date(weekly.nextResetAt).toLocaleString("th-TH",{timeZone:"Asia/Bangkok",day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit",hour12:false})} น.</p>:null}
+    <div className="fifteen-rank-list">{REWARDS.map((prize,i)=><div key={i}><span>อันดับ {i+1} · {leaderboard[i]?.displayName||"ว่าง"}</span><strong>{leaderboard[i]?duration(leaderboard[i].elapsedMs):"--:--"} · +{prize}</strong></div>)}</div><small>รางวัลจ่ายตามอันดับสุดท้ายขณะปิดรอบ: 150 / 120 / 100 / 80 / 50 Sparks · เวลาดีที่สุดของผู้เล่นแต่ละคน · เวลาเท่ากันดูการทำสำเร็จก่อน</small>
+    {weekly?.previousChampions?.length?<p>แชมป์รอบก่อน: {weekly.previousChampions.map(c=>"อันดับ "+c.rank+" "+(c.displayName||c.username)+" +"+c.amount).join(" · ")}</p>:null}</section></div>
  </section>;
 }
