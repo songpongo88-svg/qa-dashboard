@@ -1,0 +1,68 @@
+/* Mining Lucky Boost: scoped game-art direction. Other reward cards are unchanged. */
+.qa-mb-card .qa-sparks-mini-art{position:relative;overflow:hidden;background:radial-gradient(circle at 48% 38%,#ffd981 0%,#9b49d5 49%,#3b185f 100%)!important}
+.qa-mb-card .qa-mb-art{display:block;width:100%;height:100%;filter:drop-shadow(0 6px 6px #280b4970)}
+.qa-mb-card .qa-sparks-mini-name{font-size:12px;line-height:1.25}
+.qa-mb-card .qa-mb-price{font-weight:900;color:#6722a1;font-size:17px}
+.qa-mb-backdrop{position:fixed;inset:0;z-index:10050;background:#110723bd;backdrop-filter:blur(9px);display:grid;place-items:center;padding:15px;font-family:Kanit,sans-serif}
+.qa-mb-modal{width:min(940px,100%);max-height:min(95dvh,880px);overflow:hidden;display:flex;flex-direction:column;border-radius:25px;border:2px solid #ba79ef;box-shadow:0 25px 95px #140323b8,0 0 0 3px #e9aaff22;color:#faf4ff;background:radial-gradient(circle at 85% 5%,#7946ad 0%,transparent 52%),linear-gradient(135deg,#3e175f,#250e49 70%,#431c69)}
+.qa-mb-modal *{box-sizing:border-box}
+.qa-mb-hero{position:relative;display:flex;min-height:205px;align-items:center;overflow:hidden;padding:14px 60px 14px 22px;border-bottom:1px solid #d49cfd65;background:radial-gradient(circle at 23% 50%,#9849df99,transparent 36%),linear-gradient(105deg,#4c206f,#240c47)}
+.qa-mb-hero::before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(135deg,transparent 0 28px,#fff2 28px 29px);opacity:.25;pointer-events:none}
+.qa-mb-hero-art{position:relative;flex:0 0 235px;height:180px}
+.qa-mb-hero-art .qa-mb-art{height:100%;width:100%}
+.qa-mb-hero-copy{position:relative;z-index:1;min-width:0}
+.qa-mb-eyebrow{display:inline-flex;padding:5px 13px;border-radius:100px;background:linear-gradient(90deg,#8626c5,#c04af2);font-size:11px;font-weight:700;letter-spacing:.03em;color:#fff}
+.qa-mb-hero h2{font-size:clamp(25px,3.6vw,43px);line-height:1.15;margin:10px 0 8px;font-weight:900;letter-spacing:-.03em;color:#fff9ee;text-shadow:0 3px 0 #481066,0 3px 15px #f4a3fc88}
+.qa-mb-hero h2 span{color:#ffd75a}
+.qa-mb-hero p{font-size:14px;color:#f0d5ff;margin:0;line-height:1.55;max-width:570px}
+.qa-mb-close{position:absolute;right:15px;top:14px;z-index:3;border:1px solid #f8e5ff88;border-radius:50%;width:38px;height:38px;background:#fff3;color:#fff;font-size:26px;cursor:pointer;display:grid;place-items:center;line-height:1}
+.qa-mb-scroll{overflow:auto;min-height:0;padding:20px 23px 12px;scrollbar-color:#9f6dc4 transparent}
+.qa-mb-columns{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+.qa-mb-section{border-radius:18px;padding:18px;background:linear-gradient(145deg,#6c399a72,#401869aa);border:1px solid #c389e58a;min-width:0}
+.qa-mb-section h3{margin:0 0 11px;font-size:17px;color:#ffe8a3;display:flex;align-items:center;gap:7px}
+.qa-mb-section p{font-size:13px;line-height:1.65;margin:0;color:#f7e9ff}
+.qa-mb-chance{display:flex;align-items:center;justify-content:center;gap:9px;margin:15px 0 7px}
+.qa-mb-chance div{background:#fff3e8;border:2px solid #d3b4fb;border-radius:14px;text-align:center;min-width:0;flex:1;padding:9px 7px;color:#57236d}
+.qa-mb-chance div:last-child{background:linear-gradient(135deg,#fff8b8,#fbc745);border-color:#ffdb72;color:#60205e}
+.qa-mb-chance small{display:block;font-size:11px;font-weight:600}
+.qa-mb-chance strong{font-size:34px;line-height:1.15;display:block;font-weight:900}
+.qa-mb-arrow{font-size:25px;font-weight:900;color:#ffe19c}
+.qa-mb-tip{color:#e3c6fa!important;font-size:11px!important}
+.qa-mb-steps{display:grid;gap:8px}
+.qa-mb-steps div{display:flex;align-items:start;gap:9px;font-size:12px;line-height:1.5;color:#f5e8ff}
+.qa-mb-steps b{flex:0 0 24px;width:24px;height:24px;display:grid;place-items:center;background:#dfb254;color:#34104b;border-radius:50%;font-size:12px}
+.qa-mb-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px;margin-top:15px}
+.qa-mb-stat{padding:13px 15px;min-width:0;border:1px solid #d7a2fc90;border-radius:15px;background:#5f2c90aa}
+.qa-mb-stat span{display:block;font-size:11px;color:#e9d2fa}
+.qa-mb-stat strong{font-size:20px;font-weight:900;color:#ffe196;line-height:1.4}
+.qa-mb-rules{font-size:12px;line-height:1.7;margin:16px 0 0;padding-left:21px;color:#ead8f9;columns:2;column-gap:30px}
+.qa-mb-rules li{break-inside:avoid;padding-bottom:4px}
+.qa-mb-footer{background:#f4e5ff;color:#4d2369;padding:15px 23px;display:flex;align-items:center;justify-content:space-between;gap:16px;border-top:2px solid #e1acff}
+.qa-mb-owned{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:13px}
+.qa-mb-owned strong{display:inline-block;background:#62258f;color:#fff;border-radius:20px;padding:4px 13px;font-size:15px}
+.qa-mb-buy{font:800 17px Kanit,sans-serif;color:#4b2365;border:2px solid #fff4b4;border-radius:18px;padding:12px 23px;min-width:230px;background:linear-gradient(#fff6a3,#fcbf2f 75%,#e9960f);box-shadow:0 4px 0 #a4661d,0 6px 19px #6f3b9c7d;cursor:pointer}
+.qa-mb-buy:hover:not(:disabled){filter:brightness(1.07)}
+.qa-mb-buy:disabled{opacity:.6;cursor:not-allowed}
+.qa-mb-alert{padding:9px 12px;border-radius:9px;margin:12px 0 0;font-size:12px;background:#fff1c0;color:#562b60}
+.qa-mb-alert-error{background:#ffe0dd;color:#7c1d32}
+.qa-mb-close:focus-visible,.qa-mb-buy:focus-visible{outline:3px solid #ffdb66;outline-offset:3px}
+@media(max-width:680px){
+ .qa-mb-modal{max-height:96dvh;border-radius:16px}
+ .qa-mb-hero{min-height:136px;padding:12px 45px 12px 9px}
+ .qa-mb-hero-art{height:115px;flex-basis:120px}
+ .qa-mb-hero h2{font-size:22px;margin:7px 0}
+ .qa-mb-hero p{font-size:11px}
+ .qa-mb-eyebrow{font-size:9px}
+ .qa-mb-close{right:9px;top:9px}
+ .qa-mb-scroll{padding:12px}
+ .qa-mb-columns{grid-template-columns:1fr;gap:9px}
+ .qa-mb-section{padding:12px}
+ .qa-mb-section h3{font-size:14px}
+ .qa-mb-chance strong{font-size:26px}
+ .qa-mb-stats{gap:6px}
+ .qa-mb-stat{padding:9px}
+ .qa-mb-stat strong{font-size:15px}
+ .qa-mb-rules{columns:1;margin:11px 0 0}
+ .qa-mb-footer{flex-wrap:wrap;padding:11px}
+ .qa-mb-buy{width:100%;min-width:0}
+}
