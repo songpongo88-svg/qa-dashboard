@@ -31,7 +31,7 @@ export function clearSparksAuthCookies(res) {
   const opts = "Path=/; Secure; HttpOnly; SameSite=Strict; Max-Age=0";
   res.setHeader("Set-Cookie", [ACCESS_COOKIE + "=; " + opts, REFRESH_COOKIE + "=; " + opts]);
 }
-async function supabase(path, { jwt = "", method = "GET", body = null } = {}) {
+async function supabase(path, { jwt = "", method = "GET", body = null, allowDomainErrors = false } = {}) {
   const key = KEY();
   if (!key || !URL.startsWith("https://")) throw failure("Sparks email login is not configured", 503, "SPARKS_AUTH_NOT_CONFIGURED");
   const response = await fetch(URL + path, {
@@ -45,6 +45,17 @@ async function supabase(path, { jwt = "", method = "GET", body = null } = {}) {
     cache: "no-store",
   });
   const data = await response.json().catch(() => null);
+  if (!response.ok && allowDomainErrors && response.status===400) {
+    // Only documented membership/transfer errors are exposed to the account owner.
+    // SQL internals and raw PostgREST errors are never returned.
+    const valid=new Set(["PIN_NEW_INVALID","CARD_ALREADY_ACTIVE","CARD_REISSUE_CONFIRM_REQUIRED",
+      "CARD_NOT_ACTIVE","RECIPIENT_CARD_NOT_FOUND","RECIPIENT_NOT_ACTIVE",
+      "SPARKS_INSUFFICIENT_BALANCE","TRANSFER_MONTHLY_LIMIT","INVALID_TRANSFER",
+      "TRANSFER_ID_CONFLICT","TRANSFER_NOT_FOUND","TRANSFER_EXPIRED",
+      "UNSUPPORTED_TRANSFER_ACTION","SPARKS_WALLET_NOT_FOUND"]);
+    const code=String(data?.message||"");
+    if(valid.has(code))throw failure(code,400,code);
+  }
   if (!response.ok) {
     // Transient outages must not force users through OTP or erase a valid session.
     const temporary = response.status === 429 || response.status >= 500;
@@ -238,7 +249,7 @@ export async function sparksTransferV2(action,payload={}) {
   const jwt=context.getStore()?.accessToken;
   if(!jwt)throw failure("QA Sparks session unavailable",401);
   const result=await supabase("/rest/v1/rpc/sparks_transfer_v2",{
-    jwt,method:"POST",body:{p_action:action,p_payload:payload},
+    jwt,method:"POST",body:{p_action:action,p_payload:payload},allowDomainErrors:true,
   });
   if(!result || typeof result!=="object")throw failure("ระบบบัตรสมาชิกยังไม่พร้อม",503);
   return result;
