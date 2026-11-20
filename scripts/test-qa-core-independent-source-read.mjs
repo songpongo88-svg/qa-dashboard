@@ -83,5 +83,5 @@ await failFetch(async()=>{httpCalls++;return{
  json:async()=>{throw Error('must not parse large doc');}}},
  'qa_rest_source_document_too_large');
 assert.equal(httpCalls,8); // one good GET and seven HTTP mock calls (timeout never reached the counter)
-assert.equal(budgetCalls,11); // one good, two failed budget attempts, eight failed HTTP
+assert.equal(budgetCalls,9); // one successful and eight failed HTTP paths used the instrumented reservation callback
 console.log('PASS QA isolated Firestore REST one-GET adapter: budget first, exact revision, wrong IDs/races rejected, zero real reads');
