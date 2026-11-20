@@ -57,6 +57,9 @@ on:
       - "scripts/test-qa-windows-private-stage-acceptance.mjs"
       - "scripts/Check-QA-Windows-Replication-Status.ps1"
       - "scripts/test-qa-windows-replication-status-policy.mjs"
+      - "scripts/Verify-QA-Windows-Candidate-Archive.mjs"
+      - "scripts/Check-QA-Windows-New-Candidate.ps1"
+      - "scripts/test-qa-windows-new-candidate-check.mjs"
       - "scripts/test-qa-windows-signal-install-policy.mjs"
       - "scripts/test-qa-windows-private-signal-stage.mjs"
       - "scripts/test-qa-windows-probe-baseline.mjs"
@@ -97,6 +100,7 @@ jobs:
           node --check scripts/Check-QA-Windows-Private-Signal-Stage.mjs
           node scripts/test-qa-windows-private-stage-acceptance.mjs
           node scripts/test-qa-windows-replication-status-policy.mjs
+          node scripts/test-qa-windows-new-candidate-check.mjs
           node scripts/test-qa-windows-stage-check-wrapper.mjs
           node scripts/test-qa-windows-firestore-auth-policy.mjs
           node scripts/test-qa-windows-firestore-metadata-policy.mjs
@@ -128,6 +132,7 @@ jobs:
             'scripts/Check-QA-Windows-Source-Parity.ps1'
             'scripts/Create-QA-Windows-Reconciliation-Snapshot.ps1'
             'scripts/Check-QA-Windows-Replication-Status.ps1'
+            'scripts/Check-QA-Windows-New-Candidate.ps1'
           )
           foreach ($script in $scripts) {
             $tokens = $null
