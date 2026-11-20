@@ -1,6 +1,6 @@
 // QA Lottery uses genuine GLO L6 results. Never treat an unofficial or partial
 // result as a payable draw. All wallet mutations run inside Firestore transactions.
-const PRICE = 120;
+const PRICE = 80;
 const MAX_PER_DRAW = 2;
 const AWARDS = Object.freeze({first:3000, back3:1500, last2:1000});
 const DRAW_COLLECTION = "qa_sparks_lottery_draws_v1";
@@ -130,7 +130,7 @@ export function createQaLotteryService(db) {
       date,status:draw.officialResult?"published":"pending",
       officialResult:draw.officialResult || null,
       tickets:(Array.isArray(player.tickets)?player.tickets:[]).map(t=>({
-        id:String(t.id),number:String(t.number),createdAt:String(t.createdAt),
+        id:String(t.id),number:String(t.number),price:nonnegative(t.price)||120,createdAt:String(t.createdAt),
         paidAt:t.paidAt||null,prize:nonnegative(t.prize),matched:Array.isArray(t.matched)?t.matched:[],
       }))
     };
@@ -204,7 +204,7 @@ export function createQaLotteryService(db) {
     for(const [date,doc] of [[last,lastPlayer],[next,nextPlayer]]){
       for(const t of recordValue(doc).tickets||[]){
         if(!owned.some(x=>x.id===t.id))owned.push({
-          id:t.id,number:t.number,drawDate:date,createdAt:t.createdAt,paidAt:t.paidAt||null,
+          id:t.id,number:t.number,price:nonnegative(t.price)||120,drawDate:date,createdAt:t.createdAt,paidAt:t.paidAt||null,
           prize:nonnegative(t.prize),matched:Array.isArray(t.matched)?t.matched:[],
           status:t.paidAt?"checked":"pending"
         });
@@ -232,9 +232,9 @@ export function createQaLotteryService(db) {
       if (tickets.length>=MAX_PER_DRAW) error("ซื้อ QA Lottery ครบ 2 ครั้งของงวดนี้แล้ว",409);
       if (draw.officialResult) error("ประกาศผลรางวัลแล้ว ไม่สามารถซื้อเพิ่มได้",409);
       const year=currentMemberYear(), balance=spendableBalance(wallet,year);
-      if (balance<PRICE) error("Sparks ไม่เพียงพอ ต้องใช้ 120 Sparks",409);
+      if (balance<PRICE) error("Sparks ไม่เพียงพอ ต้องใช้ "+PRICE+" Sparks",409);
       const when=new Date().toISOString();
-      const ticket={id:requestId,number,createdAt:when,prize:0,matched:[],paidAt:null};
+      const ticket={id:requestId,number,price:PRICE,createdAt:when,prize:0,matched:[],paidAt:null};
       const nextBalance=balance-PRICE;
       const nextTickets=[...tickets,ticket];
       const writes=[
@@ -243,7 +243,7 @@ export function createQaLotteryService(db) {
         updateWrite(pp,{username:actor.username,displayName:String(actor.displayName||actor.username).slice(0,120),
           drawDate:date,tickets:nextTickets,updatedAt:when},playerDoc),
         createWrite(ticketPath(actor.username,requestId),{
-          id:requestId,number,drawDate:date,createdAt:when,paidAt:null,prize:0,matched:[],status:"pending"
+          id:requestId,number,price:PRICE,drawDate:date,createdAt:when,paidAt:null,prize:0,matched:[],status:"pending"
         }),
         createWrite(historyPath(actor.username,"qa-lottery-buy-"+requestId),{
           createdAt:when,type:"spend",source:"qa-lottery",title:"QA Lottery · ซื้อเลข",
@@ -293,7 +293,7 @@ export function createQaLotteryService(db) {
       for(let i=0;i<unsettled.length;i++){
         const ticket=settled.find(t=>t.id===unsettled[i].id);
         const doc=ticketDocuments[i],key=ticketPath(username,ticket.id);
-        const data={id:ticket.id,number:ticket.number,drawDate:date,createdAt:ticket.createdAt,
+        const data={id:ticket.id,number:ticket.number,price:nonnegative(ticket.price)||120,drawDate:date,createdAt:ticket.createdAt,
           paidAt:now,prize:nonnegative(ticket.prize),matched:ticket.matched,status:"checked"};
         writes.push(doc?updateWrite(key,data,doc):createWrite(key,data));
       }
