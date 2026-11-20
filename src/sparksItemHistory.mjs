@@ -22,7 +22,8 @@ export function itemHistoryLabel(e){
  const id=String(e.rewardId||"")||(source==="qa-auto-pass-free"?"qa-access-auto-pass":
   source==="announcement-shield"?"announcement-shield":source==="qa-lottery"?"qa-lottery-ticket":"");
  let action="บันทึก Item",quantity=null;
- if(source==="mining-boost-purchase"){action="ซื้อ Item";quantity=1;}
+ if(source==="mini-game-mining"&&e.boostUsed){action="ใช้ Item ขุดเหมือง";quantity=-1;}
+ else if(source==="mining-boost-purchase"){action="ซื้อ Item";quantity=1;}
  else if(source==="qa-auto-pass-free"){action="รับฟรี";quantity=5;}
  else if(source==="reward-redemption" || source==="special-reward"&&!/ Request$/.test(title)
    || source==="announcement-shield"&&/แลก Item/.test(title)){action="รับ / ซื้อ / แลก";quantity=1;}
