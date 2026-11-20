@@ -135,7 +135,8 @@ export function createMiningService(db,{clock=()=>Date.now(),draw=weightedMining
             createdAt:iso,type:"earn",source:"mini-game-mining",
             title:"Sparks Mining · ขุดเหมืองแร่",
             detail:"ขุดเหมืองประจำวันที่ "+local.day+" รับ "+amount+" Sparks",
-            day:local.day,amount,boostUsed:boosted,boostPurchaseId:usedPurchaseId,boostRate:boosted?40:0,balanceAfter:balance+amount,
+            day:local.day,amount,boostUsed:boosted,boostPurchaseId:usedPurchaseId,boostRate:boosted?40:0,
+            ...(boosted?{rewardId:"mining-lucky-boost",inventoryAfter:boostOwned(wallet)-1}:{}),balanceAfter:balance+amount,
             performedBy:actor.username,status:"Completed",
           }),
         ];
