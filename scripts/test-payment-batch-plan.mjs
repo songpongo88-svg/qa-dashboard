@@ -47,4 +47,10 @@ assert.ok(!signatureSource.includes('monthKey}${suffix}.pdf`'),"no historical su
 const pdf=await fs.readFile(new URL("../build/signaturePaymentPdfPatch.js",import.meta.url),"utf8");
 assert.ok(pdf.includes("ALL ELIGIBLE AGENTS"),"consolidated PDF includes original and new recipients");
 assert.ok(pdf.includes("Eligible Agents"),"file must not claim that generating the PDF paid anyone");
+const auditSource=await fs.readFile(new URL("../src/SignatureCenterMockup.tsx",import.meta.url),"utf8");
+assert.ok(auditSource.includes('data-payment-exclusion-audit="true"'),"QA can inspect excluded agents without changing payments");
+assert.ok(auditSource.includes("isSignedWithinCurrentPaymentCycle(completedAt, doc.monthKey)"),"late signature appears as an explicit exclusion reason");
+assert.ok(auditSource.includes("monthlyCoachingPaymentStatus(doc.monthKey, doc.agentName, coachingRecords, doc.agentId)"),"Coaching and QA Review blockers appear by agent identity");
+assert.ok(auditSource.includes("doc.cases.some(item => pendingAppealCaseMap.has(item.caseId))"),"unresolved appeals appear in exclusion audit");
+assert.ok(auditSource.includes("ลายเซ็นยังไม่ครบ"),"missing signature roles are named");
 console.log("PASS Monthly Payment: all on-time eligible recipients in one consolidated PDF/Excel, late signers excluded, immutable batch history preserved");

@@ -1758,6 +1758,53 @@ function isPaymentReadyDocument(
     monthlyCoachingPaymentStatus(doc.monthKey, doc.agentName, coachingRecords, doc.agentId).onTime;
 }
 
+
+function paymentExclusionReasons(
+  doc: SignatureDocument,
+  entries: SignatureEntry[],
+  pendingAppealCaseMap: Map<string, PendingAppealCase>,
+  coachingRecords: StoredCoachingRecord[],
+  coachingStatusVerified: boolean,
+  appealStatusVerified: boolean,
+  currentUser: CurrentUser,
+) {
+  const reasons: string[] = [];
+  if (!doc.eligibleByScore) reasons.push("คะแนนหรือจำนวนเคสไม่เข้าเงื่อนไข Incentive");
+  if (!appealStatusVerified) {
+    reasons.push("ยังยืนยันสถานะ Appeal ไม่สำเร็จ");
+  } else if (doc.cases.some(item => pendingAppealCaseMap.has(item.caseId))) {
+    reasons.push("มี Appeal ที่ยังไม่เสร็จสิ้น");
+  }
+  const incompleteRoles = SIGNATURE_FLOW.filter(role => !getCompletedEntry(entries, role));
+  if (incompleteRoles.length) {
+    reasons.push("ลายเซ็นยังไม่ครบ: " + incompleteRoles.map(roleThaiLabel).join(", "));
+  }
+  for (const role of SIGNATURE_FLOW) {
+    const entry = getCompletedEntry(entries, role);
+    if (!entry) continue;
+    const completedAt = entry.status === "Waived" ? entry.waivedAt : entry.signedAt;
+    if (!completedAt || !Number.isFinite(Date.parse(completedAt))) {
+      reasons.push("ไม่พบเวลาลงนามที่ตรวจสอบได้: " + roleThaiLabel(role));
+    } else if (!isSignedWithinCurrentPaymentCycle(completedAt, doc.monthKey) && doc.monthKey !== "2026-05") {
+      reasons.push("ลงนามหลังวันที่ 15: " + roleThaiLabel(role) + " (" + formatDateTime(completedAt) + ")");
+    }
+  }
+  if (doc.monthKey >= COACHING_WORKFLOW_START) {
+    if (!coachingStatusVerified) {
+      reasons.push("โหลดข้อมูล Coaching / QA Review ล่าสุดไม่สำเร็จ");
+    } else {
+      const coaching = monthlyCoachingPaymentStatus(doc.monthKey, doc.agentName, coachingRecords, doc.agentId);
+      if (!coaching.onTime) {
+        reasons.push("Coaching / QA Review: " + (coaching.reason || "ยังไม่ผ่านเงื่อนไขรอบจ่าย"));
+      }
+    }
+  }
+  if (!canExportMonthlyPaymentDocument(currentUser, doc)) {
+    reasons.push("รายการนี้ไม่อยู่ในขอบเขตสิทธิ์ส่งออกของผู้ใช้งาน");
+  }
+  return [...new Set(reasons)];
+}
+
 function isLateSignedDocument(
   doc: SignatureDocument,
   entries: SignatureEntry[],
@@ -3027,6 +3074,24 @@ export default function SignatureCenterMockup({
     if (selectedMonth === "all") return [];
     return documents.filter((doc) => doc.monthKey === selectedMonth);
   }, [documents, selectedMonth]);
+
+  // Read-only audit: show why a monthly evaluated agent is absent from Payment.
+  // This never changes signature, coaching, appeal, recipient, or payment data.
+  const selectedMonthPaymentAudit = useMemo(() => {
+    if (selectedMonth === "all") return [];
+    return selectedMonthAllDocs.map(doc => ({
+      doc,
+      reasons: paymentExclusionReasons(
+        doc,
+        effectiveEntriesForDoc(doc, signatures),
+        pendingAppealCaseMap,
+        coachingRecords,
+        coachingStatusVerified,
+        appealStatusVerified,
+        currentUser,
+      ),
+    })).filter(item => item.reasons.length > 0);
+  }, [appealStatusVerified, coachingRecords, coachingStatusVerified, currentUser, pendingAppealCaseMap, selectedMonth, selectedMonthAllDocs, signatures]);
 
   const selectedMonthPaymentDocs = useMemo(() => {
     if (selectedMonth === "all" || !appealStatusVerified || (!coachingStatusVerified && selectedMonth >= COACHING_WORKFLOW_START)) return [];
@@ -5538,6 +5603,30 @@ export default function SignatureCenterMockup({
               </button>
             </div>
           </div>
+          {selectedMonth !== "all" ? (
+            <details className="mt-3 rounded-xl border border-amber-200 bg-amber-50/60 px-4 py-3" data-payment-exclusion-audit="true">
+              <summary className="cursor-pointer text-sm font-semibold text-amber-950">
+                ตรวจสอบเหตุผลที่รายชื่อไม่เข้า Monthly Payment ({selectedMonthPaymentAudit.length} คน)
+              </summary>
+              <p className="mt-2 text-xs text-amber-900">
+                พบเอกสาร QA เดือนนี้ {selectedMonthAllDocs.length} คน · รายชื่อนี้อ่านสถานะลายเซ็น, Appeal และ Coaching ที่ระบบโหลดล่าสุด โดยไม่ได้แก้สิทธิ์หรือยอดจ่าย
+              </p>
+              {!selectedMonthPaymentAudit.length ? (
+                <p className="mt-2 text-xs text-slate-600">ไม่มีรายชื่อถูกคัดออกจากเอกสารที่โหลดได้ หากยังไม่พบ Agent ให้ตรวจว่าเอกสาร QA ของ Agent อยู่ในรายการเดือนที่เลือกหรือไม่</p>
+              ) : (
+                <div className="mt-3 space-y-2">
+                  {selectedMonthPaymentAudit.map(({ doc, reasons }) => (
+                    <div className="rounded-lg border border-amber-200 bg-white p-3 text-xs" key={doc.id}>
+                      <div className="font-bold text-slate-950">{doc.agentName} · {getMonthlyDocumentRef(doc, documents)}</div>
+                      <ul className="ml-5 mt-1 list-disc space-y-0.5 text-amber-900">
+                        {reasons.map(reason => <li key={reason}>{reason}</li>)}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </details>
+          ) : null}
           {paymentMessage ? (
             <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-black text-emerald-700">
               {paymentMessage}
