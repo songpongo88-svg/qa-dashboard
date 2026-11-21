@@ -31,11 +31,11 @@ function MembershipSymbol({ level }: { level: number }) {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.15" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{marks[level - 1]}</svg>;
 }
 
-function MemberCard({ tier, year, displayName, cardNumber = "", birthdayDate = "" }: { tier: MemberLevel; year: number; displayName: string; cardNumber?: string; birthdayDate?: string }) {
-  const formattedDOB = /^\d{4}-\d{2}-\d{2}$/.test(birthdayDate)
+function MemberCard({ tier, year, displayName, cardNumber = "", birthdayDate = "", showcase = false }: { tier: MemberLevel; year: number; displayName?: string; cardNumber?: string; birthdayDate?: string; showcase?: boolean }) {
+  const formattedDOB = !showcase && /^\d{4}-\d{2}-\d{2}$/.test(birthdayDate)
     ? birthdayDate.slice(8,10)+"/"+birthdayDate.slice(5,7)+"/"+birthdayDate.slice(0,4) : "";
   return <div className="qa-card-wrap">
-    <div className="qa-member-card" data-tier={tier.level} data-card-finish="metal-foil" aria-label={`บัตรสมาชิก LV.${tier.level} ${tier.name} ของ ${displayName} ปี ${year}`}>
+    <div className="qa-member-card" data-tier={tier.level} data-card-finish="metal-foil" aria-label={showcase ? `ตัวอย่างประเภทบัตร LV.${tier.level} ${tier.name}` : `บัตรสมาชิก LV.${tier.level} ${tier.name} ของ ${displayName} ปี ${year}`}>
       <div className="qa-mcard-art" aria-hidden="true"><b className="qa-shape qa-art-a"/><b className="qa-shape qa-art-b"/><b className="qa-shape qa-art-c"/><b className="qa-shape qa-art-d"/></div>
       <div className="qa-mcard-emblem"><MembershipSymbol level={tier.level}/></div>
       <div className="qa-mcard-mast">
@@ -46,13 +46,13 @@ function MemberCard({ tier, year, displayName, cardNumber = "", birthdayDate = "
         <span className="qa-level-mark">LV.{tier.level}</span>
       </div>
       <div className="qa-mcard-main"><h3>{tier.name}</h3><p>{finishes[tier.level - 1]}</p>
-        {/^\d{12}$/.test(cardNumber) ? <div className="qa-mcard-cardid"><span>MEMBER CARD NO.</span><strong>{cardNumber}</strong></div> : null}
+        {!showcase && /^\d{12}$/.test(cardNumber) ? <div className="qa-mcard-cardid"><span>MEMBER CARD NO.</span><strong>{cardNumber}</strong></div> : null}
       </div>
       {formattedDOB ? <div className="qa-mcard-birthday-plate">
         <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4m10-4v4M3 10h18m-14 4h3m4 0h3m-10 4h3"/></svg>
         <div><span>DATE OF BIRTH</span><strong>{formattedDOB}</strong></div>
       </div> : null}
-      <div className="qa-mcard-bottom"><div className="qa-holder"><span>MEMBER NAME</span><strong>{displayName}</strong></div><div className="qa-year"><span>MEMBER YEAR</span>{year}</div></div>
+      {showcase ? <div className="qa-mcard-bottom qa-mcard-showcase-bottom"><div className="qa-holder"><span>CARD TYPE</span><strong>{tier.thaiName}</strong></div><div className="qa-year"><span>MEMBERSHIP TIER</span>LV.{tier.level}</div></div> : <div className="qa-mcard-bottom"><div className="qa-holder"><span>MEMBER NAME</span><strong>{displayName}</strong></div><div className="qa-year"><span>MEMBER YEAR</span>{year}</div></div>}
     </div>
   </div>;
 }
@@ -153,14 +153,20 @@ export default function MemberJourney({ earned, year, displayName, balance, rewa
     if (event.key === "Escape" && guideOpen) { event.preventDefault(); event.stopPropagation(); setGuideOpen(false); }
   }}>
     {guideOpen ? <div className="qa-guide" id="qa-sparks-member-guide">
-      <header className="qa-gallery-top"><div><p className="qa-member-collection">MEMBERSHIP COLLECTION · {year}</p><h2>ระดับสมาชิก QA Sparks</h2><p>10 ระดับ · เกณฑ์จาก Sparks ที่ได้รับสะสมประจำปี</p></div><button ref={closeButton} type="button" className="qa-action" onClick={() => setGuideOpen(false)}>← กลับหน้าสมาชิก</button></header>
+      <header className="qa-gallery-top"><div><p className="qa-member-collection">MEMBERSHIP COLLECTION · {year}</p><h2>ระดับสมาชิก QA Sparks</h2><p>แคตตาล็อกประเภทบัตร 10 ระดับ · ดูเกณฑ์สะสมและสิทธิพิเศษของแต่ละระดับ (ไม่ใช่บัตรส่วนตัว)</p></div><button ref={closeButton} type="button" className="qa-action" onClick={() => setGuideOpen(false)}>← กลับหน้าสมาชิก</button></header>
       <div className="qa-gallery-grid">
         {SPARKS_MEMBER_LEVELS.map(tier => <article key={tier.level} className="qa-gallery-entry" data-member-state={tier.level === member.current.level ? "current" : tier.level < member.current.level ? "attained" : "upcoming"}>
-          <MemberCard tier={tier} year={year} displayName={displayName} cardNumber={cardNumber} birthdayDate={storedDOB}/>
+          <MemberCard tier={tier} year={year} showcase/>
           <div className="qa-gallery-meta"><div><h3>LV.{tier.level} {tier.name}</h3><p>สะสมตั้งแต่ {number(tier.min)} Sparks / ปี</p></div><span className={"qa-tier-state" + (tier.level === member.current.level ? " qa-tier-state-current" : "")}>{tier.level === member.current.level ? "ระดับปัจจุบัน" : tier.level < member.current.level ? "ผ่านแล้ว" : "ยังไม่ถึงระดับ"}</span></div>
+          <div className="qa-gallery-benefits" aria-label={`สิทธิพิเศษระดับ ${tier.level}`}>
+            <div><span>ของขวัญวันเกิด</span><strong>{number(birthdayPoints[tier.level-1])} Sparks / ปี</strong></div>
+            <div><span>Daily Check-in</span><strong>{checkinBonus[tier.level-1] > 0 ? "+"+checkinBonus[tier.level-1]+" Sparks / วัน" : "โบนัสพื้นฐาน"}</strong></div>
+            <div className="qa-gallery-benefit-planned"><span>ส่วนลด Item</span><strong>{memberDiscount(tier.level)>0 ? memberDiscount(tier.level)+"%" : "ยังไม่ปลดล็อก"}</strong><small>สิทธิ์ตามแผน · รอเปิดใช้งาน</small></div>
+            {tier.level>=6 && <div className="qa-gallery-benefit-planned"><span>VIP Exclusive</span><strong>สิทธิพิเศษ VIP</strong><small>อยู่ระหว่างเตรียมเปิด</small></div>}
+          </div>
         </article>)}
       </div>
-      <p className="qa-guide-note">การแลกของรางวัลไม่ทำให้ระดับลดลง · เริ่มนับคะแนนสะสมและระดับสมาชิกใหม่วันที่ 1 มกราคม</p>
+      <p className="qa-guide-note">ภาพบัตรด้านบนเป็นตัวอย่างประเภทบัตร ไม่แสดงข้อมูลส่วนตัว · ส่วนลด Item และสิทธิ์ VIP ยังรอเปิดใช้งาน · การแลกของรางวัลไม่ทำให้ระดับลดลง และเริ่มนับคะแนนสะสมใหม่วันที่ 1 มกราคม</p>
       <div className="qa-gallery-bottom"><button type="button" className="qa-action" onClick={() => setGuideOpen(false)}>← กลับหน้าสมาชิก</button></div>
     </div> : <div className="qa-membership" data-member-wallet="integrated">
       <div className="qa-section-top"><div><p>ANNUAL MEMBERSHIP · {year}</p><h2>บัตรสมาชิกของคุณ</h2></div><button ref={openButton} type="button" className="qa-action" aria-expanded={false} onClick={() => setGuideOpen(true)}>ดูระดับสมาชิกทั้งหมด <span aria-hidden="true">↗</span></button></div>
