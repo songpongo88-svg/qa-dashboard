@@ -357,3 +357,118 @@
  .qa-member-benefits-grid {grid-template-columns:1fr;}
  .qa-member-benefits-dialog {padding:16px;border-radius:14px;}
 }
+
+
+/* 2026 Premium Prism Master — identical layout for all ten annual membership levels.
+   Colors and symbolic insignia still come from each existing data-tier. */
+.qa-sparks-membership .qa-member-card {
+  --prism-glow:#b6cde0; --prism-metal:#eef7ff; --prism-ambient:#9ac1e5;
+  --prism-bg-start:#152232; --prism-bg-end:#0c1527;
+  background:
+    radial-gradient(ellipse at 86% 25%,color-mix(in srgb,var(--prism-glow) 24%,transparent),transparent 46%),
+    linear-gradient(122deg,var(--prism-bg-start) 1%,#191a2e 62%,var(--prism-bg-end) 100%);
+  color:#fff9ff;
+  border:1px solid color-mix(in srgb,var(--prism-glow) 68%,#ffffff);
+  border-radius:21px;
+  padding:clamp(13px,4.4cqi,21px);
+  box-shadow:
+    0 24px 38px -22px color-mix(in srgb,var(--prism-glow) 43%,#140a20),
+    0 11px 23px -12px #08061099,
+    inset 0 1px 0 #ffffff80,
+    inset 0 -1px 0 color-mix(in srgb,var(--prism-glow) 80%,transparent);
+}
+.qa-sparks-membership .qa-member-card:before {
+  content:"";position:absolute;inset:5px;border-radius:16px;z-index:3;pointer-events:none;
+  border:1px solid color-mix(in srgb,var(--prism-glow) 37%,transparent);
+  box-shadow:0 0 12px -8px var(--prism-glow),inset 0 0 13px -12px var(--prism-glow);
+}
+.qa-sparks-membership .qa-member-card:after {
+  content:"";position:absolute;inset:0;z-index:4;pointer-events:none;
+  border-radius:inherit;border:1px solid color-mix(in srgb,var(--prism-metal) 30%,transparent);
+  box-shadow:inset 0 0 0 2px #ffffff09,inset 0 1px 1px #fff7;
+}
+.qa-sparks-membership .qa-member-card .qa-art-a {
+  left:43%;top:-16%;width:21%;height:144%;transform:skew(-26deg);
+  background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--prism-ambient) 24%,#ffffff16) 30%,color-mix(in srgb,var(--prism-glow) 31%,transparent) 80%,transparent);
+  opacity:.89;
+}
+.qa-sparks-membership .qa-member-card .qa-art-b {
+  left:62%;top:-17%;width:1.2px;height:150%;transform:rotate(27deg);
+  background:linear-gradient(180deg,var(--prism-glow),#ffe4b4,var(--prism-metal));
+  box-shadow:0 0 7px 1px color-mix(in srgb,var(--prism-glow) 67%,transparent);opacity:1;
+}
+.qa-sparks-membership .qa-member-card .qa-art-c,
+.qa-sparks-membership .qa-member-card .qa-art-d {opacity:.22;pointer-events:none;}
+.qa-sparks-membership .qa-mcard-main {z-index:3;max-width:65%;}
+.qa-sparks-membership .qa-mcard-main h3 {
+  color:#fffafb;font-weight:700;font-size:clamp(15px,4.65cqi,24px);line-height:1.1;
+  letter-spacing:-.035em;text-shadow:0 1px 1px #08061388,0 0 11px #fff4;
+}
+.qa-sparks-membership .qa-mcard-main p {
+  color:color-mix(in srgb,var(--prism-metal) 85%,#fff);
+  letter-spacing:clamp(1px,.38cqi,2.4px);font-size:clamp(7px,2.05cqi,10px);margin-top:3px;
+}
+.qa-sparks-membership .qa-mcard-cardid {margin-top:clamp(8px,2.7cqi,14px);max-width:100%;gap:1px;}
+.qa-sparks-membership .qa-mcard-cardid span {color:var(--prism-metal);opacity:.9;font-size:clamp(7px,1.75cqi,9px);}
+.qa-sparks-membership .qa-mcard-cardid strong {
+  color:#fff1c9;letter-spacing:.045em;font-size:clamp(12px,3.4cqi,18px);
+  font-weight:750;text-shadow:0 1px 10px color-mix(in srgb,var(--prism-glow) 52%,transparent);
+}
+.qa-sparks-membership .qa-mcard-emblem {
+  right:7%;top:29%;width:25%;height:35%;
+  color:var(--prism-metal);filter:drop-shadow(0 0 10px color-mix(in srgb,var(--prism-glow) 75%,transparent));
+}
+.qa-sparks-membership .qa-mcard-emblem svg {filter:drop-shadow(0 0 5px var(--prism-glow));}
+.qa-sparks-membership .qa-level-mark {
+  color:#fff0cb;border:1px solid color-mix(in srgb,var(--prism-metal) 65%,transparent);
+  background:linear-gradient(115deg,#180e2799,#ffffff11);
+  box-shadow:0 0 10px -5px var(--prism-glow);font-weight:700;
+}
+.qa-sparks-membership .qa-mcard-bottom {z-index:3;gap:10px;margin-top:auto;align-items:end;}
+.qa-sparks-membership .qa-holder {min-width:0;max-width:59%;}
+.qa-sparks-membership .qa-holder span,
+.qa-sparks-membership .qa-year span {color:var(--prism-metal);opacity:.85;}
+.qa-sparks-membership .qa-holder strong {
+  color:#fff5f8;display:block;font-weight:650;
+  font-size:clamp(10px,2.9cqi,14px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.qa-sparks-membership .qa-year {color:#fff7f5;}
+.qa-sparks-membership .qa-mcard-birthday-plate {
+  position:absolute;z-index:3;right:5.5%;bottom:20%;width:39%;
+  display:flex;align-items:center;gap:clamp(5px,1.5cqi,9px);
+  padding:clamp(5px,1.45cqi,8px);
+  border:1px solid color-mix(in srgb,var(--prism-metal) 75%,transparent);
+  border-radius:clamp(7px,2.4cqi,12px);
+  background:linear-gradient(110deg,#1b132ad9,color-mix(in srgb,var(--prism-glow) 20%,#1a112cdd));
+  box-shadow:0 0 13px -6px var(--prism-glow),inset 0 1px 0 #ffffff35;
+}
+.qa-sparks-membership .qa-mcard-birthday-plate svg {
+  width:clamp(15px,4.15cqi,24px);height:clamp(15px,4.15cqi,24px);
+  flex:none;color:#ffe7af;filter:drop-shadow(0 0 4px var(--prism-glow));
+}
+.qa-sparks-membership .qa-mcard-birthday-plate div {min-width:0;display:flex;flex-direction:column;gap:0;}
+.qa-sparks-membership .qa-mcard-birthday-plate span {
+  color:var(--prism-metal);font-size:clamp(6px,1.55cqi,8px);
+  letter-spacing:clamp(.45px,.25cqi,1.3px);font-weight:600;white-space:nowrap;
+}
+.qa-sparks-membership .qa-mcard-birthday-plate strong {
+  color:#fffafd;font-size:clamp(10px,2.7cqi,15px);line-height:1.15;font-weight:750;
+  font-variant-numeric:tabular-nums;white-space:nowrap;text-shadow:0 0 9px #fff3;
+}
+/* Distinct precious-metal and prism colorway for every level; master geometry is shared. */
+.qa-sparks-membership .qa-member-card[data-tier="1"] {--prism-glow:#a8c4d9;--prism-metal:#ecf6ff;--prism-ambient:#7c9eae;--prism-bg-start:#233242;--prism-bg-end:#101c2b;}
+.qa-sparks-membership .qa-member-card[data-tier="2"] {--prism-glow:#49e2a4;--prism-metal:#d6ffe6;--prism-ambient:#32b591;--prism-bg-start:#123a32;--prism-bg-end:#102a37;}
+.qa-sparks-membership .qa-member-card[data-tier="3"] {--prism-glow:#61baff;--prism-metal:#d9f1ff;--prism-ambient:#518acb;--prism-bg-start:#18315b;--prism-bg-end:#0b1b3a;}
+.qa-sparks-membership .qa-member-card[data-tier="4"] {--prism-glow:#bb83ff;--prism-metal:#efe0ff;--prism-ambient:#8c53d5;--prism-bg-start:#33204f;--prism-bg-end:#1b173e;}
+.qa-sparks-membership .qa-member-card[data-tier="5"] {--prism-glow:#ffd385;--prism-metal:#fff0bf;--prism-ambient:#e6ae45;--prism-bg-start:#50351c;--prism-bg-end:#2e1b22;}
+.qa-sparks-membership .qa-member-card[data-tier="6"] {--prism-glow:#ff8aa5;--prism-metal:#ffe1ee;--prism-ambient:#cc4b7c;--prism-bg-start:#541d3a;--prism-bg-end:#2c152d;}
+.qa-sparks-membership .qa-member-card[data-tier="7"] {--prism-glow:#ffe08a;--prism-metal:#fff3d0;--prism-ambient:#bf8836;--prism-bg-start:#31291c;--prism-bg-end:#161c2a;}
+.qa-sparks-membership .qa-member-card[data-tier="8"] {--prism-glow:#ffae71;--prism-metal:#ffead6;--prism-ambient:#d77f53;--prism-bg-start:#472c28;--prism-bg-end:#211a32;}
+.qa-sparks-membership .qa-member-card[data-tier="9"] {--prism-glow:#b99aff;--prism-metal:#ede3ff;--prism-ambient:#8f6be5;--prism-bg-start:#311f55;--prism-bg-end:#131a3f;}
+.qa-sparks-membership .qa-member-card[data-tier="10"] {--prism-glow:#cc8dff;--prism-metal:#edd4ff;--prism-ambient:#8b5bbe;--prism-bg-start:#171721;--prism-bg-end:#141521;}
+.qa-sparks-membership .qa-member-card[data-tier="5"] .qa-mcard-main {text-align:left;}
+.qa-sparks-membership .qa-member-card[data-tier="5"] .qa-mcard-emblem {top:29%;right:7%;width:25%;}
+.qa-sparks-membership .qa-member-card[data-tier="9"] .qa-mcard-main h3 {font-size:clamp(13px,3.85cqi,20px);}
+@media(prefers-reduced-motion:reduce){
+  .qa-sparks-membership .qa-member-card {transition:none;}
+}
