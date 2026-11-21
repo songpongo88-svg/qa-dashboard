@@ -1089,7 +1089,7 @@ function validBirthdayMMDD(raw) {
   return date.getUTCMonth()===mm-1 && date.getUTCDate()===dd;
 }
 function validBirthdayDate(value) {
-  if (!/^\\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$/.test(value)) return false;
+  if (!/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$/.test(value)) return false;
   const [y,m,d]=value.split("-").map(Number);
   if (y < 1900 || y > 2026) return false;
   const date=new Date(Date.UTC(y,m-1,d));
