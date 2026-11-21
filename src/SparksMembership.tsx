@@ -48,7 +48,11 @@ function MemberCard({ tier, year, displayName, cardNumber = "", birthdayDate = "
       <div className="qa-mcard-main"><h3>{tier.name}</h3><p>{finishes[tier.level - 1]}</p>
         {/^\d{12}$/.test(cardNumber) ? <div className="qa-mcard-cardid"><span>MEMBER CARD NO.</span><strong>{cardNumber}</strong></div> : null}
       </div>
-      <div className="qa-mcard-bottom"><div className="qa-holder"><span>MEMBER NAME</span><strong>{displayName}</strong>{formattedDOB ? <div className="qa-mcard-dob"><span>DATE OF BIRTH</span><strong>{formattedDOB}</strong></div> : null}</div><div className="qa-year"><span>MEMBER YEAR</span>{year}</div></div>
+      {formattedDOB ? <div className="qa-mcard-birthday-plate">
+        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4m10-4v4M3 10h18m-14 4h3m4 0h3m-10 4h3"/></svg>
+        <div><span>DATE OF BIRTH</span><strong>{formattedDOB}</strong></div>
+      </div> : null}
+      <div className="qa-mcard-bottom"><div className="qa-holder"><span>MEMBER NAME</span><strong>{displayName}</strong></div><div className="qa-year"><span>MEMBER YEAR</span>{year}</div></div>
     </div>
   </div>;
 }
