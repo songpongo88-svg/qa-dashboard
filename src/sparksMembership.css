@@ -273,3 +273,87 @@
  .qa-sparks-membership .qa-mcard-cardid strong {letter-spacing:.045em;font-size:clamp(12px,4cqi,15px);}
  .qa-sparks-membership .qa-mcard-cardid { margin-top:5px; }
 }
+
+
+/* Compact premium membership: card and controls together, account metrics beside it. */
+.qa-sparks-membership .qa-membership {
+  display:grid;
+  grid-template-columns:minmax(270px,390px) minmax(300px,1fr);
+  column-gap:clamp(20px,3.4vw,42px);
+  row-gap:14px;
+  align-items:start;
+  padding:22px clamp(18px,2.6vw,30px) 17px;
+}
+.qa-sparks-membership .qa-section-top { grid-column:1/-1;padding-bottom:11px;margin-bottom:1px; }
+.qa-sparks-membership .qa-member-hero { grid-column:1;grid-row:2;min-width:0;align-self:start; }
+.qa-sparks-membership .qa-member-summary { grid-column:2;grid-row:2;align-self:start;padding-top:8px; }
+.qa-sparks-membership .qa-current-card {width:100%;max-width:390px;margin:0;padding:0;}
+.qa-sparks-membership .qa-member-card-trigger {
+  display:block;padding:0;border:0;background:none;color:inherit;
+  width:100%;max-width:390px;text-align:inherit;border-radius:19px;cursor:pointer;
+}
+.qa-sparks-membership .qa-member-card-trigger:focus-visible {outline:3px solid var(--qa-theme-400,#c084fc);outline-offset:5px;}
+.qa-sparks-membership .qa-member-card-trigger:hover .qa-member-card {filter:brightness(1.045);}
+.qa-sparks-membership .qa-benefits-hint {font-size:11px;color:var(--qa-sub);text-align:center;margin:10px 0 6px;}
+.qa-sparks-membership .qa-benefits-hint span {color:var(--member-accent);}
+.qa-sparks-membership .qa-member-card-controls {
+  display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-top:8px;
+  padding:10px 0 0;border-top:1px solid var(--qa-rule);font-size:11px;
+}
+.qa-sparks-membership .qa-member-card-controls .qa-action {white-space:normal;text-align:center;font-size:11px;padding:8px 11px;}
+.qa-sparks-membership .qa-card-status-active {color:#236741;}
+.qa-sparks-membership .qa-card-status-inactive {color:#875b18;}
+.qa-sparks-membership .qa-member-wallet {gap:12px;align-items:center;}
+.qa-sparks-membership .qa-wallet-total strong {font-size:clamp(25px,3vw,34px);}
+.qa-sparks-membership .qa-order-total strong {font-size:clamp(18px,2.2vw,26px);}
+.qa-sparks-membership .qa-wallet-orders {min-width:105px;padding-left:18px;}
+.qa-sparks-membership .qa-member-progress {margin-top:16px;padding-top:14px;}
+.qa-sparks-membership .qa-progress-heading {flex-wrap:wrap;gap:8px;}
+.qa-sparks-membership .qa-annual-total {font-size:clamp(20px,2.5vw,26px);}
+.qa-sparks-membership .qa-member-note {margin-top:6px;}
+.qa-sparks-membership .qa-rules {grid-column:1/-1;padding-top:9px;}
+@container (max-width:800px) {
+  .qa-sparks-membership .qa-membership {grid-template-columns:minmax(0,1fr);gap:15px;padding:18px;}
+  .qa-sparks-membership .qa-member-hero {grid-column:1;grid-row:auto;max-width:420px;margin:auto;width:100%;}
+  .qa-sparks-membership .qa-member-summary {grid-column:1;grid-row:auto;padding-top:0;}
+  .qa-sparks-membership .qa-current-card,.qa-sparks-membership .qa-member-card-trigger {max-width:420px;}
+  .qa-sparks-membership .qa-rules {grid-column:1;}
+}
+@container (max-width:420px) {
+  .qa-sparks-membership .qa-membership {padding:14px;gap:13px;}
+  .qa-sparks-membership .qa-member-wallet {flex-wrap:wrap;gap:10px;}
+  .qa-sparks-membership .qa-member-card-controls {align-items:stretch;}
+}
+.qa-member-benefits-backdrop {
+  position:fixed;inset:0;z-index:99990;display:grid;place-items:center;
+  background:rgba(15,11,28,.69);padding:16px;overflow:auto;font-family:"Kanit",sans-serif;
+}
+.qa-member-benefits-dialog {
+  background:linear-gradient(145deg,#fffdfa,#faf5ff);color:#292034;
+  width:min(620px,100%);max-height:min(92dvh,850px);overflow:auto;border-radius:20px;
+  padding:clamp(18px,4vw,28px);box-shadow:0 36px 90px #0d091a88;border:1px solid #e8dbea;
+}
+.qa-member-benefits-header {display:flex;justify-content:space-between;gap:16px;align-items:flex-start;border-bottom:1px solid #e8deeb;padding-bottom:14px;}
+.qa-member-benefits-header h2 {font-size:21px;margin:4px 0;font-weight:600;}
+.qa-member-benefits-header p {margin:0;color:#6b5f74;font-size:12px;}
+.qa-benefits-overline {font-size:10px;letter-spacing:1.2px;color:#8a529e;font-weight:600;}
+.qa-benefits-close {border:1px solid #e7dcea;background:#fff;border-radius:10px;width:36px;height:36px;font-size:24px;cursor:pointer;color:#403149;}
+.qa-benefits-level-heading {font-size:12px;font-weight:600;margin:18px 0 9px;color:#5b4865;}
+.qa-member-benefits-grid {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
+.qa-member-benefits-grid article {background:#fff;border:1px solid #eee3ee;border-radius:13px;padding:14px;display:flex;flex-direction:column;gap:5px;}
+.qa-member-benefits-grid article span {color:#806d8b;font-size:11px;}
+.qa-member-benefits-grid article strong {font-size:20px;line-height:1.25;color:#44235e;}
+.qa-member-benefits-grid article small {font-size:11px;line-height:1.6;color:#746778;}
+.qa-member-benefits-grid article.qa-benefit-upcoming {background:#f9f5fa;}
+.qa-member-birthday-action {background:#f6effc;padding:14px;border-radius:13px;margin-top:15px;}
+.qa-member-birthday-action strong {font-size:13px;}
+.qa-member-birthday-action p {font-size:12px;margin:5px 0;color:#5f506c;}
+.qa-member-birthday-action button {background:#7940a5;color:white;border:0;border-radius:9px;padding:10px 13px;font:inherit;font-size:12px;cursor:pointer;}
+.qa-member-birthday-action button:disabled {opacity:.6;cursor:wait;}
+.qa-member-benefits-dialog footer {display:flex;justify-content:flex-end;margin-top:15px;}
+.qa-member-benefits-dialog footer button {border:1px solid #dfd5e1;border-radius:9px;background:white;padding:8px 14px;font:inherit;font-size:12px;cursor:pointer;}
+.qa-member-benefits-dialog button:focus-visible {outline:3px solid #ae7cce;outline-offset:2px;}
+@media(max-width:520px) {
+ .qa-member-benefits-grid {grid-template-columns:1fr;}
+ .qa-member-benefits-dialog {padding:16px;border-radius:14px;}
+}
