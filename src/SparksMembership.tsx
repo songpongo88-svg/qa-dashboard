@@ -52,7 +52,7 @@ function MemberCard({ tier, year, displayName, cardNumber = "", birthdayDate = "
         <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4m10-4v4M3 10h18m-14 4h3m4 0h3m-10 4h3"/></svg>
         <div><span>DATE OF BIRTH</span><strong>{formattedDOB}</strong></div>
       </div> : null}
-      {showcase ? <div className="qa-mcard-bottom qa-mcard-showcase-bottom"><div className="qa-holder"><span>CARD TYPE</span><strong>{tier.thaiName}</strong></div><div className="qa-year"><span>MEMBERSHIP TIER</span>LV.{tier.level}</div></div> : <div className="qa-mcard-bottom"><div className="qa-holder"><span>MEMBER NAME</span><strong>{displayName}</strong></div><div className="qa-year"><span>MEMBER YEAR</span>{year}</div></div>}
+      {showcase ? <div className="qa-mcard-bottom qa-mcard-showcase-bottom"><div className="qa-holder"><span>CARD TYPE</span><strong>{tier.name}</strong></div><div className="qa-year"><span>MEMBERSHIP TIER</span>LV.{tier.level}</div></div> : <div className="qa-mcard-bottom"><div className="qa-holder"><span>MEMBER NAME</span><strong>{displayName}</strong></div><div className="qa-year"><span>MEMBER YEAR</span>{year}</div></div>}
     </div>
   </div>;
 }
@@ -84,6 +84,7 @@ export default function MemberJourney({ earned, year, displayName, balance, rewa
     return()=>window.removeEventListener("qa:sparks-birthday-updated",listener);
   },[username]);
   const [benefitsOpen,setBenefitsOpen]=useState(false);
+  const [selectedCollectionTier,setSelectedCollectionTier]=useState<MemberLevel|null>(null);
   const [giftClaimed,setGiftClaimed]=useState(Boolean(birthdayClaimed2026At));
   const [giftBusy,setGiftBusy]=useState(false);
   const [giftMessage,setGiftMessage]=useState("");
@@ -150,20 +151,17 @@ export default function MemberJourney({ earned, year, displayName, balance, rewa
   }, [guideOpen]);
 
   return <section className="qa-sparks-membership" data-member-tier={member.current.level} style={{ "--member-accent": member.current.color } as React.CSSProperties} aria-label="ระดับสมาชิก QA Sparks" onKeyDown={event => {
-    if (event.key === "Escape" && guideOpen) { event.preventDefault(); event.stopPropagation(); setGuideOpen(false); }
+    if (event.key === "Escape" && guideOpen) { event.preventDefault(); event.stopPropagation(); if(selectedCollectionTier)setSelectedCollectionTier(null); else setGuideOpen(false); }
   }}>
     {guideOpen ? <div className="qa-guide" id="qa-sparks-member-guide">
       <header className="qa-gallery-top"><div><p className="qa-member-collection">MEMBERSHIP COLLECTION · {year}</p><h2>ระดับสมาชิก QA Sparks</h2><p>แคตตาล็อกประเภทบัตร 10 ระดับ · ดูเกณฑ์สะสมและสิทธิพิเศษของแต่ละระดับ (ไม่ใช่บัตรส่วนตัว)</p></div><button ref={closeButton} type="button" className="qa-action" onClick={() => setGuideOpen(false)}>← กลับหน้าสมาชิก</button></header>
       <div className="qa-gallery-grid">
         {SPARKS_MEMBER_LEVELS.map(tier => <article key={tier.level} className="qa-gallery-entry" data-member-state={tier.level === member.current.level ? "current" : tier.level < member.current.level ? "attained" : "upcoming"}>
-          <MemberCard tier={tier} year={year} showcase/>
-          <div className="qa-gallery-meta"><div><h3>LV.{tier.level} {tier.name}</h3><p>สะสมตั้งแต่ {number(tier.min)} Sparks / ปี</p></div><span className={"qa-tier-state" + (tier.level === member.current.level ? " qa-tier-state-current" : "")}>{tier.level === member.current.level ? "ระดับปัจจุบัน" : tier.level < member.current.level ? "ผ่านแล้ว" : "ยังไม่ถึงระดับ"}</span></div>
-          <div className="qa-gallery-benefits" aria-label={`สิทธิพิเศษระดับ ${tier.level}`}>
-            <div><span>ของขวัญวันเกิด</span><strong>{number(birthdayPoints[tier.level-1])} Sparks / ปี</strong></div>
-            <div><span>Daily Check-in</span><strong>{checkinBonus[tier.level-1] > 0 ? "+"+checkinBonus[tier.level-1]+" Sparks / วัน" : "โบนัสพื้นฐาน"}</strong></div>
-            <div className="qa-gallery-benefit-planned"><span>ส่วนลด Item</span><strong>{memberDiscount(tier.level)>0 ? memberDiscount(tier.level)+"%" : "ยังไม่ปลดล็อก"}</strong><small>สิทธิ์ตามแผน · รอเปิดใช้งาน</small></div>
-            {tier.level>=6 && <div className="qa-gallery-benefit-planned"><span>VIP Exclusive</span><strong>สิทธิพิเศษ VIP</strong><small>อยู่ระหว่างเตรียมเปิด</small></div>}
-          </div>
+          <button type="button" className="qa-gallery-card-button" onClick={()=>setSelectedCollectionTier(tier)}
+            aria-haspopup="dialog" aria-label={`ดูสิทธิพิเศษบัตร ${tier.name} ระดับ ${tier.level}`}>
+            <MemberCard tier={tier} year={year} showcase/>
+          </button>
+          <div className="qa-gallery-meta"><div><h3>LV.{tier.level} {tier.name}</h3><p>สะสมตั้งแต่ {number(tier.min)} Sparks / ปี</p><p className="qa-gallery-tap-hint">กดบัตรเพื่อดูสิทธิพิเศษ ↗</p></div><span className={"qa-tier-state" + (tier.level === member.current.level ? " qa-tier-state-current" : "")}>{tier.level === member.current.level ? "ระดับปัจจุบัน" : tier.level < member.current.level ? "ผ่านแล้ว" : "ยังไม่ถึงระดับ"}</span></div>
         </article>)}
       </div>
       <p className="qa-guide-note">ภาพบัตรด้านบนเป็นตัวอย่างประเภทบัตร ไม่แสดงข้อมูลส่วนตัว · ส่วนลด Item และสิทธิ์ VIP ยังรอเปิดใช้งาน · การแลกของรางวัลไม่ทำให้ระดับลดลง และเริ่มนับคะแนนสะสมใหม่วันที่ 1 มกราคม</p>
@@ -197,6 +195,36 @@ export default function MemberJourney({ earned, year, displayName, balance, rewa
       </div>
       <details className="qa-rules"><summary>เงื่อนไขคะแนนและระดับสมาชิก</summary><p>สะสม Sparks ได้ไม่จำกัด · LV.10 เริ่มที่ {number(SPARKS_TOP_LEVEL_POINTS)} คะแนนสะสมประจำปี · ยอด Sparks ที่ยังไม่ได้ใช้หมดอายุวันที่ 31 ธันวาคม เวลา 23:59 น. (เวลาไทย) · เริ่มนับคะแนนสะสมและระดับสมาชิกใหม่วันที่ 1 มกราคม</p></details>
     </div>}
+    {guideOpen&&selectedCollectionTier&&typeof document!=="undefined"?createPortal(
+      <div className="qa-member-benefits-backdrop" onMouseDown={event=>{if(event.target===event.currentTarget)setSelectedCollectionTier(null);}}>
+        <section className="qa-member-benefits-dialog" role="dialog" aria-modal="true" aria-labelledby="qa-tier-perks-title">
+          <header className="qa-member-benefits-header">
+            <div><span className="qa-benefits-overline">QA SPARKS · MEMBERSHIP COLLECTION</span>
+              <h2 id="qa-tier-perks-title">LV.{selectedCollectionTier.level} {selectedCollectionTier.name}</h2>
+              <p>สิทธิพิเศษตามระดับสมาชิก · สะสมตั้งแต่ {number(selectedCollectionTier.min)} Sparks / ปี</p></div>
+            <button type="button" className="qa-benefits-close" aria-label="ปิดสิทธิพิเศษบัตร" onClick={()=>setSelectedCollectionTier(null)}>×</button>
+          </header>
+          <div className="qa-benefits-level-heading">สิทธิพิเศษของบัตรระดับนี้</div>
+          <div className="qa-member-benefits-grid">
+            <article><span>Daily Check-in</span>
+              <strong>{checkinBonus[selectedCollectionTier.level-1]>0?"+"+checkinBonus[selectedCollectionTier.level-1]+" Sparks / วัน":"สิทธิ์พื้นฐาน"}</strong>
+              <small>โบนัสประจำวันตามระดับ เมื่อมีกิจกรรม Daily Check-in</small></article>
+            <article><span>Birthday Gift</span>
+              <strong>{number(birthdayPoints[selectedCollectionTier.level-1])} Sparks</strong>
+              <small>ของขวัญวันเกิดปีละครั้ง ตามระดับสมาชิกในวันที่กดรับ</small></article>
+          </div>
+          <div className="qa-benefits-level-heading">สิทธิพิเศษเพิ่มเติม</div>
+          <div className="qa-member-benefits-grid">
+            <article className="qa-benefit-upcoming"><span>Item Discount</span>
+              <strong>{memberDiscount(selectedCollectionTier.level)>0?memberDiscount(selectedCollectionTier.level)+"%":"ยังไม่ปลดล็อก"}</strong>
+              <small>สิทธิ์ตามแผน · ระบบส่วนลดรอเปิดใช้งาน</small></article>
+            <article className="qa-benefit-upcoming"><span>VIP Exclusive Benefits</span>
+              <strong>{selectedCollectionTier.level>=6?"VIP Member":"ยังไม่ปลดล็อก"}</strong>
+              <small>สิทธิพิเศษ VIP อยู่ระหว่างเตรียมเปิดใช้งาน</small></article>
+          </div>
+          <footer><button type="button" className="qa-action" onClick={()=>setSelectedCollectionTier(null)}>ปิดหน้าต่าง</button></footer>
+        </section>
+      </div>,document.body):null}
     {benefitsOpen&&typeof document!=="undefined"?createPortal(
       <div className="qa-member-benefits-backdrop" onMouseDown={event=>{if(event.target===event.currentTarget&&!giftBusy)setBenefitsOpen(false);}}>
         <section role="dialog" aria-modal="true" aria-labelledby="qa-member-benefits-title" className="qa-member-benefits-dialog">
