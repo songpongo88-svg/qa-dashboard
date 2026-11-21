@@ -1,9 +1,19 @@
 import React, { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { SPARKS_MEMBER_LEVELS, SPARKS_TOP_LEVEL_POINTS, getSparksMemberLevel, type MemberLevel } from "./qaSparksMemberLevels";
 import "./sparksMembership.css";
 
 const finishes = ["Silver Minimal", "Emerald Trail", "Sapphire Motion", "Amethyst Facet", "Champagne Art Deco", "Ruby Silk", "Midnight Gold", "Copper Trophy", "Celestial Orbit", "Obsidian Prism"];
 const number = (value: number) => value.toLocaleString("en-US");
+const birthdayPoints=[50,75,100,150,200,300,400,500,750,1000];
+const checkinBonus=[0,5,5,10,10,15,15,20,20,25];
+function memberDiscount(level:number){return level>=9?10:level>=7?8:level>=5?5:level>=3?3:0;}
+function localBangkokDate(){
+  const parts=new Intl.DateTimeFormat("en-US",{timeZone:"Asia/Bangkok",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date());
+  const find=(key:string)=>parts.find(part=>part.type===key)?.value||"";
+  return find("year")+"-"+find("month")+"-"+find("day");
+}
+
 
 function MembershipSymbol({ level }: { level: number }) {
   const marks = [
@@ -54,7 +64,7 @@ export function SparksWalletSummary({ balance, rewardOrders, compact = false }: 
   </div>;
 }
 
-export default function MemberJourney({ earned, year, displayName, balance, rewardOrders, username, sessionId, birthdayDate = "" }: { earned: number; year: number; displayName: string; balance: number; rewardOrders: number; username?: string; sessionId?: string; birthdayDate?: string }) {
+export default function MemberJourney({ earned, year, displayName, balance, rewardOrders, username, sessionId, birthdayDate = "", birthdayClaimed2026At = "" }: { earned: number; year: number; displayName: string; balance: number; rewardOrders: number; username?: string; sessionId?: string; birthdayDate?: string; birthdayClaimed2026At?: string }) {
   const member = getSparksMemberLevel(earned);
   const [guideOpen, setGuideOpen] = useState(false);
   const [cardNumber, setCardNumber] = useState("");
@@ -69,6 +79,43 @@ export default function MemberJourney({ earned, year, displayName, balance, rewa
     window.addEventListener("qa:sparks-birthday-updated",listener);
     return()=>window.removeEventListener("qa:sparks-birthday-updated",listener);
   },[username]);
+  const [benefitsOpen,setBenefitsOpen]=useState(false);
+  const [giftClaimed,setGiftClaimed]=useState(Boolean(birthdayClaimed2026At));
+  const [giftBusy,setGiftBusy]=useState(false);
+  const [giftMessage,setGiftMessage]=useState("");
+  const benefitsTrigger=useRef<HTMLButtonElement>(null);
+  const benefitsClose=useRef<HTMLButtonElement>(null);
+  useEffect(()=>setGiftClaimed(Boolean(birthdayClaimed2026At)),[birthdayClaimed2026At]);
+  useEffect(()=>{
+    if(!benefitsOpen)return;
+    benefitsClose.current?.focus();
+    const dismiss=(event:KeyboardEvent)=>{if(event.key==="Escape"){event.preventDefault();setBenefitsOpen(false);}};
+    window.addEventListener("keydown",dismiss);
+    return()=>{window.removeEventListener("keydown",dismiss);benefitsTrigger.current?.focus();};
+  },[benefitsOpen]);
+  const localDate=localBangkokDate();
+  const observedBirthday=storedDOB.slice(5)==="02-29"?"02-28":storedDOB.slice(5);
+  const eligibleBirthdayGift=Boolean(storedDOB)&&localDate.startsWith("2026-")&&observedBirthday<=localDate.slice(5);
+  const level=member.current.level;
+  const bonus=checkinBonus[level-1];
+  const discount=memberDiscount(level);
+  async function claimBirthday(){
+    if(giftBusy||giftClaimed||!eligibleBirthdayGift||!username||!sessionId)return;
+    setGiftBusy(true);setGiftMessage("");
+    try{
+      const response=await fetch("/api/sparks-admin",{method:"POST",credentials:"same-origin",cache:"no-store",
+        headers:{"content-type":"application/json"},body:JSON.stringify({
+          action:"claim-member-birthday",actorUsername:username,sessionId
+        })});
+      const result=await response.json().catch(()=>({}));
+      if(!response.ok||result.ok===false)throw new Error(String(result.error||"ไม่สามารถรับของขวัญได้"));
+      setGiftClaimed(true);
+      setGiftMessage(result.alreadyClaimed?"รับของขวัญไปแล้ว":"รับของขวัญวันเกิดสำเร็จ เพิ่ม "+Number(result.amount||0).toLocaleString("en-US")+" Sparks");
+      window.dispatchEvent(new Event("qa:sparks-updated"));
+    }catch(error){setGiftMessage(error instanceof Error?error.message:"ไม่สามารถรับของขวัญได้");}
+    finally{setGiftBusy(false);}
+  }
+
   const [cardActive, setCardActive] = useState(false);
   useEffect(() => {
     if(!username)return;
@@ -113,14 +160,20 @@ export default function MemberJourney({ earned, year, displayName, balance, rewa
       <div className="qa-gallery-bottom"><button type="button" className="qa-action" onClick={() => setGuideOpen(false)}>← กลับหน้าสมาชิก</button></div>
     </div> : <div className="qa-membership" data-member-wallet="integrated">
       <div className="qa-section-top"><div><p>ANNUAL MEMBERSHIP · {year}</p><h2>บัตรสมาชิกของคุณ</h2></div><button ref={openButton} type="button" className="qa-action" aria-expanded={false} onClick={() => setGuideOpen(true)}>ดูระดับสมาชิกทั้งหมด <span aria-hidden="true">↗</span></button></div>
-      <div className="qa-current-card"><MemberCard tier={member.current} year={year} displayName={displayName} cardNumber={cardNumber} birthdayDate={storedDOB}/></div>
-      <div className="qa-member-card-controls" style={{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap",padding:"10px 0 18px"}}>
-        <span style={{fontSize:12,color:cardActive?"#236741":"#875b18"}}>
-          {cardActive?"บัตรเปิดใช้งานแล้ว · PIN 6 หลัก":"บัตรยังไม่เปิดใช้งาน · กรุณาตั้ง PIN 6 หลัก"}
-        </span>
-        <button type="button" className="qa-action" onClick={()=>window.dispatchEvent(new Event("qa:sparks-card-open"))}>
-          {cardActive?"จัดการบัตร / เปลี่ยน PIN":"เปิดใช้งานบัตรและตั้ง PIN"}
+      <div className="qa-member-hero">
+        <button ref={benefitsTrigger} type="button" className="qa-member-card-trigger"
+          onClick={()=>setBenefitsOpen(true)} aria-haspopup="dialog" aria-label="เปิดดูสิทธิพิเศษบัตรสมาชิก Level ${level}">
+          <div className="qa-current-card"><MemberCard tier={member.current} year={year} displayName={displayName} cardNumber={cardNumber} birthdayDate={storedDOB}/></div>
         </button>
+        <div className="qa-benefits-hint">แตะบัตรเพื่อดูสิทธิพิเศษสมาชิก <span aria-hidden="true">↗</span></div>
+        <div className="qa-member-card-controls">
+          <span className={cardActive?"qa-card-status-active":"qa-card-status-inactive"}>
+            {cardActive?"บัตรเปิดใช้งานแล้ว · PIN 6 หลัก":"บัตรยังไม่เปิดใช้งาน · กรุณาตั้ง PIN 6 หลัก"}
+          </span>
+          <button type="button" className="qa-action" onClick={()=>window.dispatchEvent(new Event("qa:sparks-card-open"))}>
+            {cardActive?"จัดการบัตร / เปลี่ยน PIN":"เปิดใช้งานบัตรและตั้ง PIN"}
+          </button>
+        </div>
       </div>
       <div className="qa-member-summary">
         <SparksWalletSummary balance={balance} rewardOrders={rewardOrders}/>
@@ -134,5 +187,42 @@ export default function MemberJourney({ earned, year, displayName, balance, rewa
       </div>
       <details className="qa-rules"><summary>เงื่อนไขคะแนนและระดับสมาชิก</summary><p>สะสม Sparks ได้ไม่จำกัด · LV.10 เริ่มที่ {number(SPARKS_TOP_LEVEL_POINTS)} คะแนนสะสมประจำปี · ยอด Sparks ที่ยังไม่ได้ใช้หมดอายุวันที่ 31 ธันวาคม เวลา 23:59 น. (เวลาไทย) · เริ่มนับคะแนนสะสมและระดับสมาชิกใหม่วันที่ 1 มกราคม</p></details>
     </div>}
+    {benefitsOpen&&typeof document!=="undefined"?createPortal(
+      <div className="qa-member-benefits-backdrop" onMouseDown={event=>{if(event.target===event.currentTarget&&!giftBusy)setBenefitsOpen(false);}}>
+        <section role="dialog" aria-modal="true" aria-labelledby="qa-member-benefits-title" className="qa-member-benefits-dialog">
+          <header className="qa-member-benefits-header">
+            <div><span className="qa-benefits-overline">QA SPARKS · MEMBER BENEFITS</span>
+              <h2 id="qa-member-benefits-title">สิทธิพิเศษของสมาชิก LV.{level}</h2>
+              <p>{member.current.name} · {member.current.thaiName}</p></div>
+            <button ref={benefitsClose} type="button" className="qa-benefits-close" aria-label="ปิดหน้าต่างสิทธิพิเศษ" onClick={()=>setBenefitsOpen(false)}>×</button>
+          </header>
+          <div className="qa-benefits-level-heading">สิทธิ์ที่ปลดล็อกแล้ว</div>
+          <div className="qa-member-benefits-grid">
+            <article><span>Daily Check-in</span><strong>{bonus>0?"+"+bonus+" Sparks / วัน":"สิทธิ์พื้นฐาน"}</strong><small>รับโบนัสตามระดับสูงสุดที่ปลดล็อก ในวันที่มีกิจกรรม Check-in</small></article>
+            <article><span>Birthday Gift</span><strong>{number(birthdayPoints[level-1])} Sparks</strong><small>รับได้ปีละครั้ง · จำนวนตามระดับสมาชิกเมื่อกดรับ</small></article>
+          </div>
+          <div className="qa-benefits-level-heading">สิทธิพิเศษเพิ่มเติม</div>
+          <div className="qa-member-benefits-grid">
+            <article className="qa-benefit-upcoming"><span>Item Discount</span>
+              <strong>{discount>0?discount+"%":"ยังไม่ปลดล็อก"}</strong>
+              <small>{discount>0?"ระดับของคุณมีสิทธิ์ตามแผนแบบ B · ระบบส่วนลดรอเปิดใช้งาน":"เริ่มปลดล็อกระดับ 3 · ระบบส่วนลดรอเปิดใช้งาน"}</small>
+            </article>
+            <article className="qa-benefit-upcoming"><span>VIP Exclusive Benefits</span>
+              <strong>{level>=6?"VIP Member":"ยังไม่ปลดล็อก"}</strong>
+              <small>Item VIP · ตราโปรไฟล์ · Monthly Surprise อยู่ระหว่างเตรียมเปิด</small>
+            </article>
+          </div>
+          <div className="qa-member-birthday-action">
+            <strong>ของขวัญวันเกิด 2569</strong>
+            <p>{!storedDOB?"กรุณาบันทึกวันเกิดเพื่อเปิดรับสิทธิ์":giftClaimed?"รับของขวัญวันเกิดปีนี้แล้ว":eligibleBirthdayGift?"มีสิทธิ์กดรับของขวัญย้อนหลังปี 2569":localDate.startsWith("2026-")?"ยังไม่ถึงวันเกิดของคุณในปีนี้":"พ้นระยะเวลารับย้อนหลังปี 2569"}</p>
+            {eligibleBirthdayGift&&!giftClaimed?
+              <button type="button" disabled={giftBusy} onClick={()=>void claimBirthday()}>
+                {giftBusy?"กำลังยืนยันสิทธิ์...":"รับของขวัญวันเกิด "+number(birthdayPoints[level-1])+" Sparks"}
+              </button>:null}
+            {giftMessage?<p role="status">{giftMessage}</p>:null}
+          </div>
+          <footer><button type="button" className="qa-action" onClick={()=>setBenefitsOpen(false)}>ปิดหน้าต่าง</button></footer>
+        </section>
+      </div>,document.body):null}
   </section>;
 }
