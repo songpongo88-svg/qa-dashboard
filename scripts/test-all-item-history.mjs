@@ -32,7 +32,7 @@ assert.match(historyUi,/qa-sparks-history-list/,"render responsive history cards
 assert.match(historyUi,/qa-sparks-history-entry-changes/,"show Sparks and Item changes together");
 assert.match(historyUi,/qa-sparks-history-search/,"search the already loaded history");
 assert.match(historyUi,/setVisibleCount\(count=>count\+pageSize\)/,"reveal additional rows on demand");
-assert.match(historyUi,/memberHistoryText\(item\)/,"preserve legacy detail wording");
+assert.match(historyUi,/memberHistoryText\(item(?:,\s*reversedTestIds)?\)/,"preserve legacy detail wording including transfer-reversal context");
 assert.doesNotMatch(historyUi,/<table|history-scroll/,"no horizontally-scrolling history table");
 assert.doesNotMatch(historyCss,/min-width:\s*860px/,"no 860px minimum width in history CSS");
 assert.match(historyCss,/\.qa-sparks-history-entry\{/,"card styling exists");
