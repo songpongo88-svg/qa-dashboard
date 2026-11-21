@@ -10,7 +10,18 @@ const REQUEST_RESULTS: Record<string, string> = {
 };
 
 // Present legacy ledger wording without rewriting stored history or audit notes.
-export function memberHistoryText(item: SparksHistoryItem) {
+export function memberHistoryText(item: SparksHistoryItem, reversedTestIds: ReadonlySet<string> = new Set()) {
+  const transferId = item.id.match(/^peer-transfer-(?:in|out)-([a-f0-9-]{36})$/i)?.[1];
+  if (item.source === "sparks-peer-transfer" && transferId && reversedTestIds.has(transferId)) return {
+    title: "รายการโอนทดลอง (ปรับคืนแล้ว)",
+    detail: "รายการนี้ถูกปรับคืนเต็มจำนวนแล้ว และไม่มีผลค้างอยู่ในยอด Sparks ปัจจุบัน",
+    note: item.detail,
+  };
+  if (item.source === "sparks-peer-transfer-test-reversal") return {
+    title: item.title,
+    detail: item.detail,
+    note: "บันทึกปรับคืนรายการทดลอง โดยคงประวัติการโอนเดิมไว้",
+  };
   if (item.source === "special-reward-admin") {
     const suffix = item.title.match(/\s+·\s+(approved|paid|delivered|rejected)$/i);
     const legacy = item.detail.match(/^Admin บันทึกสถานะ:?\s+(approved|paid|delivered|rejected)$/i);
@@ -63,12 +74,15 @@ export default function SparksHistory({ history, large = false }: {
   const pageSize = large ? 12 : 4;
   const [visibleCount, setVisibleCount] = useState(pageSize);
   const query = search.trim().toLocaleLowerCase("th-TH");
+  const reversedTestIds = new Set(history.filter(item => item.source === "sparks-peer-transfer-test-reversal")
+    .map(item => item.id.match(/^peer-transfer-test-(?:refund|reversal)-([a-f0-9-]{36})$/i)?.[1])
+    .filter((id): id is string => Boolean(id)));
   const visible = history.filter(item => {
     if (filter === "items" && !isItemHistoryEntry(item)) return false;
     if (filter === "earn" && !(item.amount > 0)) return false;
     if (filter === "spend" && !(item.amount < 0)) return false;
     if (!query) return true;
-    const display = memberHistoryText(item);
+    const display = memberHistoryText(item, reversedTestIds);
     const itemAudit = itemHistoryLabel(item);
     const searchable = [
       display.title,display.detail,display.note,itemAudit?.name,
@@ -117,7 +131,7 @@ export default function SparksHistory({ history, large = false }: {
     </p>}
     {page.length > 0 ? <ol className="qa-sparks-history-list" aria-label="รายการประวัติ">
       {page.map(item => {
-        const text = memberHistoryText(item);
+        const text = memberHistoryText(item, reversedTestIds);
         const itemAudit = itemHistoryLabel(item);
         const delta = itemAudit ? itemHistoryDeltaText(item) : "—";
         const hasSparks = item.amount !== 0;
