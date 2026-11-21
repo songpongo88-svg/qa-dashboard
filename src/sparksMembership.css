@@ -472,3 +472,132 @@
 @media(prefers-reduced-motion:reduce){
   .qa-sparks-membership .qa-member-card {transition:none;}
 }
+
+
+/* Prism v2 — match approved visual proportions, even when rendered at 390px.
+   All rules target the original shared card; member data remains live HTML. */
+.qa-sparks-membership .qa-member-card {
+  aspect-ratio:1.78;
+  display:block;
+  padding:0;
+  overflow:hidden;
+  min-height:0;
+  background:radial-gradient(ellipse at 86% 40%,color-mix(in srgb,var(--prism-glow) 18%,transparent),transparent 48%),
+    linear-gradient(115deg,var(--prism-bg-start),#1d1b2b 62%,var(--prism-bg-end));
+}
+.qa-sparks-membership .qa-member-card[data-tier] .qa-art-a {
+  inset:0;width:100%;height:100%;top:0;left:0;right:auto;bottom:auto;
+  transform:none;opacity:.96;
+  clip-path:polygon(58% 0,76% 0,43% 100%,27% 100%);
+  background:linear-gradient(112deg,#ffffff06 0%,color-mix(in srgb,var(--prism-glow) 33%,#b29fac22) 50%,#ffffff26 100%);
+  filter:none;
+}
+.qa-sparks-membership .qa-member-card[data-tier] .qa-art-b {
+  inset:0;width:100%;height:100%;top:0;left:0;right:auto;bottom:auto;
+  transform:none;opacity:1;
+  clip-path:polygon(76% 0,76.6% 0,43.6% 100%,43% 100%);
+  background:linear-gradient(160deg,var(--prism-glow),#ffdec2 57%,var(--prism-metal));
+  box-shadow:none;
+}
+.qa-sparks-membership .qa-member-card[data-tier] .qa-art-c,
+.qa-sparks-membership .qa-member-card[data-tier] .qa-art-d {opacity:0;}
+.qa-sparks-membership .qa-member-card .qa-mcard-mast {
+  position:absolute;top:8%;left:6.5%;right:6%;width:auto;z-index:3;
+  display:flex;align-items:flex-start;justify-content:space-between;
+}
+.qa-sparks-membership .qa-member-card .qa-mcard-brand {gap:clamp(6px,1.5cqi,10px);}
+.qa-sparks-membership .qa-member-card .qa-orbit-crest {--qa-orbit-size:clamp(21px,7.7cqi,38px);}
+.qa-sparks-membership .qa-member-card .qa-wordmark {font-size:clamp(9px,2.95cqi,14px);letter-spacing:clamp(.6px,.35cqi,1.8px);}
+.qa-sparks-membership .qa-member-card .qa-wordmark-sub {font-size:clamp(6px,1.8cqi,9px);letter-spacing:clamp(.5px,.27cqi,1.4px);}
+.qa-sparks-membership .qa-member-card .qa-level-mark {
+  border-radius:clamp(5px,1.8cqi,10px);font-size:clamp(10px,2.6cqi,14px);
+  letter-spacing:.3px;padding:clamp(4px,1.15cqi,7px) clamp(6px,1.9cqi,11px);
+}
+.qa-sparks-membership .qa-member-card[data-tier] .qa-mcard-main {
+  position:absolute;top:34%;left:6.8%;width:61%;max-width:61%;margin:0;
+  text-align:left;z-index:3;
+}
+.qa-sparks-membership .qa-member-card[data-tier] .qa-mcard-main h3 {
+  display:block;max-width:100%;margin:0;line-height:1.16;
+  font-weight:750;font-size:clamp(16px,4.9cqi,27px);
+  letter-spacing:-.04em;color:#ffffff;text-shadow:0 0 8px #fff3;
+}
+.qa-sparks-membership .qa-member-card[data-tier="9"] .qa-mcard-main h3 {
+  font-size:clamp(14px,4.2cqi,23px);
+}
+.qa-sparks-membership .qa-member-card[data-tier] .qa-mcard-main p {
+  margin:clamp(3px,.8cqi,6px) 0 0;
+  font-size:clamp(7px,1.95cqi,11px);font-weight:600;letter-spacing:clamp(.9px,.43cqi,2.8px);
+  color:var(--prism-metal);
+}
+.qa-sparks-membership .qa-member-card .qa-mcard-cardid {
+  display:flex;flex-direction:column;gap:clamp(3px,.8cqi,7px);
+  margin-top:clamp(11px,3.9cqi,26px);max-width:100%;
+}
+.qa-sparks-membership .qa-member-card .qa-mcard-cardid span {
+  font-weight:650;font-size:clamp(7px,1.88cqi,11px);letter-spacing:.11em;color:var(--prism-metal);
+}
+.qa-sparks-membership .qa-member-card .qa-mcard-cardid strong {
+  display:inline-block;width:max-content;max-width:100%;
+  font-size:clamp(14px,4.38cqi,25px);line-height:1.18;
+  font-weight:800;letter-spacing:clamp(.25px,.13cqi,1.3px);
+  color:#ffe6ad;text-shadow:0 0 12px color-mix(in srgb,var(--prism-glow) 46%,transparent);
+}
+.qa-sparks-membership .qa-member-card[data-tier] .qa-mcard-emblem {
+  position:absolute;right:7.2%;top:29.5%;width:24%;height:auto;aspect-ratio:1;
+  opacity:1;transform:none;z-index:2;
+  display:grid;place-items:center;
+  background:linear-gradient(145deg,color-mix(in srgb,var(--prism-glow) 25%,#1b162c),#272235);
+  clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);
+  filter:drop-shadow(0 0 12px color-mix(in srgb,var(--prism-glow) 65%,transparent));
+}
+.qa-sparks-membership .qa-member-card[data-tier] .qa-mcard-emblem svg {
+  width:77%;height:77%;stroke-width:1.5;color:var(--prism-metal);
+  filter:drop-shadow(0 0 7px var(--prism-glow));
+}
+.qa-sparks-membership .qa-member-card .qa-mcard-bottom {
+  position:absolute;left:6.8%;right:6.8%;bottom:8.3%;width:auto;margin:0;
+  align-items:end;display:flex;justify-content:space-between;gap:10px;z-index:3;
+}
+.qa-sparks-membership .qa-member-card .qa-holder {max-width:59%;}
+.qa-sparks-membership .qa-member-card .qa-holder span,
+.qa-sparks-membership .qa-member-card .qa-year span {
+  display:block;margin:0 0 3px;color:var(--prism-metal);opacity:1;
+  font-size:clamp(7px,1.95cqi,10px);font-weight:600;letter-spacing:.08em;
+}
+.qa-sparks-membership .qa-member-card .qa-holder strong {
+  font-size:clamp(10px,2.9cqi,16px);font-weight:650;line-height:1.1;
+}
+.qa-sparks-membership .qa-member-card .qa-year {
+  text-align:right;color:#fff;font-weight:750;line-height:1.16;
+  font-size:clamp(12px,3.3cqi,19px);letter-spacing:.025em;
+}
+.qa-sparks-membership .qa-member-card .qa-mcard-birthday-plate {
+  position:absolute;right:5.5%;bottom:27%;width:39%;height:auto;min-height:0;
+  display:flex;gap:clamp(5px,1.9cqi,12px);align-items:center;
+  padding:clamp(6px,1.7cqi,10px);
+  border-radius:clamp(7px,2.5cqi,15px);
+  background:linear-gradient(110deg,#201728ed,color-mix(in srgb,var(--prism-glow) 25%,#171325));
+  border:1px solid color-mix(in srgb,var(--prism-glow) 55%,#ffe6ae);
+  box-shadow:0 0 13px -3px color-mix(in srgb,var(--prism-glow) 65%,transparent),inset 0 1px 1px #fff7;
+  z-index:3;
+}
+.qa-sparks-membership .qa-member-card .qa-mcard-birthday-plate svg {
+  width:clamp(16px,4.3cqi,27px);height:clamp(16px,4.3cqi,27px);
+  color:#ffe4b5;filter:drop-shadow(0 0 4px #ffdebd77);
+}
+.qa-sparks-membership .qa-member-card .qa-mcard-birthday-plate span {
+  font-size:clamp(7px,1.75cqi,10px);line-height:1.2;letter-spacing:.07em;
+  color:var(--prism-metal);
+}
+.qa-sparks-membership .qa-member-card .qa-mcard-birthday-plate strong {
+  font-size:clamp(11px,3.15cqi,18px);line-height:1.2;letter-spacing:-.015em;
+  color:#fffafc;
+}
+/* At narrow widths keep all data readable and out of the lower name/year row. */
+@container(max-width:340px){
+ .qa-sparks-membership .qa-member-card .qa-mcard-birthday-plate {bottom:26%;width:43%;right:5%;}
+ .qa-sparks-membership .qa-member-card .qa-mcard-cardid {margin-top:9px;}
+ .qa-sparks-membership .qa-member-card[data-tier] .qa-mcard-main {top:32%;}
+ .qa-sparks-membership .qa-member-card .qa-mcard-birthday-plate strong {font-size:10px;}
+}
