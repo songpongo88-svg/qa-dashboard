@@ -162,7 +162,7 @@ export default function MemberJourney({ earned, year, displayName, balance, rewa
       <div className="qa-section-top"><div><p>ANNUAL MEMBERSHIP · {year}</p><h2>บัตรสมาชิกของคุณ</h2></div><button ref={openButton} type="button" className="qa-action" aria-expanded={false} onClick={() => setGuideOpen(true)}>ดูระดับสมาชิกทั้งหมด <span aria-hidden="true">↗</span></button></div>
       <div className="qa-member-hero">
         <button ref={benefitsTrigger} type="button" className="qa-member-card-trigger"
-          onClick={()=>setBenefitsOpen(true)} aria-haspopup="dialog" aria-label="เปิดดูสิทธิพิเศษบัตรสมาชิก Level ${level}">
+          onClick={()=>setBenefitsOpen(true)} aria-haspopup="dialog" aria-label={`เปิดดูสิทธิพิเศษบัตรสมาชิก Level ${level}`}>
           <div className="qa-current-card"><MemberCard tier={member.current} year={year} displayName={displayName} cardNumber={cardNumber} birthdayDate={storedDOB}/></div>
         </button>
         <div className="qa-benefits-hint">แตะบัตรเพื่อดูสิทธิพิเศษสมาชิก <span aria-hidden="true">↗</span></div>
