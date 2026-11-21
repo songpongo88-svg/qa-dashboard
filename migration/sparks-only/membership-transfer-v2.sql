@@ -113,6 +113,7 @@ begin
  if (select auth.uid()) is null then raise exception 'SPARKS_AUTH_REQUIRED' using errcode='42501';end if;
  select lower(btrim(i.username)) into me from public.sparks_verified_identity_v1() i limit 1;
  if me is null or me !~ '^[a-z0-9._-]{2,90}$' then raise exception 'SPARKS_ACTIVE_ACCOUNT_REQUIRED' using errcode='42501';end if;
+ perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('spark-card:'||me,0));
  select * into currentcard from sparks_transfer.cards where username=me;
  v_pin:=coalesce(p_payload->>'pin','');
  v_today_year:=extract(year from v_now at time zone 'Asia/Bangkok')::integer;
@@ -133,14 +134,8 @@ begin
    if p_action='card-reissue' and (currentcard.username is null or not currentcard.active or p_payload->>'confirm' <> 'REISSUE') then
     raise exception 'CARD_REISSUE_CONFIRM_REQUIRED' using errcode='22023';
    end if;
-   v_card:='QS-'||v_today_year||'-'||upper(replace(gen_random_uuid()::text,'-',''))::text;
-   if p_action='card-activate' and currentcard.username is null then
-     select fields #>> '{memberCardNumber,stringValue}' into v_target
-       from sparks_runtime.documents where source_path='qa_sparks_wallets/'||me;
-     if v_target ~ '^QS-2026-[A-F0-9]{20}$'
-      and not exists(select 1 from sparks_transfer.cards where card_number=v_target)
-      then v_card:=v_target;end if;
-   end if;
+   v_card:=(floor(random()*900000000000)::bigint + 100000000000)::text;
+
    insert into sparks_transfer.cards(username,card_number,pin_hash,active,failed_attempts,locked_until,updated_at)
    values(me,v_card,extensions.crypt(v_new_pin,extensions.gen_salt('bf',11)),true,0,null,v_now)
    on conflict(username) do update set card_number=excluded.card_number,pin_hash=excluded.pin_hash,
@@ -251,7 +246,6 @@ begin
  end if;
  raise exception 'UNSUPPORTED_TRANSFER_ACTION' using errcode='22023';
 end $function$
-
 
 revoke all on all functions in schema sparks_transfer from public,anon,authenticated;
 revoke all on function public.sparks_transfer_v2(text,jsonb) from public,anon;
