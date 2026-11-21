@@ -601,3 +601,14 @@
  .qa-sparks-membership .qa-member-card[data-tier] .qa-mcard-main {top:32%;}
  .qa-sparks-membership .qa-member-card .qa-mcard-birthday-plate strong {font-size:10px;}
 }
+
+/* Tier collection is a catalog, not a wallet card for each level. */
+.qa-sparks-membership .qa-gallery-entry .qa-mcard-showcase-bottom .qa-holder strong{font-weight:600}
+.qa-sparks-membership .qa-gallery-benefits{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:12px}
+.qa-sparks-membership .qa-gallery-benefits>div{border:1px solid var(--qa-rule);border-radius:12px;background:color-mix(in srgb,var(--member-accent) 4%,#fff);padding:11px 13px;min-width:0}
+.qa-sparks-membership .qa-gallery-benefits span{display:block;font-size:11px;color:var(--qa-sub);margin-bottom:2px}
+.qa-sparks-membership .qa-gallery-benefits strong{display:block;font-size:14px;line-height:1.4;color:var(--qa-ink);font-weight:600}
+.qa-sparks-membership .qa-gallery-benefits small{display:block;font-size:10px;line-height:1.45;color:var(--qa-sub);margin-top:4px}
+.qa-sparks-membership .qa-gallery-benefit-planned{border-style:dashed!important;background:#f9f7fa!important}
+@container (max-width:370px){.qa-sparks-membership .qa-gallery-benefits{grid-template-columns:1fr}}
+@media(max-width:540px){.qa-sparks-membership .qa-gallery-benefits{grid-template-columns:1fr 1fr;gap:7px}.qa-sparks-membership .qa-gallery-benefits>div{padding:9px}}
