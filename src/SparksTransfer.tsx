@@ -138,9 +138,9 @@ export default function SparksTransfer({username,sessionId,active}:{username:str
            <div><small>โอนแล้วเดือนนี้</small><strong>{summary?.sentThisMonth??"—"} / 500</strong></div>
            <div><small>โอนได้อีก</small><strong>{summary?.remaining??"—"} Sparks</strong></div>
          </div>
-         <label>เลขบัตรสมาชิกผู้รับ<input value={recipientCard} placeholder="QS-2026-..." autoComplete="off" maxLength={55}
-           onChange={e=>{setRecipientCard(e.target.value.trim().toUpperCase());setRecipientName("");setConfirmSend(false);setRequestId("");}}/></label>
-         <button type="button" className="qa-transfer-secondary" disabled={busy||recipientCard.length<15} onClick={lookup}>ตรวจสอบบัตรผู้รับ</button>
+         <label>เลขบัตรสมาชิกผู้รับ<input value={recipientCard} placeholder="กรอกเลขบัตรสมาชิก 12 หลัก" inputMode="numeric" autoComplete="off" maxLength={12}
+           onChange={e=>{setRecipientCard(e.target.value.replace(/\D/g,"").slice(0,12));setRecipientName("");setConfirmSend(false);setRequestId("");}}/></label>
+         <button type="button" className="qa-transfer-secondary" disabled={busy||!/^[0-9]{12}$/.test(recipientCard)} onClick={lookup}>ตรวจสอบบัตรผู้รับ</button>
          {recipientName?<div className="qa-transfer-recipient">ผู้รับที่ตรวจสอบแล้ว: <strong>{recipientName}</strong></div>:null}
          <label>จำนวน Sparks ที่ต้องการโอน<input type="number" min={1} max={500} step={1} value={amount} placeholder="เช่น 100"
            onChange={e=>{setAmount(e.target.value);setConfirmSend(false);setRequestId("");}}/></label>
