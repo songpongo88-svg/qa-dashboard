@@ -20,7 +20,7 @@ assert.ok(entries.some((item) => item.title.startsWith("แบบทดสอบ
 assert.ok(!catalog.includes("Consumer Profile"), "Hide legacy shortcut not in Excel");
 assert.match(ui, /group\.links\.length === 1 \?/);
 assert.match(ui, /mode === "group"/);
-assert.match(ui, /visibleGroups\.length \+ " Items"/);
+assert.match(ui, /visibleGroups\.length \+ " Items(?: · "|")/);
 assert.match(ui, /draft\.groupName/);
 assert.match(edge, /group_name as "groupName"/);
 assert.match(edge, /group_name=\$\{link\.groupName\}/);
