@@ -613,6 +613,45 @@
 @container (max-width:370px){.qa-sparks-membership .qa-gallery-benefits{grid-template-columns:1fr}}
 @media(max-width:540px){.qa-sparks-membership .qa-gallery-benefits{grid-template-columns:1fr 1fr;gap:7px}.qa-sparks-membership .qa-gallery-benefits>div{padding:9px}}
 
+/* Approved member-card master — measured against the supplied 1.78:1 artwork. */
+.qa-sparks-membership .qa-member-card {
+  border-radius:clamp(14px,3.9cqi,22px);
+  box-shadow:0 22px 38px -17px color-mix(in srgb,var(--prism-glow) 45%,#11081f),0 5px 13px -7px #0a0618d9,inset 0 1px 1px #ffffff5c;
+}
+.qa-sparks-membership .qa-member-card::before {inset:4.1%;border-radius:clamp(10px,3cqi,17px);}
+.qa-sparks-membership .qa-member-card::after {border-color:color-mix(in srgb,var(--prism-metal) 54%,transparent);box-shadow:inset 0 0 0 2px #ffffff0b,inset 0 1px 1px #fffc,0 0 9px color-mix(in srgb,var(--prism-glow) 30%,transparent);}
+.qa-sparks-membership .qa-member-card .qa-mcard-mast {top:8.2%;left:6.3%;right:5.1%;}
+.qa-sparks-membership .qa-member-card .qa-orbit-crest {--qa-orbit-size:clamp(29px,9.2cqi,48px);}
+.qa-sparks-membership .qa-member-card .qa-mcard-brand {gap:clamp(8px,2.2cqi,13px);}
+.qa-sparks-membership .qa-member-card .qa-wordmark {font-size:clamp(11px,3.35cqi,18px);font-weight:750;letter-spacing:clamp(1px,.45cqi,2.6px);}
+.qa-sparks-membership .qa-member-card .qa-wordmark-sub {margin-top:3px;font-size:clamp(7px,2.18cqi,11px);font-weight:650;letter-spacing:clamp(1.3px,.55cqi,3.1px);}
+.qa-sparks-membership .qa-member-card .qa-level-mark {position:relative;min-width:clamp(54px,14.5cqi,78px);padding:clamp(6px,1.55cqi,9px) clamp(8px,2.1cqi,12px);border-width:1.4px;border-radius:clamp(7px,2.2cqi,12px);font-size:clamp(13px,3.85cqi,21px);font-weight:800;text-align:center;box-shadow:0 0 14px -3px var(--prism-glow),inset 0 0 10px #ffffff13;}
+.qa-sparks-membership .qa-member-card .qa-level-mark::before {content:"♛";position:absolute;left:50%;top:0;transform:translate(-50%,-76%);color:#ffe69d;font-size:clamp(14px,4cqi,22px);line-height:1;text-shadow:0 0 8px #ffd86f;}
+.qa-sparks-membership .qa-member-card[data-tier] .qa-mcard-main {top:28.8%;left:6.4%;width:56%;max-width:56%;}
+.qa-sparks-membership .qa-member-card[data-tier] .qa-mcard-main h3 {font-size:clamp(20px,6.15cqi,34px);font-weight:850;font-style:italic;letter-spacing:-.055em;line-height:1.06;text-shadow:0 2px 2px #07030c99,0 0 12px #ffffff4d;}
+.qa-sparks-membership .qa-member-card[data-tier="9"] .qa-mcard-main h3 {font-size:clamp(17px,5.25cqi,29px);}
+.qa-sparks-membership .qa-member-card[data-tier] .qa-mcard-main p {margin-top:clamp(5px,1.25cqi,8px);font-size:clamp(9px,2.65cqi,14px);font-weight:750;letter-spacing:clamp(1.7px,.62cqi,3.5px);}
+.qa-sparks-membership .qa-member-card .qa-mcard-cardid {width:100%;max-width:100%;margin-top:clamp(17px,4.9cqi,30px);gap:clamp(5px,1.2cqi,8px);}
+.qa-sparks-membership .qa-member-card .qa-mcard-cardid span {padding-left:clamp(7px,1.7cqi,10px);font-size:clamp(8px,2.15cqi,12px);font-weight:750;letter-spacing:.1em;}
+.qa-sparks-membership .qa-member-card .qa-mcard-cardid strong {display:block;width:100%;padding:clamp(5px,1.25cqi,8px) clamp(12px,2.8cqi,17px);border:1.4px solid color-mix(in srgb,var(--prism-glow) 74%,#fff0b8);border-radius:clamp(7px,2cqi,12px);background:linear-gradient(105deg,#ffffff0c,#ffffff02);font-size:clamp(17px,5.1cqi,28px);font-weight:850;letter-spacing:.035em;line-height:1.12;box-shadow:0 0 12px color-mix(in srgb,var(--prism-glow) 45%,transparent),inset 0 0 11px #ffffff10;}
+.qa-sparks-membership .qa-member-card[data-tier] .qa-mcard-emblem {right:8.1%;top:27.6%;width:20.1%;background:linear-gradient(145deg,color-mix(in srgb,var(--prism-glow) 34%,#1b162c),#272235);filter:drop-shadow(0 0 14px color-mix(in srgb,var(--prism-glow) 78%,transparent));}
+.qa-sparks-membership .qa-member-card[data-tier] .qa-mcard-emblem svg {width:72%;height:72%;stroke-width:1.55;}
+.qa-sparks-membership .qa-member-card .qa-mcard-birthday-plate {right:4.7%;bottom:20.2%;width:35.5%;padding:clamp(7px,1.75cqi,11px);border-width:1.4px;border-radius:clamp(8px,2.6cqi,15px);background:linear-gradient(110deg,#201728f2,color-mix(in srgb,var(--prism-glow) 29%,#171325));}
+.qa-sparks-membership .qa-member-card .qa-mcard-birthday-plate svg {width:clamp(18px,4.7cqi,29px);height:clamp(18px,4.7cqi,29px);}
+.qa-sparks-membership .qa-member-card .qa-mcard-birthday-plate span {font-size:clamp(8px,2.1cqi,11px);font-weight:750;letter-spacing:.1em;}
+.qa-sparks-membership .qa-member-card .qa-mcard-birthday-plate strong {font-size:clamp(14px,4.05cqi,22px);font-weight:850;}
+.qa-sparks-membership .qa-member-card .qa-mcard-bottom {left:6.5%;right:4.7%;bottom:8.1%;height:14.5%;padding-top:clamp(8px,2cqi,12px);border-top:1.4px solid color-mix(in srgb,var(--prism-metal) 65%,transparent);}
+.qa-sparks-membership .qa-member-card .qa-holder {align-self:start;max-width:56%;}
+.qa-sparks-membership .qa-member-card .qa-holder span,.qa-sparks-membership .qa-member-card .qa-year span {font-size:clamp(8px,2.2cqi,12px);font-weight:750;letter-spacing:.11em;}
+.qa-sparks-membership .qa-member-card .qa-holder strong {font-size:clamp(13px,3.75cqi,21px);font-weight:750;}
+.qa-sparks-membership .qa-member-card .qa-year {align-self:end;display:flex;align-items:baseline;gap:clamp(10px,2.6cqi,16px);font-size:clamp(15px,4.25cqi,23px);font-weight:850;}
+.qa-sparks-membership .qa-member-card .qa-year span {margin:0;}
+@container(max-width:340px){
+  .qa-sparks-membership .qa-member-card .qa-mcard-birthday-plate {right:4.5%;bottom:20%;width:37%;}
+  .qa-sparks-membership .qa-member-card .qa-mcard-cardid {margin-top:12px;}
+  .qa-sparks-membership .qa-member-card[data-tier] .qa-mcard-main {top:28.5%;}
+}
+
 /* Tier catalog: click the unchanged English-language card to view perks in a popup. */
 .qa-sparks-membership .qa-gallery-card-button{display:block;width:100%;padding:0;border:0;background:transparent;text-align:inherit;border-radius:19px;cursor:pointer}
 .qa-sparks-membership .qa-gallery-card-button:hover .qa-member-card{filter:brightness(1.035);transform:translateY(-2px);transition:transform .16s ease,filter .16s ease}
