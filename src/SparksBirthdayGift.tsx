@@ -54,7 +54,9 @@ export default function SparksBirthdayGift({username,sessionId,earned,birthdayDa
   }catch(error){setMessage(error instanceof Error?error.message:"เกิดข้อผิดพลาด กรุณาลองใหม่");}
   finally{setWorking(false);}
  }
- // Once saved, there is no editable date form anywhere on the member overview.
+ // The completed birthday moves to the member card; its bonus is claimed in the card's Benefits popup.
+ // This entire registration panel disappears immediately after a successful save.
+ if(saved)return null;
  return <section className="qa-birthday-gift" aria-label="ของขวัญวันเกิดสมาชิก">
   <div><p className="qa-birthday-kicker">MEMBERSHIP BENEFIT · BIRTHDAY GIFT 2026</p>
   <h3>ของขวัญวันเกิดปี 2569</h3>
