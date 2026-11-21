@@ -78,6 +78,14 @@ try {
   assert.equal(main.querySelectorAll(".qa-member-card").length, 10, "the guide reveals all ten distinct cards on demand");
   assert.equal(main.querySelectorAll('[data-member-emblem="orbit-crest"]').length, 10);
   assert.equal(main.querySelectorAll('[data-member-state="current"]').length, 1);
+  assert.equal(main.querySelectorAll(".qa-mcard-showcase-bottom").length,10,"all ten tier cards show generic card type instead of personal details");
+  assert.equal(main.querySelectorAll(".qa-gallery-benefits").length,10,"every tier lists its benefits");
+  assert.equal(main.querySelectorAll(".qa-gallery-benefits > div").length,35,"all tier benefit rules are visible");
+  assert.ok(!main.querySelector("#qa-sparks-member-guide").textContent.includes("Songpon Phothong"),"tier catalog must not expose card owner");
+  assert.ok(!main.querySelector("#qa-sparks-member-guide").textContent.includes("DATE OF BIRTH"),"catalog must not copy birth dates");
+  assert.ok(!main.querySelector("#qa-sparks-member-guide").textContent.includes("MEMBER CARD NO."),"catalog must not copy real card IDs");
+  assert.ok(main.querySelector(".qa-gallery-benefits").textContent.includes("50 Sparks / ปี"),"Starter birthday benefit is shown");
+  assert.ok(main.querySelectorAll(".qa-gallery-benefit-planned").length>0,"pending perks are labeled as not yet active");
   assert.deepEqual([...main.querySelectorAll(".qa-member-card")].map(card => Number(card.dataset.tier)), [1,2,3,4,5,6,7,8,9,10]);
   assert.equal(globalThis.__memberTestReads, readsBeforeGuide, "opening the guide must not reload the wallet");
   await act(async () => document.activeElement.dispatchEvent(new dom.window.KeyboardEvent("keydown", { key: "Escape", bubbles: true })));
