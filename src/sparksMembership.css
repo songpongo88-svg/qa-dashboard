@@ -612,3 +612,10 @@
 .qa-sparks-membership .qa-gallery-benefit-planned{border-style:dashed!important;background:#f9f7fa!important}
 @container (max-width:370px){.qa-sparks-membership .qa-gallery-benefits{grid-template-columns:1fr}}
 @media(max-width:540px){.qa-sparks-membership .qa-gallery-benefits{grid-template-columns:1fr 1fr;gap:7px}.qa-sparks-membership .qa-gallery-benefits>div{padding:9px}}
+
+/* Tier catalog: click the unchanged English-language card to view perks in a popup. */
+.qa-sparks-membership .qa-gallery-card-button{display:block;width:100%;padding:0;border:0;background:transparent;text-align:inherit;border-radius:19px;cursor:pointer}
+.qa-sparks-membership .qa-gallery-card-button:hover .qa-member-card{filter:brightness(1.035);transform:translateY(-2px);transition:transform .16s ease,filter .16s ease}
+.qa-sparks-membership .qa-gallery-card-button:focus-visible{outline:3px solid var(--qa-theme-400,#c084fc);outline-offset:5px}
+.qa-sparks-membership .qa-gallery-tap-hint{font-size:11px!important;color:var(--qa-accent)!important;margin-top:6px!important}
+.qa-sparks-membership .qa-mcard-showcase-bottom .qa-holder strong{font-weight:600;font-size:clamp(11px,3cqi,14px)}
