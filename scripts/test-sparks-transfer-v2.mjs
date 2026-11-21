@@ -13,6 +13,8 @@ assert.match(transfer,/member-card-reissue/);
 assert.match(transfer,/member-pin-change/);
 assert.match(transfer,/member-pin-verify/);
 assert.match(transfer,/sparks-transfer-lookup/);
+assert.match(transfer,/maxLength=\{12\}/,"recipient member number is exactly 12 digits");
+assert.match(sql,/floor\(random\(\)\*900000000000\)/,"new cards use 12 numeric digits");
 assert.match(transfer,/sparks-transfer-submit/);
 assert.match(transfer,/sparks-transfer-accept/);
 assert.doesNotMatch(transfer,/<select /,"recipient is entered by card number, not dropdown");
