@@ -56,8 +56,8 @@ console.log('PASS actual voice recordings only; recording Contact Type filters i
 const topics=[{code:'1',label:'Process',score:25,max:30,wantsAppeal:true,appealReason:'Please review'},{code:'2',label:'Answer',score:20,max:20,wantsAppeal:false},{code:'3',label:'Follow-up',score:25,max:25,wantsAppeal:false},{code:'4',label:'Communication',score:20,max:25,wantsAppeal:false}];
 const sample=(n,agent='Filter Agent A',month='09')=>({id:'filter-'+n,caseId:'AA99700'+n,agentName:agent,targetDisplayName:agent,auditDate:`2026-${month}-15`,caseDate:`2026-${month}-15`,auditTimestamp:`2026-${month}-16T02:30:45Z`,submittedAt:`2026-${month}-16T02:30:45Z`,evaluationMonthKey:`2026-${month}`,finalScore:n===1?70:90,inquiry:'ข้อมูลทดสอบ (Order inquiry)',topics,evidenceUrls:[]});
 fixture.read=async()=>[
- {...sample(1),callLogs:[{id:'merchant-1',contactType:'Merchant',recordingUrl:'https://audio.test/m1.wav'}]},
- {...sample(2),callLogs:[{id:'rider-2',contactType:'Rider',recordingUrl:'https://audio.test/r2.wav'}]},
+ {...sample(1),callLogs:[{id:'merchant-1',contactType:'Merchant',recordingUrl:'https://audio.test/m1.wav'},{id:'merchant-1b',contactType:'Merchant',recordingUrl:'https://audio.test/m1b.wav'},{id:'customer-1',contactType:'Customer',recordingUrl:'https://audio.test/c1.wav'}]},
+ {...sample(2),callLogs:[{id:'rider-2',contactType:'Rider',recordingUrl:'https://audio.test/r2.wav'},{id:'unknown-2',recordingUrl:'https://audio.test/u2.wav'}]},
  {...sample(3),callLogs:[{id:'empty-3',contactType:'Customer',recordingUrl:''}]},
  {...sample(4),callLogs:[{id:'merchant-4',contactType:'Merchant',recordingUrl:'https://audio.test/m4.wav'}]},
  {...sample(5,'Filter Agent B'),callLogs:[{id:'customer-5',contactType:'Customer',recordingUrl:'https://audio.test/c5.wav'}]},
@@ -65,7 +65,7 @@ fixture.read=async()=>[
 ];
 const submit=n=>({id:'submit-'+n,event_type:'appeal_request_submitted',case_id:'AA99700'+n,target_agent:'Filter Agent A',created_at:'2026-09-17T01:00:00Z',details:{requestId:'filter-request-'+n,agent:'Filter Agent A',auditDate:'2026-09-15',finalScore:90,grade:'A',topics}});
 fixture.events=[submit(2),submit(3),submit(4),{id:'reject-3',event_type:'appeal_request_reviewed',case_id:'AA997003',target_agent:'Filter Agent A',created_at:'2026-09-18T01:00:00Z',details:{requestId:'filter-request-3',decision:'Rejected',reviewId:'review-3',topics:[{...topics[0],decision:'Rejected',rejectReason:'Keep original score'}]}},{id:'reset-4',event_type:'appeal_request_reset',case_id:'AA997004',target_agent:'Filter Agent A',created_at:'2026-09-18T01:00:00Z',details:{requestId:'filter-request-4'}}];
-const columns=['case-id','case-date','audit-date','agent','intent','score','grade','kpi-status'];
+const columns=['case-id','case-date','audit-date','agent','intent','recordings','score','grade','kpi-status'];
 const base={currentUser:{username:'qa-filter',displayName:'QA Filter',role:'Quality Assurance'},dashboardSubTab:'overview',externalSelectedMonthKey:'2026-09',externalSelectedYear:'2026',canViewAgentsInOverview:true,canViewAnalytics:true,analyticsContent:React.createElement('div',null,'Analytics'),roleScopedAgentNames:['Filter Agent A','Filter Agent B'],onEffectiveCasesChange:cases=>{fixture.lastCases=cases;}};
 let root=createRoot(document.getElementById('root'));
 const render=async(extra={})=>act(async()=>root.render(React.createElement(Dashboard,{...base,dataRefreshKey:1,...extra})));
@@ -76,6 +76,11 @@ try{
  await render();await wait(()=>ids().includes('AA997001'),'load');const all=ids();assert.equal(all.length,5);assert.ok(!all.includes('AA997006'));
  assert.deepEqual([...document.querySelector('[data-case-record-header-v163]').querySelectorAll('[data-case-record-column]')].map(e=>e.dataset.caseRecordColumn),columns);
  for(const r of rows())assert.deepEqual([...r.querySelectorAll('[data-case-record-column]')].map(e=>e.dataset.caseRecordColumn),columns);
+ const badges=(caseId)=>[...document.querySelectorAll('[data-case-record-id="'+caseId+'"] [data-case-record-voice-type]')].map(el=>[el.dataset.caseRecordVoiceType,Number(el.dataset.caseRecordVoiceCount)]);
+ assert.deepEqual(badges('AA997001'),[['Merchant',2],['Customer',1]],'same case groups actual recording files by Contact Type');
+ assert.deepEqual(badges('AA997002'),[['Rider',1],['Unknown',1]],'unclassified recordings are explicitly marked');
+ assert.equal(document.querySelector('[data-case-record-id="AA997003"] [data-case-record-voice-empty]').getAttribute('title'),'เคสนี้ไม่มีไฟล์เสียง');
+ assert.match(document.querySelector('[data-case-record-id="AA997001"] [data-case-record-voice-type="Merchant"]').getAttribute('title'),/2 ไฟล์เสียง/);
  assert.match(rows()[0].querySelector('[data-case-record-column="audit-date"]').textContent,/16\/09\/2026/);assert.equal(rows()[0].querySelector('[data-case-record-column="case-date"]').textContent,fixture.lastCases.find(item=>item.caseId===ids()[0]).caseDate);
  const metrics=()=>[...document.querySelectorAll('[data-dashboard-metric]')].map(e=>e.textContent);const snapshot=metrics();const pdf=()=>[...document.querySelectorAll('button')].find(e=>e.textContent.includes('Gen All Case PDF'))?.textContent;const beforePdf=pdf();
  const chooseAudio=async mode=>{await click(document.querySelector('[data-case-record-audio-trigger]'));await click(document.querySelector('[data-case-record-audio-mode="'+mode+'"]'));};
@@ -92,5 +97,5 @@ try{
  await click(document.querySelector('[data-case-record-mode="appeals"]'));const input=document.querySelector('[data-search-evaluation-primary-v166] input')||document.querySelector('input[placeholder="Search any case ID"]');assert.ok(input);await act(async()=>Simulate.change(input,{target:{value:'AA997001'}}));await wait(()=>ids().length===1&&ids()[0]==='AA997001','search bypasses stale filter');assert.equal(document.querySelector('[data-case-record-mode="all"]').getAttribute('aria-pressed'),'true');
  await click([...document.querySelectorAll('button')].find(e=>e.textContent==='Clear'||e.textContent==='Reset'));await wait(()=>ids().length===all.length,'clear');
  await render({currentUser:{username:'filter-b',displayName:'Filter Agent B',agentName:'Filter Agent B',role:'Admin Live Chat'},roleScopedAgentNames:['Filter Agent B'],canViewAgentsInOverview:false,dataRefreshKey:2});await wait(()=>ids().length===1&&ids()[0]==='AA997005','Agent authorization');await click(document.querySelector('[data-case-record-mode="appeals"]'));assert.deepEqual(ids(),[]);assert.ok(document.querySelector('[data-unified-case-explorer-v160]').textContent.includes('ไม่พบเคสอุทธรณ์ตามตัวกรองปัจจุบัน'));
- console.log('PASS actual Dashboard: Case ID / Case Date / Audit Date / Agent / Intent / Score / Grade / KPI Status alignment, pending/rejected filtering, counts, row selection, unchanged KPI/PDF, all-month ID search, role scope and empty state');
+ console.log('PASS actual Dashboard: recording badges by Merchant/Customer/Rider/Unknown and accurate file counts, nine-column alignment, pending/rejected filtering, counts, row selection, unchanged KPI/PDF, all-month ID search, role scope and empty state');
 }finally{await act(async()=>root.unmount());globalThis.fetch=originalFetch;delete globalThis.__dashboardRefreshFixture;dom.window.close();await fs.rm(temp,{recursive:true,force:true});}

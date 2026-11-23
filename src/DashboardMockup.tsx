@@ -45,6 +45,7 @@ import { isLateAppealOpen, lateAppealTimeRemaining } from "./lateAppealPolicy";
 import PageHero from "./PageHero";
 import { FestivalMetricIcon } from "./festivalThemes/Festival";
 import CaseRecordFilterButtons from "./CaseRecordFilterButtons";
+import CaseRecordingIndicators from "./CaseRecordingIndicators";
 import { filterCaseRecords, filterCaseVoiceRecordings, hasCaseVoiceRecording, isAppealCaseRecord, type CaseRecordFilter, type CaseRecordingFilter } from "./caseRecordFilter";
 import TestCaseBadge from "./TestCaseBadge";
 import CaseWatermarks from "./CaseWatermarks";
@@ -9276,7 +9277,7 @@ export default function DashboardMockup({
 
                     <div className="grid min-w-0 xl:grid-cols-[minmax(0,2.5fr)_minmax(340px,0.85fr)]">
                       <div className="min-w-0 overflow-x-auto border-b border-slate-200 xl:border-b-0 xl:border-r">
-                        <div className="min-w-[1020px] bg-slate-50/80 p-3">
+                        <div className="min-w-[1170px] bg-slate-50/80 p-3">
                           <div
                             data-case-record-header-v163="true"
                             className="relative grid qa-case-record-grid items-center gap-2 overflow-hidden rounded-2xl border border-violet-400/70 px-4 py-3 text-[9px] font-bold uppercase tracking-[0.1em] text-white shadow-[0_8px_22px_rgba(76,29,149,0.18)]"
@@ -9288,6 +9289,7 @@ export default function DashboardMockup({
                             <span data-case-record-column="audit-date" className="text-center">Audit Date</span>
                             <span data-case-record-column="agent">Agent</span>
                             <span data-case-record-column="intent">Intent</span>
+                            <span data-case-record-column="recordings" className="text-center normal-case tracking-normal"><span className="inline-flex items-center justify-center gap-1 rounded-full border border-white/30 bg-white/15 px-2 py-1 text-[10px]">♫ ไฟล์เสียงในเคส</span></span>
                             <span data-case-record-column="score" className="text-center text-violet-50">Score</span>
                             <span data-case-record-column="grade" className="text-center text-violet-50">Grade</span>
                             <span data-case-record-column="kpi-status" className="text-center leading-3 text-violet-50">KPI<br />Status</span>
@@ -9342,6 +9344,7 @@ export default function DashboardMockup({
                                     <span className={`block truncate font-semibold ${hasAppealChange ? "text-sky-900" : scorePassed ? "text-slate-900" : "text-rose-700"}`} title={intent.thai}>{intent.thai}</span>
                                     {intent.english ? <span className={`mt-1 block truncate text-[10px] font-medium ${hasAppealChange ? "text-sky-600" : scorePassed ? "text-slate-500" : "text-rose-500"}`} title={intent.english}>{intent.english}</span> : null}
                                   </span>
+                                  <span data-case-record-column="recordings" className="min-w-0"><CaseRecordingIndicators callLogs={item.callLogs} /></span>
                                   <span data-case-record-column="score" className={`w-fit cursor-text select-text rounded-full px-2.5 py-2 font-bold tabular-nums ${scorePassed ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}>{formatCaseScore(item.finalScore)}</span>
                                   <span data-case-record-column="grade" className={`inline-flex h-8 w-8 cursor-text select-text items-center justify-center rounded-lg border font-bold ${gradeTone(item.grade)}`}>{item.grade}</span>
                                   <span data-case-record-column="kpi-status" className={`w-fit cursor-text select-text rounded-full border px-2.5 py-1 text-[10px] font-bold ${scorePassed ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-rose-200 bg-rose-50 text-rose-700"}`}>{scorePassed ? "KPI Passed" : "KPI Not Passed"}</span>
