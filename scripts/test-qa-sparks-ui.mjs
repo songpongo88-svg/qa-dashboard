@@ -166,11 +166,13 @@ try{
   await act(async()=>punthaiPopup.querySelector(".sr-close").dispatchEvent(new MouseEvent("click",{bubbles:true})));
   assert.equal(document.querySelector(".sr-modal"),null);
 
-  assert.ok(questCard.textContent.includes("+50") && questCard.textContent.includes("9–22"));
+  // The active calendar switches from Nov 9–22 to Nov 23–30 in Bangkok time.
+  const phase2Active = Date.now() >= Date.parse("2026-11-22T17:00:00Z");
+  assert.ok(questCard.textContent.includes("+50") && questCard.textContent.includes(phase2Active ? "23–30" : "9–22"));
   await act(async () => questCard.dispatchEvent(new MouseEvent("click",{bubbles:true})));
   const questDialog = document.querySelector(".qa-sparks-checkin-modal");
   assert.ok(questDialog, "Daily Check-in opens a calendar dialog");
-  assert.equal(questDialog.querySelectorAll(".qa-sparks-checkin-day").length,14);
+  assert.equal(questDialog.querySelectorAll(".qa-sparks-checkin-day").length,phase2Active ? 8 : 14);
   assert.equal(questDialog.querySelectorAll(".qa-sparks-checkin-day:not(:disabled)").length,0, "unverified wallet can never claim");
   await act(async () => questDialog.querySelector(".qa-sparks-checkin-close").dispatchEvent(new MouseEvent("click",{bubbles:true})));
   assert.equal(document.querySelector(".qa-sparks-checkin-modal"),null);
