@@ -10,7 +10,8 @@ html:root #root [data-case-record-filters] button:focus-visible { outline:2px so
 html:root #root .qa-case-record-filter-icon > :is(svg,img,span) { width:20px; height:20px; flex:none; }
 .qa-case-record-filter-count { display:inline-flex; align-items:center; justify-content:center; min-width:22px; padding:2px 5px; border-radius:6px; font-size:10px; font-variant-numeric:tabular-nums; background:color-mix(in srgb,currentColor 10%,transparent); }
 html:root[data-qa-festival-theme="festival-new-year"] [data-case-record-filters] button[aria-pressed="true"] .qa-case-record-filter-icon { filter:brightness(.45); }
-.qa-case-record-grid { grid-template-columns:82px 86px 110px minmax(125px,.8fr) minmax(190px,1.35fr) minmax(175px,1.1fr) 74px 54px 110px; }
+.qa-case-record-grid { grid-template-columns:95px 90px 110px minmax(130px,.8fr) minmax(220px,1.6fr) 80px 60px 110px; }
+.qa-case-record-grid--with-audio { grid-template-columns:82px 86px 110px minmax(125px,.8fr) minmax(190px,1.35fr) minmax(175px,1.1fr) 74px 54px 110px; }
 .qa-case-record-voice-badges { display:flex; align-items:center; justify-content:flex-start; flex-wrap:wrap; gap:5px; min-width:0; }
 .qa-case-record-voice-badge { display:inline-flex; align-items:center; justify-content:center; gap:4px; min-height:27px; padding:3px 6px; border:1px solid; border-radius:999px; white-space:nowrap; font-family:Kanit,sans-serif; font-size:10px; font-weight:700; line-height:1; box-shadow:0 1px 3px rgba(15,23,42,.06); }
 .qa-case-record-voice-badge svg { flex:none; width:15px; height:15px; }
