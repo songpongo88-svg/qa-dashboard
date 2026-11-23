@@ -382,136 +382,184 @@ export default function PresentationMockup({ currentUser, roleScopedAgentNames, 
     if (!selectedWeek) return;
     try { await assertEvaluationScopeComplete(scoreAgents, scoreMonths); }
     catch (error) { setStatusMessage(error instanceof Error ? error.message : "Evaluation status could not be verified."); return; }
-    const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+    const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: [180, 320] });
     registerTHSarabunNew(doc);
-    doc.setFont("THSarabunNew", "bold");
-    doc.setTextColor(31, 26, 46);
-    doc.setFontSize(25);
-    doc.text("QA Performance Presentation", 16, 20);
-    doc.setFontSize(18);
-    doc.setFont("THSarabunNew", "normal");
-    doc.setTextColor(93, 84, 110);
-    doc.text(`Weekly ${selectedWeek.label}`, 16, 30);
+    const grade = scoreToGrade(currentAvg);
+    const monthKey = formatMonthKey(selectedWeek.start);
+    const resolvedMonths = monthRows.length ? monthRows : SAMPLE_MONTH_ROWS;
+    const resolvedTopics = (goodTopics.length ? goodTopics : lowTopics).slice(0, 4);
+    const maxMonthCases = Math.max(...resolvedMonths.map((row) => row.cases), 1);
+    const violet: [number, number, number] = [53, 18, 111];
+    const violetSoft: [number, number, number] = [248, 245, 255];
+    const slate: [number, number, number] = [15, 23, 42];
+    const muted: [number, number, number] = [100, 116, 139];
 
-    doc.setFillColor(91, 33, 182);
-    doc.roundedRect(242, 12, 40, 12, 6, 6, "F");
-    doc.setTextColor(255, 255, 255);
-    doc.setFont("THSarabunNew", "bold");
-    doc.setFontSize(14);
-    doc.text("Presentation", 248, 20);
+    const font = (size: number, bold = false, color: [number, number, number] = slate) => {
+      doc.setFont("THSarabunNew", bold ? "bold" : "normal");
+      doc.setFontSize(size);
+      doc.setTextColor(...color);
+    };
+    const panel = (x: number, y: number, w: number, h: number, fill: [number, number, number] = [255, 255, 255]) => {
+      doc.setFillColor(...fill);
+      doc.setDrawColor(230, 222, 246);
+      doc.roundedRect(x, y, w, h, 3, 3, "FD");
+    };
+    const ribbon = (index: string, label: string, x: number, y: number, width: number) => {
+      doc.setFillColor(...violet);
+      doc.roundedRect(x, y, width, 10, 0, 3, "F");
+      doc.setFillColor(255, 255, 255);
+      doc.circle(x + 6, y + 5, 3.2, "F");
+      font(11, true, violet);
+      doc.text(index, x + 6, y + 6.1, { align: "center" });
+      font(12, true, [255, 255, 255]);
+      doc.text(label, x + 12, y + 6.5);
+    };
+    const kpi = (x: number, y: number, w: number, label: string, value: string, sub: string) => {
+      panel(x, y, w, 20);
+      font(8, true, muted);
+      doc.text(label, x + 4, y + 5);
+      font(19, true, violet);
+      doc.text(value, x + 4, y + 13);
+      font(7.5, false, muted);
+      doc.text(truncateText(sub, 34), x + 4, y + 17.5);
+    };
 
-    const cards = [
-      ["จำนวนเคส", `${currentCases.length}`, previousWeek ? `สัปดาห์ก่อน ${previousCases.length}` : "ยังไม่มีข้อมูลเทียบ"],
-      ["คะแนนเฉลี่ย", currentAvg.toFixed(2), previousWeek ? `${delta >= 0 ? "+" : ""}${delta.toFixed(2)} จากสัปดาห์ก่อน` : scoreToGrade(currentAvg)],
-      ["Critical Error", `${criticalCount}`, criticalCount ? "พบเคสที่ต้องติดตาม" : "ไม่พบในสัปดาห์นี้"],
-      ["ภาพรวม", currentAvg >= 90 ? "ดีมาก" : currentAvg >= 80 ? "ดีขึ้นต่อเนื่อง" : "ควรโฟกัส", scoreToGrade(currentAvg)],
-    ];
-    cards.forEach((card, index) => {
-      const x = 16 + index * 68;
-      doc.setFillColor(248, 245, 255);
-      doc.setDrawColor(221, 214, 254);
-      doc.roundedRect(x, 40, 60, 28, 3, 3, "FD");
-      doc.setFont("THSarabunNew", "bold");
-      doc.setFontSize(12);
-      doc.setTextColor(49, 20, 99);
-      doc.text(card[0], x + 5, 49);
-      doc.setFontSize(24);
-      doc.text(card[1], x + 5, 60);
-      doc.setFont("THSarabunNew", "normal");
-      doc.setFontSize(10);
-      doc.setTextColor(96, 88, 115);
-      doc.text(card[2], x + 5, 65);
+    doc.setFillColor(253, 252, 255);
+    doc.rect(0, 0, 320, 180, "F");
+    doc.setFillColor(124, 58, 237);
+    doc.rect(0, 0, 320, 2, "F");
+    font(28, true, violet);
+    doc.text("สรุปภาพรวม QA Dashboard", 10, 16);
+    font(12, true, slate);
+    doc.text("Weekly Dashboard + Monthly Analytics", 10, 23);
+    panel(254, 8, 54, 12);
+    font(8, true, violet);
+    doc.text(`ข้อมูลล่าสุด: ${new Date().toLocaleDateString("th-TH", { day: "2-digit", month: "short", year: "numeric" })}`, 281, 15.2, { align: "center" });
+
+    panel(8, 29, 188, 80);
+    ribbon("1", "Weekly Dashboard", 8, 29, 58);
+    font(9, true, slate);
+    doc.text("Current Viewing Scope", 13, 44);
+    const scopeValues = ["Weekly Dashboard", "All Agents", formatMonthLabelFromKey(monthKey), selectedWeek.label, `${currentCases.length}`];
+    const scopeLabels = ["View", "Agent", "Month", "Week", "Merge Rows"];
+    scopeLabels.forEach((label, index) => {
+      const x = 13 + index * 35.2;
+      panel(x, 47, 32, 13, violetSoft);
+      font(6.5, true, [109, 40, 217]);
+      doc.text(label, x + 2.5, 51);
+      font(7.2, true, slate);
+      doc.text(truncateText(scopeValues[index], 18), x + 2.5, 56);
     });
+    if (sections.kpiSummary) {
+      kpi(13, 64, 55, "Cases", `${currentCases.length}`, "Case(s) in current view");
+      kpi(72, 64, 55, "Average Score", currentAvg.toFixed(2), previousWeek ? `${delta >= 0 ? "+" : ""}${delta.toFixed(2)} from previous week` : "Current average score");
+      kpi(131, 64, 55, "Grade", grade, "Calculated from average score");
+    }
+    font(9, true, slate);
+    doc.text("Summary Table", 13, 90);
+    doc.setFillColor(...violet);
+    doc.roundedRect(13, 93, 173, 7, 2, 2, "F");
+    font(7.5, true, [255, 255, 255]);
+    ["Week", "Cases", "Average Score", "Grade"].forEach((value, index) => doc.text(value, [16, 105, 132, 171][index], 97.5, index ? { align: "center" } : undefined));
+    font(8, true, slate);
+    doc.text(truncateText(selectedWeek.label, 36), 16, 105);
+    doc.text(`${currentCases.length}`, 105, 105, { align: "center" });
+    doc.text(currentAvg.toFixed(2), 132, 105, { align: "center" });
+    doc.text(grade, 171, 105, { align: "center" });
 
-    let y = 82;
+    const rightCards = [
+      ["Cases", `${currentCases.length}`],
+      ["คะแนนเฉลี่ย", currentAvg.toFixed(2)],
+      ["Grade", grade],
+      ["สัปดาห์", selectedWeek.label],
+    ];
+    rightCards.forEach((item, index) => {
+      const x = 202 + (index % 2) * 55;
+      const y = 29 + Math.floor(index / 2) * 25;
+      panel(x, y, 51, 21);
+      doc.setFillColor(...violet);
+      doc.circle(x + 8, y + 10.5, 5.5, "F");
+      font(8, true, muted);
+      doc.text(item[0], x + 16, y + 7);
+      font(index === 3 ? 7.3 : 15, true, slate);
+      doc.text(truncateText(item[1], index === 3 ? 28 : 12), x + 16, y + 15);
+    });
+    panel(202, 80, 106, 29);
+    font(12, true, violet);
+    doc.text("สรุปไฮไลต์", 208, 88);
+    const highlights = [
+      `${formatMonthLabelFromKey(monthKey)}: ${currentCases.length} เคส คะแนนเฉลี่ย ${currentAvg.toFixed(2)} Grade ${grade}`,
+      ...(sections.topicPerformance ? resolvedTopics.slice(0, 2).map((item) => `${truncateText(item.title, 37)}: ${item.percent.toFixed(2)}%`) : []),
+      ...(criticalCount ? [`Critical Error: ${criticalCount} เคส ต้องติดตามทันที`] : []),
+    ];
+    font(7.7, false, slate);
+    highlights.slice(0, 4).forEach((item, index) => doc.text(`• ${item}`, 208, 94 + index * 4.4));
+
+    panel(8, 114, 148, 58);
+    ribbon("2", "Monthly Analytics", 8, 114, 62);
+    font(9, true, slate);
+    doc.text("Monthly score movement", 13, 130);
+    resolvedMonths.slice(0, 3).forEach((row, index) => {
+      const y = 136 + index * 10;
+      font(8, true, slate);
+      doc.text(truncateText(row.label, 20), 13, y);
+      doc.text(`${row.cases} cases`, 65, y);
+      doc.text(row.avg.toFixed(2), 94, y);
+      doc.text(row.grade, 112, y);
+      doc.setFillColor(237, 233, 254);
+      doc.roundedRect(121, y - 3, 27, 3, 1.5, 1.5, "F");
+      doc.setFillColor(124, 58, 237);
+      doc.roundedRect(121, y - 3, Math.max(3, (row.cases / maxMonthCases) * 27), 3, 1.5, 1.5, "F");
+    });
+    font(7.5, true, muted);
+    doc.text(`Total visible cases: ${resolvedMonths.reduce((sum, row) => sum + row.cases, 0)}`, 13, 168);
+
+    panel(161, 114, 147, 58);
+    font(11, true, slate);
+    doc.text("Topic Performance", 167, 124);
+    font(7.5, false, muted);
+    doc.text("Average topic score in current view", 167, 129);
+    doc.setFillColor(...violet);
+    doc.roundedRect(167, 133, 135, 7, 2, 2, "F");
+    font(7, true, [255, 255, 255]);
+    doc.text("Topic", 171, 137.5);
+    doc.text("Avg %", 294, 137.5, { align: "right" });
     if (sections.topicPerformance) {
-      doc.setFont("THSarabunNew", "bold");
-      doc.setFontSize(17);
-      doc.setTextColor(22, 101, 52);
-      doc.text("หัวข้อที่ทำได้ดี", 16, y);
-      doc.setTextColor(190, 18, 60);
-      doc.text("หัวข้อที่ควรเร่งปรับปรุง", 154, y);
-      doc.setFont("THSarabunNew", "normal");
-      doc.setFontSize(12);
-      for (let i = 0; i < 5; i += 1) {
-        const good = goodTopics[i];
-        const low = lowTopics[i];
-        if (good) {
-          doc.setTextColor(31, 41, 55);
-          doc.text(`${i + 1}. ${truncateText(good.title, 42)}`, 18, y + 10 + i * 8);
-          doc.setTextColor(22, 101, 52);
-          doc.text(`${good.percent.toFixed(1)}%`, 120, y + 10 + i * 8, { align: "right" });
-        }
-        if (low) {
-          doc.setTextColor(31, 41, 55);
-          doc.text(`${i + 1}. ${truncateText(low.title, 42)}`, 156, y + 10 + i * 8);
-          doc.setTextColor(190, 18, 60);
-          doc.text(`${low.percent.toFixed(1)}%`, 262, y + 10 + i * 8, { align: "right" });
-        }
-      }
-      y += 55;
-    }
-
-    if (sections.agentRanking) {
-      doc.setFont("THSarabunNew", "bold");
-      doc.setFontSize(16);
-      doc.setTextColor(49, 20, 99);
-      doc.text("Agent Ranking", 16, y);
-      doc.setFont("THSarabunNew", "normal");
-      doc.setFontSize(12);
-      agentRows.forEach((item, index) => {
-        doc.setTextColor(31, 41, 55);
-        doc.text(`${index + 1}. ${truncateText(item.agent, 36)} (${item.cases} เคส)`, 18, y + 9 + index * 7);
-        doc.setTextColor(91, 33, 182);
-        doc.text(item.avg.toFixed(2), 120, y + 9 + index * 7, { align: "right" });
+      resolvedTopics.forEach((row, index) => {
+        const y = 146 + index * 6;
+        font(7.4, true, slate);
+        doc.text(`${index + 1}. ${truncateText(row.title, 58)}`, 171, y);
+        font(7.4, true, row.percent >= 90 ? [5, 150, 105] : [190, 18, 60]);
+        doc.text(`${row.percent.toFixed(2)}%`, 294, y, { align: "right" });
       });
     }
-
     if (sections.actionPlan) {
-      doc.setFillColor(250, 245, 255);
-      doc.setDrawColor(221, 214, 254);
-      doc.roundedRect(154, y - 6, 118, 44, 3, 3, "FD");
-      doc.setFont("THSarabunNew", "bold");
-      doc.setFontSize(16);
-      doc.setTextColor(88, 28, 135);
-      doc.text("Action Plan", 160, y + 3);
-      doc.setFont("THSarabunNew", "normal");
-      doc.setFontSize(12);
-      doc.setTextColor(31, 41, 55);
-      const targets = actionTargets.length ? actionTargets : lowTopics.slice(0, 2);
-      targets.forEach((item, index) => {
-        doc.text(`• โฟกัส ${truncateText(item.title, 45)} (${item.percent.toFixed(1)}%)`, 160, y + 12 + index * 8);
-      });
+      doc.setFillColor(...violetSoft);
+      doc.roundedRect(167, 164, 135, 6, 2, 2, "F");
+      font(7, true, violet);
+      doc.text(`Action Plan: ${truncateText(actionTargets.map((item) => item.title).join(", ") || "ติดตามคุณภาพในสัปดาห์ถัดไป", 84)}`, 170, 168);
     }
 
-    doc.setFillColor(247, 245, 255);
-    doc.setDrawColor(196, 181, 253);
-    doc.roundedRect(16, 184, 266, 12, 4, 4, "FD");
-    doc.setFont("THSarabunNew", "bold");
-    doc.setFontSize(12);
-    doc.setTextColor(49, 20, 99);
-    doc.text(truncateText(slideSummary, 155), 20, 192);
     try { await assertEvaluationScopeComplete(scoreAgents, scoreMonths); }
     catch (error) { setStatusMessage(error instanceof Error ? error.message : "Evaluation status could not be verified."); return; }
-    doc.save(`qa-performance-${selectedWeek.key}.pdf`);
-    setStatusMessage("Export PDF แล้ว");
+    doc.save(`QA_Weekly_Comparison_${selectedWeek.key}_Executive_Dashboard.pdf`);
+    setStatusMessage("สร้าง QA Slide PDF ตามดีไซน์ Preview แล้ว");
     window.setTimeout(() => setStatusMessage(""), 2200);
   }, [
     actionTargets,
-    agentRows,
     criticalCount,
     currentAvg,
     currentCases.length,
     delta,
     goodTopics,
     lowTopics,
-    previousCases.length,
     previousWeek,
+    monthRows,
+    sections.kpiSummary,
     sections.actionPlan,
     sections.agentRanking,
     sections.topicPerformance,
     selectedWeek,
-    slideSummary,
     scoreAgents,
     scoreMonths,
   ]);
