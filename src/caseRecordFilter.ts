@@ -25,3 +25,22 @@ export function isAppealCaseRecord(item: CaseAppealEvidence): boolean {
 export function filterCaseRecords<T extends CaseAppealEvidence>(items: readonly T[], mode: CaseRecordFilter): readonly T[] {
   return mode === "appeals" ? items.filter(isAppealCaseRecord) : items;
 }
+
+export type CaseRecordingFilter = "none" | "all" | "Merchant" | "Customer" | "Rider";
+export type CaseRecordingContactType = "Merchant" | "Customer" | "Rider";
+
+type CaseVoiceRecording = { recordingUrl?: string | null; contactType?: string | null };
+type CaseVoiceRecordingEvidence = { callLogs?: readonly CaseVoiceRecording[] | null };
+
+// Only actual recording attachments count, not call-log rows or the case's Intent.
+export function hasCaseVoiceRecording(item: CaseVoiceRecordingEvidence, contactType?: CaseRecordingContactType): boolean {
+  return Boolean(item.callLogs?.some((call) =>
+    String(call?.recordingUrl || "").trim() !== "" &&
+    (!contactType || String(call?.contactType || "").trim().toLowerCase() === contactType.toLowerCase())
+  ));
+}
+
+export function filterCaseVoiceRecordings<T extends CaseVoiceRecordingEvidence>(items: readonly T[], mode: CaseRecordingFilter): readonly T[] {
+  if (mode === "none") return items;
+  return items.filter((item) => hasCaseVoiceRecording(item, mode === "all" ? undefined : mode));
+}

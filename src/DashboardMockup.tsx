@@ -45,7 +45,7 @@ import { isLateAppealOpen, lateAppealTimeRemaining } from "./lateAppealPolicy";
 import PageHero from "./PageHero";
 import { FestivalMetricIcon } from "./festivalThemes/Festival";
 import CaseRecordFilterButtons from "./CaseRecordFilterButtons";
-import { filterCaseRecords, isAppealCaseRecord, type CaseRecordFilter } from "./caseRecordFilter";
+import { filterCaseRecords, filterCaseVoiceRecordings, hasCaseVoiceRecording, isAppealCaseRecord, type CaseRecordFilter, type CaseRecordingFilter } from "./caseRecordFilter";
 import TestCaseBadge from "./TestCaseBadge";
 import CaseWatermarks from "./CaseWatermarks";
 import { isStampedEvidenceUrl } from "./evidenceWatermark";
@@ -6368,6 +6368,7 @@ export default function DashboardMockup({
   const [caseIdSearch, setCaseIdSearch] = useState<string>("");
   const [evaluationSearchOpen, setEvaluationSearchOpen] = useState(false);
   const [caseRecordFilter, setCaseRecordFilter] = useState<CaseRecordFilter>("all");
+  const [caseRecordingFilter, setCaseRecordingFilter] = useState<CaseRecordingFilter>("none");
   const [caseSearchSubmitNonce, setCaseSearchSubmitNonce] = useState(0);
   const [caseSearchFeedback, setCaseSearchFeedback] = useState<"idle" | "found" | "multiple" | "not-found">("idle");
   const caseSearchHandledNonceRef = useRef(0);
@@ -6571,6 +6572,7 @@ export default function DashboardMockup({
     setCaseSearchFeedback("idle");
     if (normalized) {
       setCaseRecordFilter("all");
+    setCaseRecordingFilter("none");
       setSelectedWeek("all");
       onSelectedWeekChange?.("all");
       setSelectedTopicCode("");
@@ -6588,6 +6590,7 @@ export default function DashboardMockup({
   const clearCaseSearch = useCallback(() => {
     setCaseIdSearch("");
     setCaseRecordFilter("all");
+    setCaseRecordingFilter("none");
     setSelectedCaseKey("");
     setSlideOverOpen(false);
     setCaseSearchHistoryOpen(false);
@@ -7093,7 +7096,19 @@ export default function DashboardMockup({
 
   const visibleCaseExplorerCandidates = useMemo(() => caseExplorerCandidates.filter(item => !evaluationCaseBlocked(item, evaluationActivity, currentUser)), [caseExplorerCandidates, evaluationActivity, currentUser?.role]);
   const caseExplorerAppealCount = useMemo(() => visibleCaseExplorerCandidates.filter(isAppealCaseRecord).length, [visibleCaseExplorerCandidates]);
-  const caseExplorerCases = useMemo(() => filterCaseRecords(visibleCaseExplorerCandidates, caseRecordFilter), [visibleCaseExplorerCandidates, caseRecordFilter]);
+  const caseRecordingCounts = useMemo(() => {
+    const scopedCases = filterCaseRecords(visibleCaseExplorerCandidates, caseRecordFilter);
+    return {
+      all: scopedCases.filter((item) => hasCaseVoiceRecording(item)).length,
+      Merchant: scopedCases.filter((item) => hasCaseVoiceRecording(item, "Merchant")).length,
+      Customer: scopedCases.filter((item) => hasCaseVoiceRecording(item, "Customer")).length,
+      Rider: scopedCases.filter((item) => hasCaseVoiceRecording(item, "Rider")).length,
+    };
+  }, [visibleCaseExplorerCandidates, caseRecordFilter]);
+  const caseExplorerCases = useMemo(
+    () => filterCaseVoiceRecordings(filterCaseRecords(visibleCaseExplorerCandidates, caseRecordFilter), caseRecordingFilter),
+    [visibleCaseExplorerCandidates, caseRecordFilter, caseRecordingFilter]
+  );
 
   useEffect(() => {
     if (!caseSearchSubmitNonce || caseSearchHandledNonceRef.current === caseSearchSubmitNonce) return;
@@ -8011,6 +8026,7 @@ export default function DashboardMockup({
                 onChange={(event) => {
                   setCaseIdSearch(event.target.value);
                   setCaseRecordFilter("all");
+    setCaseRecordingFilter("none");
                   setSelectedCaseKey("");
                   setSlideOverOpen(false);
                   setCaseSearchFeedback("idle");
@@ -8390,6 +8406,7 @@ export default function DashboardMockup({
                         onChange={(event) => {
                           setCaseIdSearch(event.target.value);
             setCaseRecordFilter("all");
+    setCaseRecordingFilter("none");
                           setSelectedCaseKey("");
                           setSlideOverOpen(false);
                           setCaseSearchFeedback("idle");
@@ -9203,7 +9220,15 @@ export default function DashboardMockup({
                               : "รายการเคสที่ตรงกับตัวกรองปัจจุบัน · เลือกเคสเพื่อดูรายละเอียด"}
                         </p>
                         <div className="mt-3">
-                          <CaseRecordFilterButtons value={caseRecordFilter} onChange={setCaseRecordFilter} allCount={caseExplorerCandidates.length} appealCount={caseExplorerAppealCount} />
+                          <CaseRecordFilterButtons
+                            value={caseRecordFilter}
+                            onChange={(mode) => { setCaseRecordFilter(mode); if (mode === "all") setCaseRecordingFilter("none"); }}
+                            allCount={caseExplorerCandidates.length}
+                            appealCount={caseExplorerAppealCount}
+                            recordingFilter={caseRecordingFilter}
+                            onRecordingFilterChange={setCaseRecordingFilter}
+                            recordingCounts={caseRecordingCounts}
+                          />
                         </div>
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
@@ -9323,7 +9348,7 @@ export default function DashboardMockup({
                                 </div>
                               );
                             }) : (
-                              <div className="px-5 py-16 text-center text-sm font-medium text-slate-500">{caseRecordFilter === "appeals" ? "ไม่พบเคสอุทธรณ์ตามตัวกรองปัจจุบัน" : "ไม่พบเคสตามขอบเขตที่เลือก"}</div>
+                              <div className="px-5 py-16 text-center text-sm font-medium text-slate-500">{caseRecordingFilter !== "none" ? "ไม่พบเคสที่มีไฟล์เสียงตรงตามประเภทที่เลือก" : caseRecordFilter === "appeals" ? "ไม่พบเคสอุทธรณ์ตามตัวกรองปัจจุบัน" : "ไม่พบเคสตามขอบเขตที่เลือก"}</div>
                             )}
                           </div>
                         </div>

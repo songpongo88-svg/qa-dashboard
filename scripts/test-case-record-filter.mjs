@@ -31,7 +31,7 @@ const bundle=await build({stdin:{contents:`import React,{act} from 'react'; impo
   b.onLoad({filter:/.*/,namespace:'fixture'},args=>({contents:args.path==='asset'?'export default "/test-worker.mjs";':'export default function Hero(){return null;}',loader:'js'}));
 }}]});
 const bundlePath=path.join(temp,'test.mjs');await fs.writeFile(bundlePath,bundle.outputFiles[0].text);
-const {React,act,Simulate,createRoot,Dashboard,useDashboardAutoRefresh,isAppealCaseRecord,filterCaseRecords}=await import(pathToFileURL(bundlePath));
+const {React,act,Simulate,createRoot,Dashboard,useDashboardAutoRefresh,isAppealCaseRecord,filterCaseRecords,filterCaseVoiceRecordings,hasCaseVoiceRecording}=await import(pathToFileURL(bundlePath));
 
 const originalFetch=globalThis.fetch;
 globalThis.fetch=async url=>{try{return new Response(await fs.readFile(path.join(rootDir,'public',decodeURIComponent(String(url).split('?')[0].replace(/^\//,'')))),{status:200});}catch{return new Response('',{status:404});}};
@@ -39,10 +39,30 @@ dom.window.HTMLElement.prototype.scrollIntoView=function(){};
 for(const data of [{hasAppealHistory:true},{appealStatus:'Pending'},{appealStatus:'Approved'},{appealStatus:'Partially Approved'},{appealStatus:'Rejected'},{appealAdditionalActive:{submitted:false}},{appealAdditionalActive:{submitted:true}},{reviewStatus:'Revised'},{appealReviewedTopics:[{}]}])assert.equal(isAppealCaseRecord(data),true);
 for(const data of [{},{reviewStatus:'Original'},{pendingAppealCaseCount:3},{appealScoreUnverified:true},{appealStatus:'Reset',hasAppealHistory:true}])assert.equal(isAppealCaseRecord(data),false);
 const immutable=Object.freeze([Object.freeze({key:'normal'}),Object.freeze({key:'appeal',hasAppealHistory:true})]);assert.equal(filterCaseRecords(immutable,'all'),immutable);assert.deepEqual(filterCaseRecords(immutable,'appeals').map(i=>i.key),['appeal']);
-console.log('PASS case-specific lifecycle, pending/rejected/additional/legacy states, Reset exclusion, no month-wide hold false positives and immutable ordering');
+const voiceFixture=Object.freeze([
+ Object.freeze({key:'merchant',callLogs:[{contactType:'Merchant',recordingUrl:'https://audio.test/m.wav'}]}),
+ Object.freeze({key:'rider',callLogs:[{contactType:'Rider',recordingUrl:'https://audio.test/r.wav'}]}),
+ Object.freeze({key:'empty',callLogs:[{contactType:'Customer',recordingUrl:''}]}),
+ Object.freeze({key:'missing',callLogs:[]}),
+ Object.freeze({key:'multi',callLogs:[{contactType:'Merchant',recordingUrl:'https://audio.test/m2.wav'},{contactType:'Customer',recordingUrl:'https://audio.test/c.wav'}]})
+]);
+assert.equal(filterCaseVoiceRecordings(voiceFixture,'none'),voiceFixture);
+assert.deepEqual(filterCaseVoiceRecordings(voiceFixture,'all').map(x=>x.key),['merchant','rider','multi']);
+assert.deepEqual(filterCaseVoiceRecordings(voiceFixture,'Merchant').map(x=>x.key),['merchant','multi']);
+assert.deepEqual(filterCaseVoiceRecordings(voiceFixture,'Customer').map(x=>x.key),['multi']);
+assert.deepEqual(filterCaseVoiceRecordings(voiceFixture,'Rider').map(x=>x.key),['rider']);
+assert.equal(hasCaseVoiceRecording(voiceFixture[2]),false);
+console.log('PASS actual voice recordings only; recording Contact Type filters include multi-type cases and exclude empty call logs');
 const topics=[{code:'1',label:'Process',score:25,max:30,wantsAppeal:true,appealReason:'Please review'},{code:'2',label:'Answer',score:20,max:20,wantsAppeal:false},{code:'3',label:'Follow-up',score:25,max:25,wantsAppeal:false},{code:'4',label:'Communication',score:20,max:25,wantsAppeal:false}];
 const sample=(n,agent='Filter Agent A',month='09')=>({id:'filter-'+n,caseId:'AA99700'+n,agentName:agent,targetDisplayName:agent,auditDate:`2026-${month}-15`,caseDate:`2026-${month}-15`,auditTimestamp:`2026-${month}-16T02:30:45Z`,submittedAt:`2026-${month}-16T02:30:45Z`,evaluationMonthKey:`2026-${month}`,finalScore:n===1?70:90,inquiry:'ข้อมูลทดสอบ (Order inquiry)',topics,evidenceUrls:[]});
-fixture.read=async()=>[sample(1),sample(2),sample(3),sample(4),sample(5,'Filter Agent B'),sample(6,'Filter Agent A','10')];
+fixture.read=async()=>[
+ {...sample(1),callLogs:[{id:'merchant-1',contactType:'Merchant',recordingUrl:'https://audio.test/m1.wav'}]},
+ {...sample(2),callLogs:[{id:'rider-2',contactType:'Rider',recordingUrl:'https://audio.test/r2.wav'}]},
+ {...sample(3),callLogs:[{id:'empty-3',contactType:'Customer',recordingUrl:''}]},
+ {...sample(4),callLogs:[{id:'merchant-4',contactType:'Merchant',recordingUrl:'https://audio.test/m4.wav'}]},
+ {...sample(5,'Filter Agent B'),callLogs:[{id:'customer-5',contactType:'Customer',recordingUrl:'https://audio.test/c5.wav'}]},
+ sample(6,'Filter Agent A','10')
+];
 const submit=n=>({id:'submit-'+n,event_type:'appeal_request_submitted',case_id:'AA99700'+n,target_agent:'Filter Agent A',created_at:'2026-09-17T01:00:00Z',details:{requestId:'filter-request-'+n,agent:'Filter Agent A',auditDate:'2026-09-15',finalScore:90,grade:'A',topics}});
 fixture.events=[submit(2),submit(3),submit(4),{id:'reject-3',event_type:'appeal_request_reviewed',case_id:'AA997003',target_agent:'Filter Agent A',created_at:'2026-09-18T01:00:00Z',details:{requestId:'filter-request-3',decision:'Rejected',reviewId:'review-3',topics:[{...topics[0],decision:'Rejected',rejectReason:'Keep original score'}]}},{id:'reset-4',event_type:'appeal_request_reset',case_id:'AA997004',target_agent:'Filter Agent A',created_at:'2026-09-18T01:00:00Z',details:{requestId:'filter-request-4'}}];
 const columns=['case-id','case-date','audit-date','agent','intent','score','grade','kpi-status'];
@@ -58,6 +78,14 @@ try{
  for(const r of rows())assert.deepEqual([...r.querySelectorAll('[data-case-record-column]')].map(e=>e.dataset.caseRecordColumn),columns);
  assert.match(rows()[0].querySelector('[data-case-record-column="audit-date"]').textContent,/16\/09\/2026/);assert.equal(rows()[0].querySelector('[data-case-record-column="case-date"]').textContent,fixture.lastCases.find(item=>item.caseId===ids()[0]).caseDate);
  const metrics=()=>[...document.querySelectorAll('[data-dashboard-metric]')].map(e=>e.textContent);const snapshot=metrics();const pdf=()=>[...document.querySelectorAll('button')].find(e=>e.textContent.includes('Gen All Case PDF'))?.textContent;const beforePdf=pdf();
+ const chooseAudio=async mode=>{await click(document.querySelector('[data-case-record-audio-trigger]'));await click(document.querySelector('[data-case-record-audio-mode="'+mode+'"]'));};
+ assert.match(document.querySelector('[data-case-record-audio-trigger]').textContent,/เคสมีไฟล์เสียง/);
+ await chooseAudio('all');assert.deepEqual(ids(),all.filter(id=>['AA997001','AA997002','AA997004','AA997005'].includes(id)));
+ await chooseAudio('Merchant');assert.deepEqual(ids(),all.filter(id=>['AA997001','AA997004'].includes(id)));
+ await click(document.querySelector('[data-case-record-mode="appeals"]'));assert.deepEqual(ids(),[]);
+ await chooseAudio('Rider');assert.deepEqual(ids(),['AA997002']);
+ await click(document.querySelector('[data-case-record-mode="all"]'));assert.deepEqual(ids(),all);
+ assert.deepEqual(metrics(),snapshot);assert.equal(pdf(),beforePdf);
  await click(document.querySelector('[data-case-record-id="AA997001"]'));await click(document.querySelector('[data-case-record-mode="appeals"]'));assert.deepEqual(ids(),all.filter(id=>['AA997002','AA997003'].includes(id)));assert.deepEqual(metrics(),snapshot);assert.equal(pdf(),beforePdf);assert.equal(document.querySelector('[data-case-record-count]').textContent,'2 Cases');
  await click(document.querySelector('[data-case-record-id="AA997003"]'));assert.ok(document.querySelector('[data-unified-case-explorer-v160] aside').textContent.includes('AA997003'));
  await click(document.querySelector('[data-case-record-mode="all"]'));assert.deepEqual(ids(),all);
