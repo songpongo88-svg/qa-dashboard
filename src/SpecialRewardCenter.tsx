@@ -148,11 +148,11 @@ export default function SpecialRewardCenter({mode,username,sessionId,balance,loa
  const display=mode==="inventory"?items.filter(i=>classifySpecialRewardItem(i)===inventoryFilter):[];
  return <>
   {mode==="reward"?promoCatalog.slice().sort((a,b)=>rewardOrder(b)-rewardOrder(a)).map(r=><button key={r.id} type="button"
-    className="qa-sparks-mini-item qa-sparks-mini-item--special" data-reward-item={r.id} style={{order:-rewardOrder(r)}}
+    className={"qa-sparks-mini-item qa-sparks-mini-item--special"+(r.price!==r.normalPrice?" qa-coffee-promo":"")} data-reward-item={r.id} style={{order:-rewardOrder(r)}}
     onClick={e=>open(r.id,null,e)}>
-    <span className="qa-sparks-mini-art qa-sparks-mini-art--special"><RewardImage id={r.id}/></span>
+    <span className="qa-sparks-mini-art qa-sparks-mini-art--special"><RewardImage id={r.id}/>{r.price!==r.normalPrice?<span className="qa-coffee-ribbon">✦ Special Discount ✦</span>:null}</span>
     <strong className="qa-sparks-mini-name">{r.title}</strong>
-    <span className="qa-sparks-mini-value qa-sparks-shop-price">{r.price!==r.normalPrice?<><small>Special Discount · ถึง 30 พ.ย. 2569</small>{r.promoLocked?<small>เปิดให้แลก 25 พ.ย. 2569</small>:null}<small><s>{fmt(r.normalPrice)} Sparks</s></small></>:null}<strong>{fmt(r.price)} Sparks</strong></span>
+    {r.price!==r.normalPrice?<span className="qa-coffee-offer"><span className="qa-coffee-original">ราคาปกติ <s>{fmt(r.normalPrice)} Sparks</s></span><span className="qa-coffee-price"><small>เหลือเพียง</small><span><b>{fmt(r.price)}</b> Sparks</span></span><span className="qa-coffee-date">{r.promoLocked?"เปิดให้แลก 25 พ.ย. 2569":"แลกได้แล้ววันนี้"}</span><span className="qa-coffee-end">ถึง 30 พ.ย. 2569</span></span>:<span className="qa-sparks-mini-value qa-sparks-shop-price"><strong>{fmt(r.price)} Sparks</strong></span>}
   </button>):<>
    {!inventoryLoaded&&loaded&&!error?<span role="status" className="qa-sparks-inventory-progress">กำลังโหลด Item...</span>:null}
    {error&&!opened?<span role="alert" className="sr-error">ไม่สามารถโหลด Item: {error}</span>:null}

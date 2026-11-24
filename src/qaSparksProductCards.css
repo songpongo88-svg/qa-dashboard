@@ -111,3 +111,24 @@
 @container (max-width: 292px) {
   .qa-sparks-mini-grid.qa-sparks-reward-grid { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* Limited coffee festival: independent price layout, never constrained by ordinary price row. */
+.qa-sparks-reward-grid .qa-sparks-mini-item.qa-coffee-promo{grid-column:span 2;grid-template-rows:clamp(110px,24cqw,190px) auto auto 38px;gap:8px;padding:10px;min-width:0;height:auto;overflow:visible;position:relative;border:2px solid #ffd76a;background:radial-gradient(ellipse at top,#c34cdb 0%,#71228b 48%,#39124f 100%);box-shadow:0 0 0 2px #e5a8ff,0 5px 16px #9937cb55;}
+.qa-sparks-mini-grid.qa-sparks-reward-grid:has(.qa-coffee-promo){grid-auto-rows:auto;}
+.qa-sparks-reward-grid .qa-coffee-promo .qa-sparks-mini-art{position:relative;overflow:hidden;border:1px solid #f8d87e;background:#214b32;}
+.qa-sparks-reward-grid .qa-coffee-promo[data-reward-item="punthai-65"] .qa-sparks-mini-art{background:#65402a;}
+.qa-sparks-reward-grid .qa-coffee-promo .sr-logo{inset:24px 8px 6px;width:auto;height:auto;background:transparent;}
+.qa-sparks-reward-grid .qa-coffee-promo .sr-logo img{object-fit:contain;width:100%;height:100%;}
+.qa-coffee-ribbon{position:absolute;z-index:2;top:3px;left:3px;right:3px;padding:4px 2px;border-radius:6px;background:linear-gradient(110deg,#e6a631,#fff4ac,#ffc749);color:#76105b;font-size:clamp(10px,2.3cqw,17px);font-weight:800;line-height:1.3;white-space:normal;text-shadow:none;}
+.qa-sparks-reward-grid .qa-coffee-promo .qa-sparks-mini-name{color:#fff;height:auto;min-height:30px;font-weight:750;font-size:clamp(12px,2.4cqw,17px);text-shadow:0 2px 3px #370d4b;}
+.qa-coffee-offer{display:grid;gap:5px;min-width:0;text-align:center;align-content:center;}
+.qa-coffee-original{color:#fff0fa;font-size:12px;line-height:1.4;}
+.qa-coffee-original s{text-decoration-color:#ff9e9e;text-decoration-thickness:2px;}
+.qa-coffee-price{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:0;padding:5px 3px 8px;border:1px solid #ffe397;border-radius:12px;background:linear-gradient(150deg,#ed168b,#98065c 60%,#650e71);box-shadow:0 0 9px #ffcf6b88;color:#fff2ba;font-weight:750;line-height:1.05;font-size:clamp(14px,3cqw,22px);}
+.qa-coffee-price small{font-size:11px;color:#fff;line-height:1.4;}
+.qa-coffee-price b{font-size:clamp(32px,7cqw,52px);font-weight:900;color:#ffdf65;text-shadow:0 2px #8e360b;}
+.qa-coffee-date{display:block;padding:5px 2px;border-radius:8px;background:linear-gradient(110deg,#ffdc77,#fff0ad);color:#58144f;font-size:clamp(10px,2cqw,13px);font-weight:750;line-height:1.4;}
+.qa-coffee-end{font-size:11px;color:#fff;line-height:1.4;}
+.qa-sparks-reward-grid .qa-sparks-mini-item.qa-coffee-promo::after{background:linear-gradient(#b43dec,#6711aa);color:white;border-color:#e7b4ff;font-weight:750;box-shadow:0 2px 0 #45096c;}
+.qa-sparks-reward-grid .qa-sparks-mini-item.qa-coffee-promo:hover{box-shadow:0 0 0 2px #ffe9a4,0 7px 20px #9937cb88;}
+@container (max-width:540px){.qa-sparks-reward-grid .qa-sparks-mini-item.qa-coffee-promo{grid-column:span 1;}}
