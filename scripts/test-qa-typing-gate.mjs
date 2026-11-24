@@ -117,7 +117,7 @@ try {
   };
   const field = () => document.querySelector("textarea");
   const countdown = () => document.querySelector('[role="timer"]')?.textContent;
-  const verify = () => [...document.querySelectorAll("button")].find((button) => button.textContent.includes("ตรวจสอบ"));
+  const verify = () => document.querySelector('button[data-qa-typing-verify="true"]');
   const restart = () => document.querySelector('[role="alert"] button') || document.querySelector('button[aria-label="เริ่มพิมพ์ใหม่"]');
   const setValue = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value").set;
   const type = async (value, isComposing = false) => act(async () => {

@@ -535,6 +535,7 @@ export default function QaTypingGate({
             <div className="mt-5 flex justify-end">
               <button
                 type="button"
+                data-qa-typing-verify="true"
                 onClick={() => void verify()}
                 disabled={rewardChoice !== "typing" || attemptPhase !== "active" || secondsLeft <= 0 || typedUnits.length < challenge.repeatCount}
                 className="rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 px-6 py-3 text-sm font-black text-white shadow-[0_12px_30px_rgba(109,40,217,0.24)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-40"
