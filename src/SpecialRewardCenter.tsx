@@ -12,6 +12,8 @@ const REWARDS:SpecialReward[]=[
  {id:"amazon-55",title:"เครื่องดื่ม Café Amazon",brand:"Café Amazon",price:8000,maxTHB:55,type:"receipt",monthlyLimit:1},
  {id:"seven-100",title:"ซื้อสินค้าที่ 7-Eleven",brand:"7-Eleven",price:20000,maxTHB:100,type:"receipt",monthlyLimit:1}
 ];
+const coffeePromoActive=(now=Date.now())=>now>=Date.parse("2026-11-24T00:00:00+07:00")&&now<Date.parse("2026-12-01T00:00:00+07:00");
+const coffeePromoId=(id:string)=>id==="punthai-65"||id==="amazon-55";
 const PRODUCT_COPY:Record<string,{headline:string;description:string;benefit:string;terms:string}>={
  "punthai-65":{
    headline:"เติมความสดชื่นกับพันธุ์ไทย",
@@ -78,7 +80,10 @@ export default function SpecialRewardCenter({mode,username,sessionId,balance,loa
  const closeRef=useRef<HTMLButtonElement>(null);
  const triggerRef=useRef<HTMLButtonElement|null>(null);
  const pending=useRef(false);pending.current=busy;
- const reward=REWARDS.find(r=>r.id===selectedReward);
+ const [promoNow,setPromoNow]=useState(Date.now);
+ useEffect(()=>{const timer=setInterval(()=>setPromoNow(Date.now()),1000);return ()=>clearInterval(timer);},[]);
+ const promoCatalog=REWARDS.map(r=>({...r,normalPrice:r.price,price:coffeePromoActive(promoNow)&&coffeePromoId(r.id)?220:r.price}));
+ const reward=promoCatalog.find(r=>r.id===selectedReward);
  const item=items.find(i=>i.itemId===selectedItem)||null;
  const request=useCallback(async(action:string,extra:Record<string,unknown>={},signal?:AbortSignal)=>{
   const response=await fetch("/api/sparks-admin",{method:"POST",cache:"no-store",signal,
@@ -140,12 +145,12 @@ export default function SpecialRewardCenter({mode,username,sessionId,balance,loa
  };
  const display=mode==="inventory"?items.filter(i=>classifySpecialRewardItem(i)===inventoryFilter):[];
  return <>
-  {mode==="reward"?REWARDS.slice().sort((a,b)=>b.price-a.price).map(r=><button key={r.id} type="button"
-    className="qa-sparks-mini-item qa-sparks-mini-item--special" data-reward-item={r.id} style={{order:-r.price}}
+  {mode==="reward"?promoCatalog.slice().sort((a,b)=>b.normalPrice-a.normalPrice).map(r=><button key={r.id} type="button"
+    className="qa-sparks-mini-item qa-sparks-mini-item--special" data-reward-item={r.id} style={{order:-r.normalPrice}}
     onClick={e=>open(r.id,null,e)}>
     <span className="qa-sparks-mini-art qa-sparks-mini-art--special"><RewardImage id={r.id}/></span>
     <strong className="qa-sparks-mini-name">{r.title}</strong>
-    <span className="qa-sparks-mini-value qa-sparks-shop-price"><strong>{fmt(r.price)} Sparks</strong></span>
+    <span className="qa-sparks-mini-value qa-sparks-shop-price">{r.price!==r.normalPrice?<><small>Special Discount · ถึง 30 พ.ย. 2569</small><small><s>{fmt(r.normalPrice)} Sparks</s></small></>:null}<strong>{fmt(r.price)} Sparks</strong></span>
   </button>):<>
    {!inventoryLoaded&&loaded&&!error?<span role="status" className="qa-sparks-inventory-progress">กำลังโหลด Item...</span>:null}
    {error&&!opened?<span role="alert" className="sr-error">ไม่สามารถโหลด Item: {error}</span>:null}
@@ -173,7 +178,7 @@ export default function SpecialRewardCenter({mode,username,sessionId,balance,loa
           <p>{PRODUCT_COPY[reward.id].description}</p>
         </div>
         <div className="sr-facts sr-product-facts">
-          <span><small>ใช้คะแนนแลก</small><strong>{fmt(reward.price)} <em>Sparks</em></strong></span>
+          <span><small>ใช้คะแนนแลก</small>{reward.price!==reward.normalPrice?<small>Special Discount ถึง 30 พ.ย. 2569 · <s>{fmt(reward.normalPrice)} Sparks</s></small>:null}<strong>{fmt(reward.price)} <em>Sparks</em></strong></span>
           <span><small>มูลค่าสิทธิพิเศษ</small><strong>{reward.type==="email"?"1 เดือน":"฿"+fmt(reward.maxTHB)}</strong></span>
           <span><small>สิทธิ์แลกต่อเดือน</small><strong>1 <em>สิทธิ์</em></strong></span>
         </div>

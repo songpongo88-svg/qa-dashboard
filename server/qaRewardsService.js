@@ -9,6 +9,9 @@ export const SPECIAL_REWARDS=Object.freeze([
  {id:"amazon-55",title:"เครื่องดื่ม Café Amazon",brand:"Café Amazon",price:8000,maxTHB:55,type:"receipt",monthlyLimit:1},
  {id:"seven-100",title:"ซื้อสินค้าที่ 7-Eleven",brand:"7-Eleven",price:20000,maxTHB:100,type:"receipt",monthlyLimit:1}
 ]);
+const coffeePromoActive=(now=Date.now())=>now>=Date.parse("2026-11-24T00:00:00+07:00")&&now<Date.parse("2026-12-01T00:00:00+07:00");
+const coffeePromoId=id=>id==="punthai-65"||id==="amazon-55";
+const pricedReward=(r,now=Date.now())=>coffeePromoId(r.id)&&coffeePromoActive(now)?{...r,price:220}:r;
 const VALIDITY=30*86400000,MAX_ITEMS=200;
 const C="qa_sparks_special_reward_requests";
 const RECEIPTS="qa_sparks_special_receipt_evidence";
@@ -16,7 +19,7 @@ const LOCKS="qa_sparks_special_receipt_locks";
 const err=(s,status=400)=>{throw Object.assign(new Error(s),{status});};
 const n=v=>Number.isSafeInteger(Number(v))&&Number(v)>=0?Number(v):0;
 const hash=s=>createHash("sha256").update(s).digest("hex");
-const rewardFor=id=>{const x=SPECIAL_REWARDS.find(r=>r.id===id);if(!x)err("ไม่พบรางวัลที่เลือก");return x;};
+const rewardFor=id=>{const x=SPECIAL_REWARDS.find(r=>r.id===id);if(!x)err("ไม่พบรางวัลที่เลือก");return pricedReward(x);};
 const requestId=x=>{const v=String(x||"").trim();if(!/^[a-zA-Z0-9_-]{12,100}$/.test(v))err("รหัสคำขอไม่ถูกต้อง");return v;};
 const itemId=x=>{const v=String(x||"").trim();if(!/^sr-[a-zA-Z0-9_-]{12,100}$/.test(v))err("หมายเลข Item ไม่ถูกต้อง");return v;};
 const localDate=d=>new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Bangkok",year:"numeric",month:"2-digit",day:"2-digit"}).format(d);
@@ -91,7 +94,7 @@ export function createQaRewardsService(db){
  }
  async function mine(actor){
   const wallet=recordValue(await readDoc(wpath(actor.username)));
-  return {catalog:SPECIAL_REWARDS,items:itemList(wallet),expiryDays:30};
+  return {catalog:SPECIAL_REWARDS.map(r=>pricedReward(r)),items:itemList(wallet),expiryDays:30};
  }
  async function redeem(body,actor){
   const reward=rewardFor(body.rewardId),reqId=requestId(body.requestId),item="sr-"+reqId,wp=wpath(actor.username);
