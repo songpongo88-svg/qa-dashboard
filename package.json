@@ -140,6 +140,7 @@
     "jspdf": "^4.2.1",
     "jszip": "^3.10.1",
     "pdfjs-dist": "^5.6.205",
+    "pptxgenjs": "4.0.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "tesseract.js": "^7.0.0",

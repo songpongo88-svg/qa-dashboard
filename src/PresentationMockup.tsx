@@ -2,22 +2,11 @@ import { useEvaluationActivity, EvaluationActivityUnavailable } from "./Evaluati
 import { evaluationActivityMonth, evaluationScopeHold } from "./evaluationActivity";
 import { assertEvaluationScopeComplete } from "./evaluationEditingStore";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { jsPDF } from "jspdf";
-import { fetchStoredEvaluations, excludeTestEvaluations, StoredEvaluation } from "./evaluationStore";
-import { scoreToGrade } from "./lib/scoreIncentivePolicy";
-import { registerTHSarabunNew } from "./THSarabunNew-jsPDF";
+import { fetchStoredEvaluations, excludeTestEvaluations, isNoCaseEvaluation, StoredEvaluation } from "./evaluationStore";
+import { getIncentiveByScore, scoreToGrade } from "./lib/scoreIncentivePolicy";
 import PageHero from "./PageHero";
 
-type CurrentUser = {
-  username: string;
-  displayName: string;
-  role: string;
-  agentName: string;
-};
-
-type SectionKey = "kpiSummary" | "weekCompare" | "agentRanking" | "topicPerformance" | "actionPlan";
-type TemplateKey = "executive" | "topicFocus" | "actionPlan";
-
+type CurrentUser = { username: string; displayName: string; role: string; agentName: string };
 type PresentationMockupProps = {
   currentUser: CurrentUser;
   roleScopedAgentNames?: string[];
@@ -25,85 +14,33 @@ type PresentationMockupProps = {
   reportCenter?: boolean;
   reportExportOnly?: boolean;
 };
-
-type WeekBucket = {
-  key: string;
-  label: string;
-  start: Date;
-  end: Date;
-  cases: StoredEvaluation[];
-};
-
-type TopicRow = {
+type WeekBucket = { key: string; label: string; start: Date; end: Date; cases: StoredEvaluation[] };
+type TopicRow = { id: string; code: string; title: string; score: number; max: number; percent: number; cases: number };
+type TagRate = { name: string; count: number; percent: number };
+type TopicComparison = {
   id: string;
+  code: string;
   title: string;
-  score: number;
-  max: number;
-  percent: number;
-  cases: number;
+  previousPercent: number;
+  currentPercent: number;
+  changePercent: number | null;
+  tags: TagRate[];
 };
 
-type AgentRow = {
-  agent: string;
-  cases: number;
-  avg: number;
+const COLORS = {
+  navy: "142B4D", purple: "5B35C9", purpleDark: "4A178B", purpleSoft: "F6F3FD",
+  purpleLight: "9C7CE7", green: "009B76", red: "C23B5A", panel: "F6F6FB",
+  border: "DCE3EE", muted: "596D8B", white: "FFFFFF",
 };
+const KPI_TARGET = 85;
+const MONTHLY_CASE_TARGET = 10;
 
-type MonthRow = {
-  key: string;
-  label: string;
-  cases: number;
-  avg: number;
-  grade: string;
-};
-
-const SECTION_OPTIONS: Array<{ key: SectionKey; label: string; description: string }> = [
-  { key: "kpiSummary", label: "KPI Summary", description: "จำนวนเคส คะแนนเฉลี่ย Critical Error และภาพรวม" },
-  { key: "weekCompare", label: "Week Compare", description: "เทียบกับสัปดาห์ก่อนหน้า" },
-  { key: "agentRanking", label: "Agent Ranking", description: "อันดับคะแนนเฉลี่ยราย Agent" },
-  { key: "topicPerformance", label: "Topic Performance", description: "หัวข้อที่ทำได้ดีและควรเร่งปรับปรุง" },
-  { key: "actionPlan", label: "Action Plan", description: "สรุปแนวทางโฟกัสถัดไป" },
-];
-
-const TEMPLATE_OPTIONS: Array<{ key: TemplateKey; label: string; description: string }> = [
-  { key: "executive", label: "Executive Summary", description: "สรุปกระชับสำหรับพรีเซ็นต์ภาพรวม" },
-  { key: "topicFocus", label: "Topic Focus", description: "เน้นหัวข้อคะแนนดีและหัวข้อที่ต้องปรับปรุง" },
-  { key: "actionPlan", label: "Action Plan", description: "เน้นสิ่งที่ต้องทำต่อและเจ้าของงาน" },
-];
-
-const DEFAULT_SECTIONS: Record<SectionKey, boolean> = {
-  kpiSummary: true,
-  weekCompare: true,
-  agentRanking: true,
-  topicPerformance: true,
-  actionPlan: true,
-};
-
-const SAMPLE_WEEKLY_SLIDE_DATA = {
-  cases: 15,
-  averageScore: 95.07,
-  grade: "A",
-  month: "June 2026",
-  week: "01/06/2026 - 07/06/2026",
-  mergeRows: 51,
-  revised: 0,
-};
-
-const SAMPLE_MONTH_ROWS: MonthRow[] = [
-  { key: "2026-06", label: "June 2026", cases: 15, avg: 95.07, grade: "A" },
-  { key: "2026-05", label: "May 2026", cases: 120, avg: 85.49, grade: "B" },
-  { key: "2026-04", label: "April 2026", cases: 120, avg: 86.16, grade: "B" },
-];
-
-const SAMPLE_TOPIC_ROWS: TopicRow[] = [
-  { id: "sample-process", title: "Process & Policy Compliance", score: 29.07, max: 30, percent: 96.9, cases: 15 },
-  { id: "sample-answer", title: "Answer Quality & Problem Analysis", score: 18.67, max: 20, percent: 93.35, cases: 15 },
-  { id: "sample-followup", title: "Case Handling & Follow-up", score: 23.47, max: 25, percent: 93.88, cases: 15 },
-  { id: "sample-communication", title: "Communication Skills", score: 23.87, max: 25, percent: 95.48, cases: 15 },
-];
+function clean(value: unknown) { return String(value ?? "").replace(/\s+/g, " ").trim(); }
+function normalizeText(value: string) { return clean(value).toLowerCase(); }
+function agentKey(value: string) { return normalizeText(value).replace(/[^a-z0-9ก-๙]/gi, ""); }
 
 function parseAuditDate(value: string) {
-  const text = String(value || "").trim();
+  const text = clean(value);
   if (!text) return null;
   const iso = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
   if (iso) return new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]));
@@ -112,80 +49,33 @@ function parseAuditDate(value: string) {
   const parsed = new Date(text);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
-
 function startOfWeek(date: Date) {
   const copy = new Date(date.getFullYear(), date.getMonth(), date.getDate());
   const day = copy.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  copy.setDate(copy.getDate() + diff);
+  copy.setDate(copy.getDate() + (day === 0 ? -6 : 1 - day));
   copy.setHours(0, 0, 0, 0);
   return copy;
 }
-
-function addDays(date: Date, days: number) {
-  const copy = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  copy.setDate(copy.getDate() + days);
-  return copy;
-}
-
+function addDays(date: Date, days: number) { const copy = new Date(date); copy.setDate(copy.getDate() + days); return copy; }
 function formatIsoDate(date: Date) {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
-
-function formatThaiDate(date: Date) {
-  return date.toLocaleDateString("th-TH", { day: "2-digit", month: "short", year: "numeric" });
+function formatMonthKey(date: Date) { return formatIsoDate(date).slice(0, 7); }
+function formatThaiShortDate(date: Date) { return date.toLocaleDateString("th-TH", { day: "2-digit", month: "short", year: "numeric" }); }
+function formatWeekLabel(start: Date, end: Date) { return `${formatThaiShortDate(start)} - ${formatThaiShortDate(end)}`; }
+function scoreOf(item: StoredEvaluation) { const score = Number(item.finalScore); return Number.isFinite(score) ? score : 0; }
+function avgScore(items: StoredEvaluation[]) { return items.length ? items.reduce((sum, item) => sum + scoreOf(item), 0) / items.length : 0; }
+function percentOf(score: number, max: number) { return max > 0 ? Math.max(0, Math.min(100, (score / max) * 100)) : 0; }
+function truncateText(text: string, max = 48) { const value = clean(text); return value.length <= max ? value : `${value.slice(0, max - 1).trim()}…`; }
+function caseAgentName(item: StoredEvaluation) { return clean(item.targetDisplayName || item.agentName || item.targetUsername) || "ไม่ระบุ Agent"; }
+function caseTeamName(item: StoredEvaluation) {
+  const preview = item.rawDataPreview || {};
+  return clean(preview.Team || preview["Team Name"] || preview["Agent Team"] || preview["ทีม"] || "Unassigned Team");
 }
-
-function formatWeekLabel(start: Date, end: Date) {
-  return `${formatThaiDate(start)} - ${formatThaiDate(end)}`;
-}
-
-function formatMonthKey(date: Date) {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  return `${y}-${m}`;
-}
-
-function formatMonthLabelFromKey(key: string) {
-  const [year, month] = key.split("-").map(Number);
-  if (!year || !month) return key || "-";
-  return new Date(year, month - 1, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
-}
-
-function normalizeText(value: string) {
-  return String(value || "").trim().toLowerCase().replace(/\s+/g, " ");
-}
-
-function agentKey(value: string) {
-  return normalizeText(value).replace(/[^a-z0-9ก-๙]/gi, "");
-}
-
-function scoreOf(item: StoredEvaluation) {
-  const score = Number(item.finalScore);
-  return Number.isFinite(score) ? score : 0;
-}
-
-function avgScore(items: StoredEvaluation[]) {
-  if (!items.length) return 0;
-  return items.reduce((sum, item) => sum + scoreOf(item), 0) / items.length;
-}
-
-function percentOf(score: number, max: number) {
-  if (!max) return 0;
-  return Math.max(0, Math.min(100, (score / max) * 100));
-}
-
-function cleanTopicTitle(title: string) {
-  return String(title || "ไม่ระบุหัวข้อ").replace(/\s+/g, " ").trim();
-}
-
-function truncateText(text: string, max = 46) {
-  const clean = String(text || "").replace(/\s+/g, " ").trim();
-  if (clean.length <= max) return clean;
-  return `${clean.slice(0, Math.max(0, max - 1)).trim()}…`;
+function reviewStatusOf(item: StoredEvaluation) {
+  const preview = item.rawDataPreview || {};
+  const raw = [preview["Review Status"], preview["Latest Appeal Status"], preview["Data Source"], preview["Appeal Status"]].map(clean).join(" ").toLowerCase();
+  return /revised|appeal[_\s-]?approved|approved appeal/.test(raw) ? "Revised" : "Original";
 }
 
 function buildWeekBuckets(cases: StoredEvaluation[]) {
@@ -197,941 +87,325 @@ function buildWeekBuckets(cases: StoredEvaluation[]) {
     const end = addDays(start, 6);
     const key = formatIsoDate(start);
     const existing = map.get(key);
-    if (existing) {
-      existing.cases.push(item);
-    } else {
-      map.set(key, { key, label: formatWeekLabel(start, end), start, end, cases: [item] });
-    }
+    if (existing) existing.cases.push(item);
+    else map.set(key, { key, label: formatWeekLabel(start, end), start, end, cases: [item] });
   });
-  return Array.from(map.values()).sort((a, b) => b.start.getTime() - a.start.getTime());
+  return Array.from(map.values()).sort((left, right) => right.start.getTime() - left.start.getTime());
 }
-
+function topicKey(code: string, title: string) { return clean(code) || normalizeText(title); }
+function topicOrder(code: string, title: string) { const match = `${code} ${title}`.match(/\d+/); return match ? Number(match[0]) : 999; }
 function buildTopicRows(cases: StoredEvaluation[]) {
   const map = new Map<string, TopicRow>();
-  cases.forEach((item) => {
-    (item.topics || []).forEach((topic) => {
-      const title = cleanTopicTitle(topic.title || topic.code);
-      const id = `${topic.code || ""}-${title}`;
-      const row = map.get(id) || { id, title, score: 0, max: 0, percent: 0, cases: 0 };
-      row.score += Number(topic.score) || 0;
-      row.max += Number(topic.max) || 0;
-      row.cases += 1;
-      row.percent = percentOf(row.score, row.max);
-      map.set(id, row);
-    });
-  });
-  return Array.from(map.values()).filter((row) => row.max > 0);
-}
-
-function buildAgentRows(cases: StoredEvaluation[]) {
-  const map = new Map<string, { total: number; cases: number }>();
-  cases.forEach((item) => {
-    const agent = item.targetDisplayName || item.agentName || item.targetUsername || "ไม่ระบุ Agent";
-    const row = map.get(agent) || { total: 0, cases: 0 };
-    row.total += scoreOf(item);
+  cases.forEach((item) => (item.topics || []).forEach((topic) => {
+    const title = clean(topic.title || topic.code) || "ไม่ระบุหัวข้อ";
+    const code = clean(topic.code);
+    const id = topicKey(code, title);
+    const row = map.get(id) || { id, code, title, score: 0, max: 0, percent: 0, cases: 0 };
+    row.score += Number(topic.score) || 0;
+    row.max += Number(topic.max) || 0;
     row.cases += 1;
-    map.set(agent, row);
-  });
-  return Array.from(map.entries())
-    .map(([agent, row]) => ({ agent, cases: row.cases, avg: row.cases ? row.total / row.cases : 0 }))
-    .sort((a, b) => b.avg - a.avg || b.cases - a.cases);
+    row.percent = percentOf(row.score, row.max);
+    map.set(id, row);
+  }));
+  return Array.from(map.values()).filter((row) => row.max > 0).sort((left, right) => topicOrder(left.code, left.title) - topicOrder(right.code, right.title));
 }
-
-function buildMonthRows(cases: StoredEvaluation[]) {
-  const map = new Map<string, StoredEvaluation[]>();
+function buildTagRates(cases: StoredEvaluation[], topicId: string) {
+  const counts = new Map<string, number>();
   cases.forEach((item) => {
-    const date = parseAuditDate(item.auditDate || item.submittedAt || item.createdAt || "");
-    if (!date) return;
-    const key = formatMonthKey(date);
-    map.set(key, [...(map.get(key) || []), item]);
+    const topic = (item.topics || []).find((candidate) => topicKey(candidate.code, candidate.title) === topicId);
+    if (!topic) return;
+    const tags = (topic.issueTags?.length ? topic.issueTags : (topic.deductions || []).filter((entry) => Number(entry.points) > 0).map((entry) => entry.subtopic)).map(clean).filter(Boolean);
+    new Set(tags).forEach((tag) => counts.set(tag, (counts.get(tag) || 0) + 1));
   });
-  return Array.from(map.entries())
-    .map(([key, rows]) => {
-      const avg = avgScore(rows);
-      return { key, label: formatMonthLabelFromKey(key), cases: rows.length, avg, grade: scoreToGrade(avg) };
-    })
-    .sort((a, b) => b.key.localeCompare(a.key));
+  return Array.from(counts.entries()).map(([name, count]) => ({ name, count, percent: cases.length ? (count / cases.length) * 100 : 0 })).sort((left, right) => right.count - left.count || left.name.localeCompare(right.name, "th"));
 }
-
-function buildSlideSummaryText({
-  week,
-  previousWeek,
-  goodTopics,
-  lowTopics,
-}: {
-  week?: WeekBucket;
-  previousWeek?: WeekBucket;
-  goodTopics: TopicRow[];
-  lowTopics: TopicRow[];
-}) {
-  if (!week) return "ยังไม่มีข้อมูลสำหรับสร้างสรุปสไลด์";
-  const currentAvg = avgScore(week.cases);
-  const previousAvg = previousWeek ? avgScore(previousWeek.cases) : 0;
-  const delta = previousWeek ? currentAvg - previousAvg : 0;
-  const deltaText = previousWeek ? `${delta >= 0 ? "+" : ""}${delta.toFixed(2)}` : "ไม่มีข้อมูลสัปดาห์ก่อน";
-  const topText = goodTopics.slice(0, 3).map((item) => item.title).join(", ") || "ยังไม่มีหัวข้อคะแนนดี";
-  const lowText = lowTopics.slice(0, 3).map((item) => item.title).join(", ") || "ยังไม่มีหัวข้อที่ต่ำกว่าเกณฑ์";
-  return `สรุป QA Weekly ${week.label}: จำนวนเคส ${week.cases.length} เคส คะแนนเฉลี่ย ${currentAvg.toFixed(2)} (${scoreToGrade(currentAvg)}) เทียบสัปดาห์ก่อน ${deltaText} คะแนน หัวข้อที่ทำได้ดีคือ ${topText} และหัวข้อที่ควรเร่งปรับปรุงคือ ${lowText}`;
+function buildTopicComparisons(currentCases: StoredEvaluation[], comparisonCases: StoredEvaluation[]) {
+  const currentRows = buildTopicRows(currentCases);
+  const comparisonRows = buildTopicRows(comparisonCases);
+  const currentMap = new Map(currentRows.map((row) => [row.id, row]));
+  const comparisonMap = new Map(comparisonRows.map((row) => [row.id, row]));
+  const ids = Array.from(new Set([...currentRows.map((row) => row.id), ...comparisonRows.map((row) => row.id)]));
+  return ids.map((id) => {
+    const current = currentMap.get(id);
+    const previous = comparisonMap.get(id);
+    const currentPercent = current?.percent || 0;
+    const previousPercent = previous?.percent || 0;
+    return {
+      id, code: current?.code || previous?.code || "", title: current?.title || previous?.title || "ไม่ระบุหัวข้อ",
+      previousPercent, currentPercent,
+      changePercent: previousPercent > 0 ? ((currentPercent - previousPercent) / previousPercent) * 100 : null,
+      tags: buildTagRates(currentCases, id),
+    } satisfies TopicComparison;
+  }).sort((left, right) => topicOrder(left.code, left.title) - topicOrder(right.code, right.title)).slice(0, 4);
 }
-
-function copyTextToClipboard(text: string) {
-  if (navigator.clipboard?.writeText) {
-    return navigator.clipboard.writeText(text);
-  }
-  const textarea = document.createElement("textarea");
-  textarea.value = text;
-  textarea.style.position = "fixed";
-  textarea.style.left = "-9999px";
-  document.body.appendChild(textarea);
-  textarea.focus();
-  textarea.select();
-  document.execCommand("copy");
-  document.body.removeChild(textarea);
-  return Promise.resolve();
+function gradeMix(cases: StoredEvaluation[], monthKey: string) {
+  const counts: Record<string, number> = { A: 0, B: 0, C: 0, D: 0, F: 0, G: 0 };
+  cases.forEach((item) => {
+    const grade = clean(item.grade).toUpperCase() || scoreToGrade(scoreOf(item), monthKey, item.criticalError);
+    counts[grade] = (counts[grade] || 0) + 1;
+  });
+  return counts;
+}
+function totalIncentive(cases: StoredEvaluation[], monthKey: string) {
+  const groups = new Map<string, StoredEvaluation[]>();
+  cases.forEach((item) => { const agent = caseAgentName(item); groups.set(agent, [...(groups.get(agent) || []), item]); });
+  return Array.from(groups.values()).reduce((sum, rows) => rows.length < MONTHLY_CASE_TARGET ? sum : sum + getIncentiveByScore(avgScore(rows), monthKey, rows.some((row) => row.criticalError)).cash, 0);
+}
+async function imageUrlToDataUrl(url: string) {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`โหลดโลโก้ไม่สำเร็จ (${response.status})`);
+  const blob = await response.blob();
+  return await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new Error("อ่านไฟล์โลโก้ไม่สำเร็จ"));
+    reader.readAsDataURL(blob);
+  });
 }
 
 export default function PresentationMockup({ currentUser, roleScopedAgentNames, dataRefreshKey = 0, reportCenter = false, reportExportOnly = false }: PresentationMockupProps) {
   const evaluationActivity = useEvaluationActivity();
   const [evaluations, setEvaluations] = useState<StoredEvaluation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const [selectedWeekKey, setSelectedWeekKey] = useState("");
-  const [template, setTemplate] = useState<TemplateKey>("executive");
-  const [sections, setSections] = useState<Record<SectionKey, boolean>>(DEFAULT_SECTIONS);
   const [statusMessage, setStatusMessage] = useState("");
+  const [selectedWeekKey, setSelectedWeekKey] = useState("");
+  const [comparisonWeekKey, setComparisonWeekKey] = useState("");
+  const [selectedTeam, setSelectedTeam] = useState("all");
+  const [selectedAgent, setSelectedAgent] = useState("all");
 
   useEffect(() => {
     let alive = true;
     setLoading(true);
     setErrorMessage("");
-    fetchStoredEvaluations(1000)
-      .then((rows) => {
-        if (!alive) return;
-        setEvaluations(excludeTestEvaluations(rows));
-      })
-      .catch((error) => {
-        console.warn("Load presentation evaluations failed", error);
-        if (alive) setErrorMessage("โหลดข้อมูลไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
-      })
-      .finally(() => {
-        if (alive) setLoading(false);
-      });
-    return () => {
-      alive = false;
-    };
+    fetchStoredEvaluations(1000).then((rows) => { if (alive) setEvaluations(excludeTestEvaluations(rows).filter((item) => !isNoCaseEvaluation(item))); }).catch((error) => {
+      console.warn("Load presentation evaluations failed", error);
+      if (alive) setErrorMessage("โหลดข้อมูลไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+    }).finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
   }, [dataRefreshKey]);
 
-  const scopedEvaluations = useMemo(() => {
+  const roleScopedEvaluations = useMemo(() => {
     if (!roleScopedAgentNames?.length) return evaluations;
     const allowed = new Set(roleScopedAgentNames.map(agentKey).filter(Boolean));
-    if (!allowed.size) return evaluations;
-    return evaluations.filter((item) => {
-      const names = [item.agentName, item.targetDisplayName, item.targetUsername].map(agentKey);
-      return names.some((name) => allowed.has(name));
-    });
+    return allowed.size ? evaluations.filter((item) => [item.agentName, item.targetDisplayName, item.targetUsername].map(agentKey).some((name) => allowed.has(name))) : evaluations;
   }, [evaluations, roleScopedAgentNames]);
-
-  const weekBuckets = useMemo(() => buildWeekBuckets(scopedEvaluations), [scopedEvaluations]);
-  const selectedWeek = useMemo(
-    () => weekBuckets.find((week) => week.key === selectedWeekKey) || weekBuckets[0],
-    [selectedWeekKey, weekBuckets],
-  );
-  const previousWeek = useMemo(() => {
-    if (!selectedWeek) return undefined;
-    const previousKey = formatIsoDate(addDays(selectedWeek.start, -7));
-    return weekBuckets.find((week) => week.key === previousKey);
-  }, [selectedWeek, weekBuckets]);
-
+  const weekBuckets = useMemo(() => buildWeekBuckets(roleScopedEvaluations), [roleScopedEvaluations]);
+  useEffect(() => { if (!selectedWeekKey && weekBuckets[0]) setSelectedWeekKey(weekBuckets[0].key); }, [selectedWeekKey, weekBuckets]);
   useEffect(() => {
-    if (!selectedWeekKey && weekBuckets[0]) setSelectedWeekKey(weekBuckets[0].key);
-  }, [selectedWeekKey, weekBuckets]);
+    const currentIndex = weekBuckets.findIndex((week) => week.key === selectedWeekKey);
+    const suggested = weekBuckets[currentIndex + 1] || weekBuckets.find((week) => week.key !== selectedWeekKey);
+    const valid = weekBuckets.some((week) => week.key === comparisonWeekKey && week.key !== selectedWeekKey);
+    if (!valid) setComparisonWeekKey(suggested?.key || "");
+  }, [comparisonWeekKey, selectedWeekKey, weekBuckets]);
 
-  const currentCases = selectedWeek?.cases || [];
-  const previousCases = previousWeek?.cases || [];
-  const currentAvg = avgScore(currentCases);
-  const previousAvg = avgScore(previousCases);
-  const delta = previousWeek ? currentAvg - previousAvg : 0;
-  const criticalCount = currentCases.filter((item) => item.criticalError).length;
-  const topicRows = useMemo(() => buildTopicRows(currentCases), [currentCases]);
-  const goodTopics = useMemo(() => [...topicRows].sort((a, b) => b.percent - a.percent).slice(0, 5), [topicRows]);
-  const lowTopics = useMemo(() => [...topicRows].sort((a, b) => a.percent - b.percent).slice(0, 5), [topicRows]);
-  const agentRows = useMemo(() => buildAgentRows(currentCases).slice(0, 5), [currentCases]);
-  const monthRows = useMemo(() => buildMonthRows(scopedEvaluations).slice(0, 3), [scopedEvaluations]);
-  const scoreAgents = useMemo(() => roleScopedAgentNames?.length ? roleScopedAgentNames : [...new Set([...scopedEvaluations.map(row => row.agentName || row.targetDisplayName || row.targetUsername), ...evaluationActivity.records.map(row => row.displayName)])], [roleScopedAgentNames, scopedEvaluations, evaluationActivity.records]);
-  const scoreMonths = useMemo(() => [...new Set([...currentCases, ...previousCases].map(evaluationActivityMonth).concat(monthRows.map(row => row.key), selectedWeek ? [formatIsoDate(selectedWeek.start).slice(0, 7), formatIsoDate(selectedWeek.end).slice(0, 7)] : []))], [selectedWeek, previousWeek, monthRows]);
+  const teamOptions = useMemo<string[]>(() => Array.from(new Set<string>(roleScopedEvaluations.map(caseTeamName))).sort((a, b) => a.localeCompare(b, "th")), [roleScopedEvaluations]);
+  const agentOptions = useMemo<string[]>(() => Array.from(new Set<string>(roleScopedEvaluations.filter((item) => selectedTeam === "all" || caseTeamName(item) === selectedTeam).map(caseAgentName))).sort((a, b) => a.localeCompare(b, "th")), [roleScopedEvaluations, selectedTeam]);
+  useEffect(() => { if (selectedAgent !== "all" && !agentOptions.includes(selectedAgent)) setSelectedAgent("all"); }, [agentOptions, selectedAgent]);
+
+  const selectedWeek = useMemo(() => weekBuckets.find((week) => week.key === selectedWeekKey), [selectedWeekKey, weekBuckets]);
+  const comparisonWeek = useMemo(() => weekBuckets.find((week) => week.key === comparisonWeekKey), [comparisonWeekKey, weekBuckets]);
+  const inScope = useCallback((item: StoredEvaluation) => (selectedTeam === "all" || caseTeamName(item) === selectedTeam) && (selectedAgent === "all" || caseAgentName(item) === selectedAgent), [selectedAgent, selectedTeam]);
+  const currentCases = useMemo(() => (selectedWeek?.cases || []).filter(inScope), [inScope, selectedWeek]);
+  const comparisonCases = useMemo(() => (comparisonWeek?.cases || []).filter(inScope), [comparisonWeek, inScope]);
+  const currentAverage = avgScore(currentCases);
+  const comparisonAverage = avgScore(comparisonCases);
+  const weekChange = comparisonAverage > 0 ? ((currentAverage - comparisonAverage) / comparisonAverage) * 100 : null;
+  const currentMonthKey = selectedWeek ? formatMonthKey(selectedWeek.start) : "";
+  const overallGrade = scoreToGrade(currentAverage, currentMonthKey, currentCases.some((item) => item.criticalError));
+  const agentCount = new Set(currentCases.map(caseAgentName)).size;
+  const incentive = totalIncentive(currentCases, currentMonthKey);
+  const reviewCounts = useMemo(() => { const revised = currentCases.filter((item) => reviewStatusOf(item) === "Revised").length; return { original: currentCases.length - revised, revised }; }, [currentCases]);
+  const grades = useMemo(() => gradeMix(currentCases, currentMonthKey), [currentCases, currentMonthKey]);
+  const topics = useMemo(() => buildTopicComparisons(currentCases, comparisonCases), [comparisonCases, currentCases]);
+  const scoreAgents = useMemo(() => { const names = [...currentCases, ...comparisonCases].map(caseAgentName); return names.length ? Array.from(new Set(names)) : roleScopedAgentNames || []; }, [comparisonCases, currentCases, roleScopedAgentNames]);
+  const scoreMonths = useMemo(() => Array.from(new Set([...currentCases, ...comparisonCases].map(evaluationActivityMonth).filter(Boolean))), [comparisonCases, currentCases]);
   const evaluationHold = evaluationScopeHold(evaluationActivity, scoreAgents, scoreMonths);
-  const actionTargets = lowTopics.slice(0, 3);
-  const slideSummary = useMemo(
-    () => buildSlideSummaryText({ week: selectedWeek, previousWeek, goodTopics, lowTopics }),
-    [selectedWeek, previousWeek, goodTopics, lowTopics],
-  );
+  const scopeLabel = selectedAgent !== "all" ? selectedAgent : selectedTeam !== "all" ? selectedTeam : "All Teams / All Agents";
 
-  const toggleSection = (key: SectionKey) => {
-    setSections((current) => ({ ...current, [key]: !current[key] }));
-  };
+  const handleExportPptx = useCallback(async () => {
+    if (!selectedWeek || !comparisonWeek || !currentCases.length) return;
+    try {
+      setExporting(true);
+      setStatusMessage("กำลังสร้าง PowerPoint...");
+      await assertEvaluationScopeComplete(scoreAgents, scoreMonths);
+      const [{ default: PptxGenJS }, logoData] = await Promise.all([import("pptxgenjs"), imageUrlToDataUrl("/robinhood-logo.png")]);
+      const pptx = new PptxGenJS();
+      pptx.layout = "LAYOUT_WIDE";
+      pptx.author = currentUser.displayName || currentUser.username || "QA Dashboard";
+      pptx.company = "Robinhood";
+      pptx.subject = "QA Weekly Comparison";
+      pptx.title = `QA Weekly Comparison ${comparisonWeek.label} vs ${selectedWeek.label}`;
+      pptx.theme = { headFontFace: "Kanit", bodyFontFace: "Kanit" };
 
-  const handleCopySummary = useCallback(async () => {
-    try { await assertEvaluationScopeComplete(scoreAgents, scoreMonths); }
-    catch (error) { setStatusMessage(error instanceof Error ? error.message : "Evaluation status could not be verified."); return; }
-    await copyTextToClipboard(slideSummary);
-    setStatusMessage("คัดลอก Slide Summary แล้ว");
-    window.setTimeout(() => setStatusMessage(""), 2200);
-  }, [slideSummary, scoreAgents, scoreMonths]);
+      const slide = pptx.addSlide();
+      slide.background = { color: COLORS.white };
+      const shape = pptx.ShapeType;
+      const addText = (text: string, options: Record<string, unknown>) => slide.addText(text, { fontFace: "Kanit", color: COLORS.navy, lang: "th-TH", margin: 0, fit: "shrink", valign: "middle", ...options });
+      const addPanel = (x: number, y: number, w: number, h: number) => slide.addShape(shape.roundRect, { x, y, w, h, rectRadius: 0.08, fill: { color: COLORS.white }, line: { color: COLORS.border, width: 0.8 } });
 
-  const handleExportPdf = useCallback(async () => {
-    if (!selectedWeek) return;
-    try { await assertEvaluationScopeComplete(scoreAgents, scoreMonths); }
-    catch (error) { setStatusMessage(error instanceof Error ? error.message : "Evaluation status could not be verified."); return; }
-    const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: [180, 320] });
-    registerTHSarabunNew(doc);
-    const grade = scoreToGrade(currentAvg);
-    const monthKey = formatMonthKey(selectedWeek.start);
-    const resolvedMonths = monthRows.length ? monthRows : SAMPLE_MONTH_ROWS;
-    const resolvedTopics = (goodTopics.length ? goodTopics : lowTopics).slice(0, 4);
-    const maxMonthCases = Math.max(...resolvedMonths.map((row) => row.cases), 1);
-    const violet: [number, number, number] = [53, 18, 111];
-    const violetSoft: [number, number, number] = [248, 245, 255];
-    const slate: [number, number, number] = [15, 23, 42];
-    const muted: [number, number, number] = [100, 116, 139];
+      slide.addShape(shape.rect, { x: 0.44, y: 0.25, w: 0.045, h: 0.48, fill: { color: COLORS.purple }, line: { color: COLORS.purple } });
+      addText("QA Weekly Comparison", { x: 0.62, y: 0.24, w: 6.4, h: 0.32, fontSize: 22, bold: true });
+      addText(`${scopeLabel} | ${comparisonWeek.label} เทียบกับ ${selectedWeek.label}`, { x: 0.62, y: 0.58, w: 7.6, h: 0.18, fontSize: 8.5, color: COLORS.muted });
+      slide.addImage({ data: logoData, x: 11.48, y: 0.27, w: 1.12, h: 0.32 });
+      addText("QA PERFORMANCE REVIEW", { x: 10.98, y: 0.61, w: 1.95, h: 0.15, fontSize: 6.5, color: COLORS.muted, align: "right" });
 
-    const font = (size: number, bold = false, color: [number, number, number] = slate) => {
-      doc.setFont("THSarabunNew", bold ? "bold" : "normal");
-      doc.setFontSize(size);
-      doc.setTextColor(...color);
-    };
-    const panel = (x: number, y: number, w: number, h: number, fill: [number, number, number] = [255, 255, 255]) => {
-      doc.setFillColor(...fill);
-      doc.setDrawColor(230, 222, 246);
-      doc.roundedRect(x, y, w, h, 3, 3, "FD");
-    };
-    const ribbon = (index: string, label: string, x: number, y: number, width: number) => {
-      doc.setFillColor(...violet);
-      doc.roundedRect(x, y, width, 10, 0, 3, "F");
-      doc.setFillColor(255, 255, 255);
-      doc.circle(x + 6, y + 5, 3.2, "F");
-      font(11, true, violet);
-      doc.text(index, x + 6, y + 6.1, { align: "center" });
-      font(12, true, [255, 255, 255]);
-      doc.text(label, x + 12, y + 6.5);
-    };
-    const kpi = (x: number, y: number, w: number, label: string, value: string, sub: string) => {
-      panel(x, y, w, 20);
-      font(8, true, muted);
-      doc.text(label, x + 4, y + 5);
-      font(19, true, violet);
-      doc.text(value, x + 4, y + 13);
-      font(7.5, false, muted);
-      doc.text(truncateText(sub, 34), x + 4, y + 17.5);
-    };
-
-    doc.setFillColor(253, 252, 255);
-    doc.rect(0, 0, 320, 180, "F");
-    doc.setFillColor(124, 58, 237);
-    doc.rect(0, 0, 320, 2, "F");
-    font(28, true, violet);
-    doc.text("สรุปภาพรวม QA Dashboard", 10, 16);
-    font(12, true, slate);
-    doc.text("Weekly Dashboard + Monthly Analytics", 10, 23);
-    panel(254, 8, 54, 12);
-    font(8, true, violet);
-    doc.text(`ข้อมูลล่าสุด: ${new Date().toLocaleDateString("th-TH", { day: "2-digit", month: "short", year: "numeric" })}`, 281, 15.2, { align: "center" });
-
-    panel(8, 29, 188, 80);
-    ribbon("1", "Weekly Dashboard", 8, 29, 58);
-    font(9, true, slate);
-    doc.text("Current Viewing Scope", 13, 44);
-    const scopeValues = ["Weekly Dashboard", "All Agents", formatMonthLabelFromKey(monthKey), selectedWeek.label, `${currentCases.length}`];
-    const scopeLabels = ["View", "Agent", "Month", "Week", "Merge Rows"];
-    scopeLabels.forEach((label, index) => {
-      const x = 13 + index * 35.2;
-      panel(x, 47, 32, 13, violetSoft);
-      font(6.5, true, [109, 40, 217]);
-      doc.text(label, x + 2.5, 51);
-      font(7.2, true, slate);
-      doc.text(truncateText(scopeValues[index], 18), x + 2.5, 56);
-    });
-    if (sections.kpiSummary) {
-      kpi(13, 64, 55, "Cases", `${currentCases.length}`, "Case(s) in current view");
-      kpi(72, 64, 55, "Average Score", currentAvg.toFixed(2), previousWeek ? `${delta >= 0 ? "+" : ""}${delta.toFixed(2)} from previous week` : "Current average score");
-      kpi(131, 64, 55, "Grade", grade, "Calculated from average score");
-    }
-    font(9, true, slate);
-    doc.text("Summary Table", 13, 90);
-    doc.setFillColor(...violet);
-    doc.roundedRect(13, 93, 173, 7, 2, 2, "F");
-    font(7.5, true, [255, 255, 255]);
-    ["Week", "Cases", "Average Score", "Grade"].forEach((value, index) => doc.text(value, [16, 105, 132, 171][index], 97.5, index ? { align: "center" } : undefined));
-    font(8, true, slate);
-    doc.text(truncateText(selectedWeek.label, 36), 16, 105);
-    doc.text(`${currentCases.length}`, 105, 105, { align: "center" });
-    doc.text(currentAvg.toFixed(2), 132, 105, { align: "center" });
-    doc.text(grade, 171, 105, { align: "center" });
-
-    const rightCards = [
-      ["Cases", `${currentCases.length}`],
-      ["คะแนนเฉลี่ย", currentAvg.toFixed(2)],
-      ["Grade", grade],
-      ["สัปดาห์", selectedWeek.label],
-    ];
-    rightCards.forEach((item, index) => {
-      const x = 202 + (index % 2) * 55;
-      const y = 29 + Math.floor(index / 2) * 25;
-      panel(x, y, 51, 21);
-      doc.setFillColor(...violet);
-      doc.circle(x + 8, y + 10.5, 5.5, "F");
-      font(8, true, muted);
-      doc.text(item[0], x + 16, y + 7);
-      font(index === 3 ? 7.3 : 15, true, slate);
-      doc.text(truncateText(item[1], index === 3 ? 28 : 12), x + 16, y + 15);
-    });
-    panel(202, 80, 106, 29);
-    font(12, true, violet);
-    doc.text("สรุปไฮไลต์", 208, 88);
-    const highlights = [
-      `${formatMonthLabelFromKey(monthKey)}: ${currentCases.length} เคส คะแนนเฉลี่ย ${currentAvg.toFixed(2)} Grade ${grade}`,
-      ...(sections.topicPerformance ? resolvedTopics.slice(0, 2).map((item) => `${truncateText(item.title, 37)}: ${item.percent.toFixed(2)}%`) : []),
-      ...(criticalCount ? [`Critical Error: ${criticalCount} เคส ต้องติดตามทันที`] : []),
-    ];
-    font(7.7, false, slate);
-    highlights.slice(0, 4).forEach((item, index) => doc.text(`• ${item}`, 208, 94 + index * 4.4));
-
-    panel(8, 114, 148, 58);
-    ribbon("2", "Monthly Analytics", 8, 114, 62);
-    font(9, true, slate);
-    doc.text("Monthly score movement", 13, 130);
-    resolvedMonths.slice(0, 3).forEach((row, index) => {
-      const y = 136 + index * 10;
-      font(8, true, slate);
-      doc.text(truncateText(row.label, 20), 13, y);
-      doc.text(`${row.cases} cases`, 65, y);
-      doc.text(row.avg.toFixed(2), 94, y);
-      doc.text(row.grade, 112, y);
-      doc.setFillColor(237, 233, 254);
-      doc.roundedRect(121, y - 3, 27, 3, 1.5, 1.5, "F");
-      doc.setFillColor(124, 58, 237);
-      doc.roundedRect(121, y - 3, Math.max(3, (row.cases / maxMonthCases) * 27), 3, 1.5, 1.5, "F");
-    });
-    font(7.5, true, muted);
-    doc.text(`Total visible cases: ${resolvedMonths.reduce((sum, row) => sum + row.cases, 0)}`, 13, 168);
-
-    panel(161, 114, 147, 58);
-    font(11, true, slate);
-    doc.text("Topic Performance", 167, 124);
-    font(7.5, false, muted);
-    doc.text("Average topic score in current view", 167, 129);
-    doc.setFillColor(...violet);
-    doc.roundedRect(167, 133, 135, 7, 2, 2, "F");
-    font(7, true, [255, 255, 255]);
-    doc.text("Topic", 171, 137.5);
-    doc.text("Avg %", 294, 137.5, { align: "right" });
-    if (sections.topicPerformance) {
-      resolvedTopics.forEach((row, index) => {
-        const y = 146 + index * 6;
-        font(7.4, true, slate);
-        doc.text(`${index + 1}. ${truncateText(row.title, 58)}`, 171, y);
-        font(7.4, true, row.percent >= 90 ? [5, 150, 105] : [190, 18, 60]);
-        doc.text(`${row.percent.toFixed(2)}%`, 294, y, { align: "right" });
+      const kpis = [
+        { label: "TOTAL CASES", value: `${currentCases.length}`, note: selectedWeek.label, accent: COLORS.purple },
+        { label: "AVERAGE SCORE", value: `${currentAverage.toFixed(2)}%`, note: `KPI TARGET ${KPI_TARGET}%`, accent: COLORS.green },
+        { label: "OVERALL GRADE", value: overallGrade, note: selectedAgent === "all" ? "ALL AGENTS" : selectedAgent, accent: COLORS.purple },
+        { label: "AGENTS EVALUATED", value: `${agentCount}`, note: agentCount ? `${(currentCases.length / agentCount).toFixed(2)} CASES / AGENT` : "0 CASES / AGENT", accent: COLORS.purple },
+        { label: "TOTAL INCENTIVE", value: `฿${incentive.toLocaleString("en-US")}`, note: "THB", accent: COLORS.purple },
+      ];
+      const cardGap = 0.11;
+      const cardW = (12.43 - cardGap * 4) / 5;
+      kpis.forEach((item, index) => {
+        const x = 0.45 + index * (cardW + cardGap);
+        addPanel(x, 0.92, cardW, 0.72);
+        slide.addShape(shape.line, { x: x + 0.02, y: 0.93, w: cardW - 0.04, h: 0, line: { color: item.accent, width: 2 } });
+        addText(item.label, { x: x + 0.14, y: 1.03, w: cardW - 0.28, h: 0.13, fontSize: 7.5, bold: true, color: COLORS.muted });
+        addText(item.value, { x: x + 0.14, y: 1.20, w: cardW * 0.58, h: 0.25, fontSize: index === 1 ? 19 : 18, bold: true, color: index === 1 ? COLORS.green : COLORS.navy });
+        addText(item.note, { x: x + cardW * 0.50, y: 1.27, w: cardW * 0.42, h: 0.14, fontSize: 6.1, color: COLORS.muted, align: "right" });
       });
-    }
-    if (sections.actionPlan) {
-      doc.setFillColor(...violetSoft);
-      doc.roundedRect(167, 164, 135, 6, 2, 2, "F");
-      font(7, true, violet);
-      doc.text(`Action Plan: ${truncateText(actionTargets.map((item) => item.title).join(", ") || "ติดตามคุณภาพในสัปดาห์ถัดไป", 84)}`, 170, 168);
-    }
 
-    try { await assertEvaluationScopeComplete(scoreAgents, scoreMonths); }
-    catch (error) { setStatusMessage(error instanceof Error ? error.message : "Evaluation status could not be verified."); return; }
-    doc.save(`QA_Weekly_Comparison_${selectedWeek.key}_Executive_Dashboard.pdf`);
-    setStatusMessage("สร้าง QA Slide PDF ตามดีไซน์ Preview แล้ว");
-    window.setTimeout(() => setStatusMessage(""), 2200);
-  }, [
-    actionTargets,
-    criticalCount,
-    currentAvg,
-    currentCases.length,
-    delta,
-    goodTopics,
-    lowTopics,
-    previousWeek,
-    monthRows,
-    sections.kpiSummary,
-    sections.actionPlan,
-    sections.agentRanking,
-    sections.topicPerformance,
-    selectedWeek,
-    scoreAgents,
-    scoreMonths,
-  ]);
+      addPanel(0.45, 1.78, 7.54, 1.08);
+      addText("WEEK-OVER-WEEK SCORE", { x: 0.62, y: 1.90, w: 3.2, h: 0.18, fontSize: 10.5, bold: true });
+      [
+        { label: comparisonWeek.label, value: comparisonAverage, color: COLORS.purpleLight, y: 2.20 },
+        { label: selectedWeek.label, value: currentAverage, color: COLORS.purple, y: 2.53 },
+      ].forEach((row) => {
+        addText(row.label, { x: 0.62, y: row.y - 0.04, w: 1.20, h: 0.16, fontSize: 7.4, color: COLORS.muted });
+        slide.addShape(shape.roundRect, { x: 1.80, y: row.y, w: 3.42, h: 0.10, rectRadius: 0.05, fill: { color: "E8EAF1" }, line: { color: "E8EAF1" } });
+        slide.addShape(shape.roundRect, { x: 1.80, y: row.y, w: Math.max(0.10, 3.42 * Math.min(100, row.value) / 100), h: 0.10, rectRadius: 0.05, fill: { color: row.color }, line: { color: row.color } });
+        addText(`${row.value.toFixed(2)}%`, { x: 5.30, y: row.y - 0.07, w: 0.85, h: 0.20, fontSize: 10.3, bold: true, align: "right" });
+      });
+      const changePositive = weekChange !== null && weekChange >= 0;
+      slide.addShape(shape.roundRect, { x: 6.35, y: 2.17, w: 1.38, h: 0.44, rectRadius: 0.07, fill: { color: changePositive ? "E9F7F1" : "FBECEF" }, line: { color: changePositive ? "E9F7F1" : "FBECEF" } });
+      addText(weekChange === null ? "ไม่มีข้อมูลเทียบ" : `${weekChange >= 0 ? "เพิ่มขึ้น" : "ลดลง"} ${Math.abs(weekChange).toFixed(2)}%`, { x: 6.43, y: 2.28, w: 1.22, h: 0.20, fontSize: 11, bold: true, color: changePositive ? COLORS.green : COLORS.red, align: "center" });
 
-  if (reportExportOnly) {
-    return (
-      <div data-slides-export-only="true" className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-7">
-        <h2 className="text-xl font-semibold text-slate-900">QA Slides Report</h2>
-        <p className="mt-1 text-sm text-slate-500">เลือก Week และตรวจตัวอย่างรูปแบบสไลด์ QA ก่อน Generate PDF</p>
-        <div className="mt-5 grid gap-4 sm:grid-cols-2">
-          <label className="text-xs font-semibold text-slate-600">Week
-            <select value={selectedWeek?.key || ""} onChange={event => { setSelectedWeekKey(event.target.value); }} className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm">
-              {weekBuckets.map(week => <option key={week.key} value={week.key}>{week.label} ({week.cases.length} cases)</option>)}
-            </select>
-          </label>
-          <label className="text-xs font-semibold text-slate-600">Slide Template
-            <select value={template} onChange={event => { setTemplate(event.target.value as TemplateKey); }} className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm">
-              {TEMPLATE_OPTIONS.map(option => <option key={option.key} value={option.key}>{option.label}</option>)}
-            </select>
-          </label>
-        </div>
-        {selectedWeek ? (
-          <div aria-label="Live QA Slides Preview" className="mt-5 overflow-hidden rounded-2xl border border-violet-200 bg-white shadow-sm">
-            <div className="aspect-video bg-gradient-to-br from-violet-950 to-slate-900 px-6 py-5 text-white sm:px-10 sm:py-7" style={{ fontFamily: "'Kanit', sans-serif" }}>
-              <p className="text-xs uppercase tracking-widest text-violet-200">Quality Assurance · Weekly Performance</p>
-              <h3 className="mt-2 text-xl font-semibold sm:text-3xl">{selectedWeek?.label || "Weekly Report"}</h3>
-              <div className="mt-4 grid grid-cols-3 gap-3 sm:mt-8">
-                <div className="rounded-lg bg-white/10 p-3"><p className="text-[10px] text-violet-200">QA Average</p><p className="mt-1 text-lg font-semibold sm:text-2xl">{Number.isFinite(currentAvg) ? currentAvg.toFixed(2) : "-"}</p></div>
-                <div className="rounded-lg bg-white/10 p-3"><p className="text-[10px] text-violet-200">Cases</p><p className="mt-1 text-lg font-semibold sm:text-2xl">{currentCases.length}</p></div>
-                <div className="rounded-lg bg-white/10 p-3"><p className="text-[10px] text-violet-200">KPI Target</p><p className="mt-1 text-lg font-semibold sm:text-2xl">85%</p></div>
-              </div>
-              <div className="mt-5 hidden text-sm text-violet-100 sm:block">{slideSummary}</div>
-            </div>
-            <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
-              <p className="text-xs text-slate-500">ตัวอย่างแนวสไลด์จากผล QA สัปดาห์ที่เลือก · ไฟล์ PDF ใช้การส่งออกเดิม</p>
-              <div className="flex gap-2"><button type="button" onClick={() => void handleExportPdf()} disabled={!selectedWeek || loading || Boolean(evaluationHold)} className="rounded-lg bg-violet-700 px-4 py-2 text-xs font-semibold text-white disabled:opacity-40">Generate QA Slides PDF</button></div>
-            </div>
-          </div>
-        ) : null}
-        {statusMessage ? <p role="status" className="mt-3 text-sm text-slate-600">{statusMessage}</p> : null}
-        {errorMessage ? <p role="alert" className="mt-3 text-sm text-rose-700">{errorMessage}</p> : null}
-      </div>
-    );
-  }
+      addPanel(8.12, 1.78, 4.76, 1.08);
+      addText("REVIEW STATUS & GRADE MIX", { x: 8.28, y: 1.90, w: 2.9, h: 0.18, fontSize: 10.5, bold: true });
+      const originalPct = currentCases.length ? (reviewCounts.original / currentCases.length) * 100 : 0;
+      const revisedPct = currentCases.length ? (reviewCounts.revised / currentCases.length) * 100 : 0;
+      addText(`Original ${reviewCounts.original} เคส (${originalPct.toFixed(2)}%)`, { x: 8.28, y: 2.18, w: 2.1, h: 0.16, fontSize: 7.4, bold: true, color: COLORS.purple });
+      addText(`Revised ${reviewCounts.revised} เคส (${revisedPct.toFixed(2)}%)`, { x: 10.42, y: 2.18, w: 2.25, h: 0.16, fontSize: 7.4, bold: true, color: COLORS.muted, align: "right" });
+      slide.addShape(shape.line, { x: 8.28, y: 2.42, w: 4.38, h: 0, line: { color: COLORS.border, width: 0.8 } });
+      addText("Grade Mix", { x: 8.28, y: 2.53, w: 1.0, h: 0.16, fontSize: 7.2, bold: true, color: COLORS.muted });
+      addText(["A", "B", "C", "D", "F", "G"].map((grade) => `${grade} ${grades[grade] || 0}`).join("    "), { x: 10.06, y: 2.53, w: 2.60, h: 0.16, fontSize: 7.1, bold: true, align: "right" });
+
+      addText("TOPIC PERFORMANCE", { x: 0.45, y: 3.04, w: 2.7, h: 0.20, fontSize: 11.5, bold: true });
+      addText(`ประเด็นข้อผิดพลาดที่ตรวจพบ (% ของเคสทั้งหมด ${currentCases.length} เคส)`, { x: 8.68, y: 3.07, w: 4.20, h: 0.16, fontSize: 6.8, color: COLORS.muted, align: "right" });
+
+      const topicCardW = 6.13;
+      Array.from({ length: 4 }).forEach((_, index) => {
+        const topic = topics[index];
+        const x = index % 2 === 0 ? 0.45 : 6.75;
+        const y = index < 2 ? 3.34 : 5.02;
+        addPanel(x, y, topicCardW, 1.55);
+        if (!topic) {
+          addText("NO TOPIC DATA", { x: x + 0.20, y: y + 0.66, w: topicCardW - 0.40, h: 0.20, fontSize: 8, bold: true, color: COLORS.muted, align: "center" });
+          return;
+        }
+        slide.addShape(shape.roundRect, { x: x + 0.14, y: y + 0.13, w: 0.34, h: 0.25, rectRadius: 0.04, fill: { color: COLORS.purpleSoft }, line: { color: COLORS.purpleSoft } });
+        addText(String(index + 1).padStart(2, "0"), { x: x + 0.14, y: y + 0.16, w: 0.34, h: 0.13, fontSize: 7.8, bold: true, color: COLORS.purple, align: "center" });
+        addText(truncateText(topic.title, 62), { x: x + 0.56, y: y + 0.13, w: topicCardW - 0.72, h: 0.24, fontSize: 10.6, bold: true });
+        slide.addShape(shape.roundRect, { x: x + 0.14, y: y + 0.43, w: topicCardW - 0.28, h: 0.25, rectRadius: 0.03, fill: { color: COLORS.panel }, line: { color: COLORS.panel } });
+        addText(`${comparisonWeek.label}  ${topic.previousPercent.toFixed(2)}%`, { x: x + 0.22, y: y + 0.47, w: 2.26, h: 0.13, fontSize: 7.2, bold: true });
+        addText(`${selectedWeek.label}  ${topic.currentPercent.toFixed(2)}%`, { x: x + 2.55, y: y + 0.47, w: 2.12, h: 0.13, fontSize: 7.2, bold: true, color: COLORS.purple });
+        const topicPositive = topic.changePercent !== null && topic.changePercent >= 0;
+        const topicChangeText = topic.changePercent === null ? "ไม่มีข้อมูลเทียบ" : `${topic.changePercent >= 0 ? "เพิ่มขึ้น" : "ลดลง"} ${Math.abs(topic.changePercent).toFixed(2)}%`;
+        addText(topicChangeText, { x: x + 4.58, y: y + 0.47, w: 1.30, h: 0.13, fontSize: 7.2, bold: true, color: topicPositive ? COLORS.green : COLORS.red, align: "right" });
+        const visibleTags = topic.tags.length ? topic.tags.slice(0, 6) : [{ name: "ไม่พบข้อผิดพลาด", count: 0, percent: 0 }];
+        visibleTags.forEach((tag, tagIndex) => {
+          const tagY = y + 0.75 + tagIndex * 0.12;
+          addText(truncateText(tag.name, 64), { x: x + 0.20, y: tagY, w: topicCardW - 1.12, h: 0.11, fontSize: tagIndex === 0 ? 7.1 : 6.5, bold: tagIndex === 0, color: tagIndex === 0 ? COLORS.navy : COLORS.muted });
+          addText(`${tag.percent.toFixed(2)}%`, { x: x + topicCardW - 0.90, y: tagY, w: 0.68, h: 0.11, fontSize: tagIndex === 0 ? 7.1 : 6.5, bold: tagIndex === 0, color: tagIndex === 0 ? COLORS.purple : COLORS.muted, align: "right" });
+        });
+      });
+
+      slide.addShape(shape.line, { x: 0.45, y: 7.20, w: 12.43, h: 0, line: { color: COLORS.border, width: 0.8 } });
+      addText(`ข้อผิดพลาดแต่ละประเภท (%) = สัดส่วนเคสจาก ${currentCases.length} เคส (1 เคสพบได้หลายประเภท)  |  % การเปลี่ยนแปลงเทียบกับสัปดาห์ก่อน`, { x: 0.45, y: 7.24, w: 9.4, h: 0.12, fontSize: 5.8, color: COLORS.muted });
+      slide.addImage({ data: logoData, x: 11.80, y: 7.17, w: 0.26, h: 0.12 });
+      addText("Robinhood Quality Assurance", { x: 12.08, y: 7.22, w: 0.80, h: 0.10, fontSize: 4.8, color: COLORS.muted, align: "right" });
+
+      await assertEvaluationScopeComplete(scoreAgents, scoreMonths);
+      await pptx.writeFile({ fileName: `QA_Weekly_Comparison_${comparisonWeek.key}_vs_${selectedWeek.key}.pptx`, compression: true });
+      setStatusMessage("ดาวน์โหลด PowerPoint แล้ว");
+    } catch (error) {
+      console.error("Generate QA PowerPoint failed", error);
+      setStatusMessage(error instanceof Error ? `สร้าง PowerPoint ไม่สำเร็จ: ${error.message}` : "สร้าง PowerPoint ไม่สำเร็จ กรุณาลองใหม่");
+    } finally { setExporting(false); }
+  }, [comparisonAverage, comparisonWeek, currentAverage, currentCases, currentUser.displayName, currentUser.username, grades, incentive, agentCount, overallGrade, reviewCounts, scopeLabel, scoreAgents, scoreMonths, selectedAgent, selectedWeek, topics, weekChange]);
+
+  const controls = (
+    <div className="grid gap-4 lg:grid-cols-4">
+      <StepSelect step="1" label="สัปดาห์ปัจจุบัน" value={selectedWeekKey} onChange={setSelectedWeekKey}>{weekBuckets.map((week) => <option key={week.key} value={week.key}>{week.label} ({week.cases.length} เคส)</option>)}</StepSelect>
+      <StepSelect step="2" label="สัปดาห์เปรียบเทียบ" value={comparisonWeekKey} onChange={setComparisonWeekKey}>{weekBuckets.filter((week) => week.key !== selectedWeekKey).map((week) => <option key={week.key} value={week.key}>{week.label} ({week.cases.length} เคส)</option>)}</StepSelect>
+      <StepSelect step="3" label="Team" value={selectedTeam} onChange={setSelectedTeam}><option value="all">All Teams</option>{teamOptions.map((team) => <option key={team} value={team}>{team}</option>)}</StepSelect>
+      <StepSelect step="3" label="Agent Scope" value={selectedAgent} onChange={setSelectedAgent}><option value="all">All Agents</option>{agentOptions.map((agent) => <option key={agent} value={agent}>{agent}</option>)}</StepSelect>
+    </div>
+  );
+  const preview = selectedWeek && comparisonWeek ? <WeeklyComparisonPreview selectedWeek={selectedWeek} comparisonWeek={comparisonWeek} scopeLabel={scopeLabel} currentCases={currentCases} currentAverage={currentAverage} comparisonAverage={comparisonAverage} weekChange={weekChange} overallGrade={overallGrade} agentCount={agentCount} incentive={incentive} reviewCounts={reviewCounts} grades={grades} topics={topics} /> : null;
+
+  if (reportExportOnly) return (
+    <div data-slides-export-only="true" className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-7">
+      <h2 className="text-xl font-semibold text-slate-900">QA Weekly Comparison</h2>
+      <p className="mt-1 text-sm text-slate-500">เลือกสองสัปดาห์และขอบเขตข้อมูล จากนั้นดาวน์โหลด PowerPoint ที่แก้ไขได้</p>
+      <div className="mt-5">{controls}</div>
+      {evaluationHold ? <div className="mt-4"><EvaluationActivityUnavailable label={evaluationHold.label} /></div> : null}
+      <div className="mt-5 overflow-x-auto rounded-2xl border border-violet-100 bg-slate-100 p-2"><div className="h-[450px] w-[800px] overflow-hidden rounded-lg bg-white"><div style={{ transform: "scale(0.5)", transformOrigin: "top left", width: 1600, height: 900 }}>{preview}</div></div></div>
+      <div className="mt-4 flex items-center justify-between gap-3"><span role="status" className="text-sm font-medium text-slate-600">{statusMessage}</span><button type="button" onClick={() => void handleExportPptx()} disabled={loading || exporting || !currentCases.length || Boolean(evaluationHold)} className="rounded-xl bg-violet-700 px-5 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40">{exporting ? "กำลังสร้าง PowerPoint..." : "5. Generate PowerPoint (.pptx)"}</button></div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#f7f2ff] via-white to-[#fbf7ff]">
-      <PageHero
-        eyebrow="Documents"
-        title="QA Slides"
-        subtitle="เลือกสัปดาห์ เทมเพลต และหัวข้อ เพื่อสร้างพรีวิวสไลด์จากข้อมูล QA ล่าสุด"
-      />
+      <PageHero eyebrow="Documents" title="QA Weekly Comparison" subtitle="สร้างสไลด์ PowerPoint 16:9 ตามต้นแบบ QA Weekly Comparison" />
       <div className="mx-auto max-w-[1500px] space-y-5 px-5 py-6 lg:px-8">
-        <div className="rounded-[28px] border border-violet-100 bg-white p-5 shadow-[0_18px_50px_rgba(88,28,135,0.10)]">
-          <div className="flex justify-end">
-            <div className="rounded-2xl border border-violet-100 bg-violet-50 px-4 py-3 text-sm text-violet-900">
-              <div className="font-medium">ผู้ใช้งาน</div>
-              <div>{currentUser.displayName || currentUser.username}</div>
-            </div>
-          </div>
-
-          <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_1fr_1.5fr]">
-            <label className="block">
-              <span className="text-xs font-black uppercase tracking-[0.12em] text-slate-500">1. เลือก Week</span>
-              <select
-                value={selectedWeek?.key || ""}
-                onChange={(event) => setSelectedWeekKey(event.target.value)}
-                className="mt-2 w-full rounded-2xl border border-violet-100 bg-white px-4 py-3 text-sm font-bold text-slate-900 shadow-sm outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
-              >
-                {weekBuckets.map((week) => (
-                  <option key={week.key} value={week.key}>
-                    {week.label} ({week.cases.length} เคส)
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="block">
-              <span className="text-xs font-black uppercase tracking-[0.12em] text-slate-500">2. เลือก Template</span>
-              <select
-                value={template}
-                onChange={(event) => setTemplate(event.target.value as TemplateKey)}
-                className="mt-2 w-full rounded-2xl border border-violet-100 bg-white px-4 py-3 text-sm font-bold text-slate-900 shadow-sm outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
-              >
-                {TEMPLATE_OPTIONS.map((item) => (
-                  <option key={item.key} value={item.key}>
-                    {item.label}
-                  </option>
-                ))}
-              </select>
-              <div className="mt-2 text-xs text-slate-500">{TEMPLATE_OPTIONS.find((item) => item.key === template)?.description}</div>
-            </label>
-
-            <div>
-              <div className="text-xs font-black uppercase tracking-[0.12em] text-slate-500">3. ติ๊กหัวข้อที่จะใส่ในสไลด์</div>
-              <div className="mt-2 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-                {SECTION_OPTIONS.map((item) => (
-                  <label
-                    key={item.key}
-                    className={`flex cursor-pointer items-start gap-2 rounded-2xl border px-3 py-2 transition ${
-                      sections[item.key] ? "border-violet-200 bg-violet-50 text-violet-950" : "border-slate-200 bg-white text-slate-500"
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={sections[item.key]}
-                      onChange={() => toggleSection(item.key)}
-                      className="mt-1 h-4 w-4 accent-violet-700"
-                    />
-                    <span>
-                      <span className="block text-sm font-black">{item.label}</span>
-                      <span className="block text-xs leading-4">{item.description}</span>
-                    </span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {errorMessage ? (
-          <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700">{errorMessage}</div>
-        ) : null}
-
-        <div className="grid gap-5 xl:grid-cols-[1fr_360px]">
-          <div className="rounded-[28px] border border-violet-100 bg-white p-5 shadow-[0_18px_50px_rgba(88,28,135,0.10)]">
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <div className="text-[11px] font-black uppercase tracking-[0.2em] text-violet-700">4. Preview สไลด์ 1 หน้า</div>
-                <div className="mt-1 text-sm text-slate-500">สัดส่วน 16:9 สำหรับนำไปวางใน Presentation</div>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {reportCenter ? <button
-                  type="button"
-                  onClick={handleExportPdf}
-                  disabled={!selectedWeek || loading || Boolean(evaluationHold)}
-                  className="rounded-2xl bg-violet-700 px-4 py-2 text-sm font-black text-white shadow-sm transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:bg-slate-300"
-                >
-                  5. Generate / Export PDF
-                </button> : null}
-                <button
-                  type="button"
-                  onClick={handleCopySummary}
-                  disabled={!selectedWeek || loading || Boolean(evaluationHold)}
-                  className="rounded-2xl border border-violet-200 bg-white px-4 py-2 text-sm font-black text-violet-800 transition hover:bg-violet-50 disabled:cursor-not-allowed disabled:text-slate-300"
-                >
-                  6. Copy Slide Summary
-                </button>
-              </div>
-            </div>
-
-            {evaluationHold ? <EvaluationActivityUnavailable label={evaluationHold.label} /> : <div className="overflow-x-auto rounded-[24px] border border-violet-100 bg-slate-100 p-3">
-              <div className="h-[648px] w-[1152px] overflow-hidden rounded-[8px] bg-white">
-                <div style={{ transform: "scale(0.72)", transformOrigin: "top left", width: 1600, height: 900 }}>
-                  <DashboardStyleSlide
-                    loading={loading}
-                    selectedWeek={selectedWeek}
-                    currentCases={currentCases}
-                    currentAvg={currentAvg}
-                    criticalCount={criticalCount}
-                    grade={scoreToGrade(currentAvg)}
-                    goodTopics={goodTopics}
-                    lowTopics={lowTopics}
-                    monthRows={monthRows}
-                    sections={sections}
-                  />
-                </div>
-              </div>
-              <div className="hidden">
-              <div className="h-[630px] w-[1120px] overflow-hidden rounded-[18px] bg-white shadow-[0_18px_50px_rgba(15,23,42,0.12)]">
-                <div className="relative h-full w-full overflow-hidden p-9 text-slate-950">
-                  <div className="absolute -left-[7%] -top-[10%] h-[26%] w-[28%] rounded-br-[90%] bg-[#9d1b9e]" />
-                  <div className="flex items-start justify-between gap-5">
-                    <div>
-                      <div className="text-[13px] font-black uppercase tracking-[0.2em] text-violet-700">QA Presentation</div>
-                      <h2 className="mt-2 text-[34px] font-black leading-none tracking-tight">
-                        {template === "actionPlan" ? "สรุปแผนยกระดับคะแนน QA" : template === "topicFocus" ? "สรุป Topic Performance" : "สรุปผลการประเมิน QA รายสัปดาห์"}
-                      </h2>
-                      <p className="mt-3 text-[15px] font-semibold text-slate-500">{selectedWeek ? `Weekly ${selectedWeek.label}` : "กำลังโหลดข้อมูล"}</p>
-                    </div>
-                    <div className="rounded-full bg-violet-50 px-5 py-3 text-[14px] font-black text-violet-900">
-                      ข้อมูลล่าสุด: {new Date().toLocaleDateString("th-TH", { day: "2-digit", month: "short", year: "numeric" })}
-                    </div>
-                  </div>
-
-                  {loading ? (
-                    <div className="mt-24 text-center text-[22px] font-black text-violet-700">กำลังโหลดข้อมูล...</div>
-                  ) : !selectedWeek ? (
-                    <div className="mt-24 text-center text-[22px] font-black text-slate-500">ยังไม่มีข้อมูลสำหรับสร้างสไลด์</div>
-                  ) : (
-                    <>
-                      {sections.kpiSummary ? (
-                        <div className="mt-7 grid grid-cols-4 gap-4">
-                          <SlideKpi label="จำนวนเคส" value={`${currentCases.length}`} sub={previousWeek ? `สัปดาห์ก่อน ${previousCases.length} เคส` : "ไม่มีข้อมูลเทียบ"} />
-                          <SlideKpi label="คะแนนเฉลี่ย" value={currentAvg.toFixed(2)} sub={previousWeek ? `${delta >= 0 ? "+" : ""}${delta.toFixed(2)} จากสัปดาห์ก่อน` : scoreToGrade(currentAvg)} green />
-                          <SlideKpi label="Critical Error" value={`${criticalCount}`} sub={criticalCount ? "ต้องติดตาม" : "ไม่พบในสัปดาห์นี้"} />
-                          <SlideKpi label="ภาพรวม" value={currentAvg >= 90 ? "ดีมาก" : currentAvg >= 80 ? "ดีขึ้น" : "ต้องโฟกัส"} sub={scoreToGrade(currentAvg)} green={currentAvg >= 80} />
-                        </div>
-                      ) : null}
-
-                      <div className={`mt-5 grid gap-4 ${sections.agentRanking ? "grid-cols-[1.2fr_0.8fr]" : "grid-cols-1"}`}>
-                        <div className="grid gap-4">
-                          {sections.weekCompare ? (
-                            <SlidePanel title="Week Compare" tone="violet">
-                              <div className="grid grid-cols-3 gap-3 text-center">
-                                <MiniMetric label="สัปดาห์ก่อน" value={previousWeek ? previousAvg.toFixed(2) : "-"} />
-                                <MiniMetric label="สัปดาห์นี้" value={currentAvg.toFixed(2)} highlight />
-                                <MiniMetric label="เปลี่ยนแปลง" value={previousWeek ? `${delta >= 0 ? "+" : ""}${delta.toFixed(2)}` : "-"} highlight={delta >= 0} />
-                              </div>
-                            </SlidePanel>
-                          ) : null}
-
-                          {sections.topicPerformance ? (
-                            <div className="grid grid-cols-2 gap-4">
-                              <SlideTopicList title="หัวข้อที่ทำได้ดี" tone="green" rows={goodTopics.slice(0, 4)} />
-                              <SlideTopicList title="หัวข้อที่ควรเร่งปรับปรุง" tone="red" rows={lowTopics.slice(0, 4)} />
-                            </div>
-                          ) : null}
-                        </div>
-
-                        {sections.agentRanking ? (
-                          <SlidePanel title="Agent Ranking" tone="violet">
-                            <div className="space-y-2">
-                              {agentRows.length ? (
-                                agentRows.map((item, index) => (
-                                  <div key={item.agent} className="flex items-center gap-2 rounded-lg bg-white px-3 py-2">
-                                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-violet-100 text-[12px] font-black text-violet-800">{index + 1}</div>
-                                    <div className="min-w-0 flex-1 text-[13px] font-black leading-tight">{truncateText(item.agent, 24)}</div>
-                                    <div className="text-[16px] font-black text-violet-800">{item.avg.toFixed(1)}</div>
-                                  </div>
-                                ))
-                              ) : (
-                                <div className="text-[13px] text-slate-500">ยังไม่มีข้อมูล Agent</div>
-                              )}
-                            </div>
-                          </SlidePanel>
-                        ) : null}
-                      </div>
-
-                      {sections.actionPlan ? (
-                        <div className="absolute bottom-5 left-9 right-9 rounded-2xl border border-violet-200 bg-violet-50 px-5 py-4">
-                          <div className="flex gap-4">
-                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-violet-100 text-[24px] font-black text-violet-800">!</div>
-                            <div className="min-w-0">
-                              <div className="text-[15px] font-black text-violet-900">Action Plan</div>
-                              <div className="mt-1 text-[14px] font-semibold leading-snug text-slate-700">
-                                {actionTargets.length
-                                  ? `โฟกัส ${actionTargets.map((item) => truncateText(item.title, 26)).join(", ")} พร้อมทบทวนตัวอย่างคำตอบคะแนนต่ำ`
-                                  : "รักษามาตรฐานหัวข้อคะแนนดี และติดตามคุณภาพคำตอบในสัปดาห์ถัดไป"}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      ) : null}
-                    </>
-                  )}
-                </div>
-              </div>
-              </div>
-            </div>}
-          </div>
-
-          <aside className="space-y-4">
-            <div className="rounded-[28px] border border-violet-100 bg-white p-5 shadow-[0_18px_50px_rgba(88,28,135,0.10)]">
-              <div className="text-[11px] font-black uppercase tracking-[0.2em] text-violet-700">Slide Summary</div>
-              <p className="mt-3 text-sm font-semibold leading-6 text-slate-700">{evaluationHold?.label || slideSummary}</p>
-              {statusMessage ? <div className="mt-3 rounded-2xl bg-emerald-50 px-3 py-2 text-sm font-black text-emerald-700">{statusMessage}</div> : null}
-            </div>
-
-            <div className="rounded-[28px] border border-slate-200 bg-white p-5">
-              <div className="text-sm font-black text-slate-950">ข้อมูลที่ใช้</div>
-              <div className="mt-3 space-y-2 text-sm text-slate-600">
-                <div className="flex justify-between gap-3"><span>ทั้งหมดที่มองเห็น</span><b>{scopedEvaluations.length} เคส</b></div>
-                <div className="flex justify-between gap-3"><span>จำนวน Week</span><b>{weekBuckets.length}</b></div>
-                <div className="flex justify-between gap-3"><span>Template</span><b>{TEMPLATE_OPTIONS.find((item) => item.key === template)?.label}</b></div>
-              </div>
-            </div>
-          </aside>
-        </div>
+        <section className="rounded-[28px] border border-violet-100 bg-white p-5 shadow-[0_18px_50px_rgba(88,28,135,0.10)]">
+          <div className="mb-5 flex items-start justify-between gap-4"><div><div className="text-[11px] font-black uppercase tracking-[0.2em] text-violet-700">PowerPoint Builder</div><h2 className="mt-1 text-2xl font-black text-slate-950">กำหนดช่วงเปรียบเทียบ</h2><p className="mt-1 text-sm font-medium text-slate-500">โครงสร้างสไลด์ตายตัวตามต้นแบบ ไม่มี Template หรือหัวข้อที่ต้องติ๊กเพิ่ม</p></div><div className="rounded-2xl border border-violet-100 bg-violet-50 px-4 py-3 text-sm text-violet-900"><div className="font-bold">ผู้ใช้งาน</div><div>{currentUser.displayName || currentUser.username}</div></div></div>
+          {controls}
+        </section>
+        {errorMessage ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700">{errorMessage}</div> : null}
+        {evaluationHold ? <div className="mt-4"><EvaluationActivityUnavailable label={evaluationHold.label} /></div> : null}
+        <section className="rounded-[28px] border border-violet-100 bg-white p-5 shadow-[0_18px_50px_rgba(88,28,135,0.10)]">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><div><div className="text-[11px] font-black uppercase tracking-[0.2em] text-violet-700">4. Preview PowerPoint</div><div className="mt-1 text-sm font-medium text-slate-500">สไลด์หน้าเดียว สัดส่วน 16:9 ตามต้นแบบเดิม</div></div><button type="button" onClick={() => void handleExportPptx()} disabled={loading || exporting || !currentCases.length || Boolean(evaluationHold)} className="rounded-2xl bg-violet-700 px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:bg-slate-300">{exporting ? "กำลังสร้าง PowerPoint..." : "5. Generate PowerPoint (.pptx)"}</button></div>
+          <div className="overflow-x-auto rounded-[24px] border border-violet-100 bg-slate-100 p-3"><div className="h-[648px] w-[1152px] overflow-hidden rounded-[8px] bg-white shadow-[0_18px_50px_rgba(15,23,42,0.14)]"><div style={{ transform: "scale(0.72)", transformOrigin: "top left", width: 1600, height: 900 }}>{preview}</div></div></div>
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3"><div className="text-sm font-medium text-slate-600">{loading ? "กำลังโหลดข้อมูล..." : currentCases.length ? `${currentCases.length} เคส · ${agentCount} Agents · ${topics.length} Topics` : "ไม่พบเคสในขอบเขตที่เลือก"}</div>{statusMessage ? <div role="status" className={`rounded-xl px-3 py-2 text-sm font-bold ${statusMessage.includes("ไม่สำเร็จ") ? "bg-rose-50 text-rose-700" : "bg-emerald-50 text-emerald-700"}`}>{statusMessage}</div> : null}</div>
+        </section>
       </div>
     </div>
   );
 }
 
-function DashboardStyleSlide({
-  loading,
-  selectedWeek,
-  currentCases,
-  currentAvg,
-  criticalCount,
-  grade,
-  goodTopics,
-  lowTopics,
-  monthRows,
-  sections,
-}: {
-  loading: boolean;
-  selectedWeek?: WeekBucket;
-  currentCases: StoredEvaluation[];
-  currentAvg: number;
-  criticalCount: number;
-  grade: string;
-  goodTopics: TopicRow[];
-  lowTopics: TopicRow[];
-  monthRows: MonthRow[];
-  sections: Record<SectionKey, boolean>;
-}) {
-  const hasRealData = Boolean(selectedWeek && currentCases.length);
-  const monthKey = selectedWeek ? formatMonthKey(selectedWeek.start) : "";
-  const slideData = {
-    cases: hasRealData ? currentCases.length : SAMPLE_WEEKLY_SLIDE_DATA.cases,
-    averageScore: hasRealData ? currentAvg : SAMPLE_WEEKLY_SLIDE_DATA.averageScore,
-    grade: hasRealData ? grade : SAMPLE_WEEKLY_SLIDE_DATA.grade,
-    month: hasRealData && monthKey ? formatMonthLabelFromKey(monthKey) : SAMPLE_WEEKLY_SLIDE_DATA.month,
-    week: hasRealData && selectedWeek ? selectedWeek.label : SAMPLE_WEEKLY_SLIDE_DATA.week,
-    mergeRows: hasRealData ? currentCases.length : SAMPLE_WEEKLY_SLIDE_DATA.mergeRows,
-    revised: SAMPLE_WEEKLY_SLIDE_DATA.revised,
-  };
-  const resolvedMonthRows = monthRows.length ? monthRows : SAMPLE_MONTH_ROWS;
-  const realTopicRows = (goodTopics.length ? goodTopics : lowTopics).slice(0, 4);
-  const topicRows = realTopicRows.length ? realTopicRows : SAMPLE_TOPIC_ROWS;
-  const maxMonthCases = Math.max(...resolvedMonthRows.map((row) => row.cases), 1);
-  const topCards = [
-    { icon: "□", label: "Cases", value: String(slideData.cases) },
-    { icon: "▤", label: "คะแนนเฉลี่ย", value: slideData.averageScore.toFixed(2) },
-    { icon: "◎", label: "Grade", value: slideData.grade },
-    { icon: "▦", label: "สัปดาห์", value: slideData.week, small: true },
+function StepSelect({ step, label, value, onChange, children }: { step: string; label: string; value: string; onChange: (value: string) => void; children: React.ReactNode }) {
+  return <label className="block rounded-2xl border border-violet-100 bg-violet-50/40 p-3"><span className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.1em] text-slate-600"><span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-violet-700 px-1.5 text-white">{step}</span>{label}</span><select value={value} onChange={(event) => onChange(event.target.value)} className="mt-3 h-11 w-full rounded-xl border border-violet-100 bg-white px-3 text-sm font-bold text-slate-900 outline-none focus:border-violet-400 focus:ring-4 focus:ring-violet-100">{children}</select></label>;
+}
+
+function WeeklyComparisonPreview({ selectedWeek, comparisonWeek, scopeLabel, currentCases, currentAverage, comparisonAverage, weekChange, overallGrade, agentCount, incentive, reviewCounts, grades, topics }: { selectedWeek: WeekBucket; comparisonWeek: WeekBucket; scopeLabel: string; currentCases: StoredEvaluation[]; currentAverage: number; comparisonAverage: number; weekChange: number | null; overallGrade: string; agentCount: number; incentive: number; reviewCounts: { original: number; revised: number }; grades: Record<string, number>; topics: TopicComparison[] }) {
+  const originalPct = currentCases.length ? (reviewCounts.original / currentCases.length) * 100 : 0;
+  const revisedPct = currentCases.length ? (reviewCounts.revised / currentCases.length) * 100 : 0;
+  const kpis = [
+    { label: "TOTAL CASES", value: `${currentCases.length}`, note: selectedWeek.label, accent: "border-t-violet-700" },
+    { label: "AVERAGE SCORE", value: `${currentAverage.toFixed(2)}%`, note: `KPI TARGET ${KPI_TARGET}%`, accent: "border-t-emerald-600", green: true },
+    { label: "OVERALL GRADE", value: overallGrade, note: "CURRENT SCOPE", accent: "border-t-violet-700" },
+    { label: "AGENTS EVALUATED", value: `${agentCount}`, note: agentCount ? `${(currentCases.length / agentCount).toFixed(2)} CASES / AGENT` : "0 CASES / AGENT", accent: "border-t-violet-700" },
+    { label: "TOTAL INCENTIVE", value: `฿${incentive.toLocaleString("en-US")}`, note: "THB", accent: "border-t-violet-700" },
   ];
-  const insightRows = [
-    `เดือน${slideData.month}: ${slideData.cases} เคส | คะแนนเฉลี่ย ${slideData.averageScore.toFixed(2)} | Grade ${slideData.grade}`,
-    ...topicRows.map((item) => `${item.title}: ${item.percent.toFixed(2)}%`),
-  ];
-  if (criticalCount) insightRows.push(`Critical Error: ${criticalCount} เคส ต้องติดตามทันที`);
-
-  return (
-    <div className="relative h-[900px] w-[1600px] overflow-hidden rounded-[8px] border border-violet-100 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.12)]">
-      <div className="absolute inset-x-0 top-0 h-2 bg-gradient-to-r from-[#4c1d95] via-[#8b2be8] to-[#c084fc]" />
-      <div className="absolute -right-24 -top-28 h-[330px] w-[520px] rotate-12 rounded-[55%] bg-violet-200/55" />
-      <div className="absolute -right-6 -top-8 h-[230px] w-[420px] rotate-12 rounded-[55%] bg-fuchsia-200/45" />
-      <div className="absolute -bottom-32 -left-28 h-[260px] w-[430px] -rotate-12 rounded-[55%] bg-violet-300/45" />
-      <div className="absolute right-24 top-[110px] grid grid-cols-7 gap-2 opacity-25">
-        {Array.from({ length: 28 }).map((_, index) => (
-          <span key={index} className="h-2 w-2 rounded-full bg-violet-500" />
-        ))}
-      </div>
-
-      <div className="relative z-10 h-full p-9 text-slate-950">
-        <div className="flex items-start justify-between">
-          <div>
-            <h2 className="text-[62px] font-black leading-none tracking-tight text-[#35126f]">สรุปภาพรวม QA Dashboard</h2>
-            <div className="mt-3 text-[28px] font-semibold text-slate-900">Weekly Dashboard + Monthly Analytics</div>
-          </div>
-          <div className="mr-8 mt-3 rounded-full border border-violet-100 bg-white/90 px-8 py-4 text-[19px] font-black text-violet-900 shadow-sm">
-            ข้อมูลล่าสุด: {new Date().toLocaleDateString("th-TH", { day: "2-digit", month: "short", year: "numeric" })}
-          </div>
-        </div>
-
-        {loading ? (
-          <div className="mt-40 text-center text-[24px] font-black text-violet-700">กำลังโหลดข้อมูล...</div>
-        ) : (
-          <div className="mt-4 grid gap-5">
-            <div className="grid grid-cols-[940px_1fr] gap-6">
-              <section className="rounded-[24px] border border-violet-100 bg-white/92 p-6 shadow-[0_14px_34px_rgba(88,28,135,0.12)]">
-                <SlideRibbon index="1" label="Weekly Dashboard" />
-                <div className="mt-4 rounded-[18px] border border-violet-100 bg-violet-50/40 p-5">
-                  <div className="text-[15px] font-black text-slate-900">Current Viewing Scope</div>
-                  <div className="mt-1 text-[12px] font-semibold text-slate-500">Selected tab and current data scope</div>
-                  <div className="mt-5 grid grid-cols-5 gap-3">
-                    <ScopeBox label="View" value="Weekly Dashboard" />
-                    <ScopeBox label="Agent" value="All Agents" />
-                    <ScopeBox label="Month" value={slideData.month} />
-                    <ScopeBox label="Week" value={slideData.week} />
-                    <ScopeBox label="Merge Rows" value={`${slideData.mergeRows}`} />
-                  </div>
-                </div>
-
-                {sections.kpiSummary ? (
-                  <div className="mt-4 grid grid-cols-3 gap-4">
-                    <DashboardMiniKpi label="Cases" value={`${slideData.cases}`} sub="Case(s) in current view" />
-                    <DashboardMiniKpi label="Average Score" value={slideData.averageScore.toFixed(2)} sub="Average final score in current view" highlight />
-                    <DashboardMiniKpi label="Grade" value={slideData.grade} sub="Calculated from current average score" blue />
-                  </div>
-                ) : null}
-
-                <div className="mt-4 rounded-[18px] border border-violet-100 bg-white p-4">
-                  <div className="text-[16px] font-black text-slate-900">Summary Table</div>
-                  <div className="mt-1 text-[12px] font-semibold text-slate-500">Summary result based on current tab and filters</div>
-                  <div className="mt-4 overflow-hidden rounded-xl border border-violet-100">
-                    <div className="grid grid-cols-[1.6fr_0.8fr_1fr_0.8fr] bg-[#35126f] px-4 py-3 text-[14px] font-black text-white">
-                      <div>Week</div>
-                      <div className="text-center">Cases</div>
-                      <div className="text-center">Average Score</div>
-                      <div className="text-center">Grade</div>
-                    </div>
-                    <div className="grid grid-cols-[1.6fr_0.8fr_1fr_0.8fr] px-4 py-3 text-[15px] font-bold text-slate-900">
-                      <div>{slideData.week}</div>
-                      <div className="text-center">{slideData.cases}</div>
-                      <div className="text-center">{slideData.averageScore.toFixed(2)}</div>
-                      <div className="text-center"><span className="rounded-full bg-emerald-50 px-2 py-0.5 text-emerald-700">{slideData.grade}</span></div>
-                    </div>
-                  </div>
-                </div>
-              </section>
-
-              <section className="grid gap-4">
-                {sections.kpiSummary ? (
-                  <div className="grid grid-cols-2 gap-5">
-                    {topCards.map((item) => (
-                      <RightKpi key={item.label} icon={item.icon} label={item.label} value={item.value} small={item.small} />
-                    ))}
-                  </div>
-                ) : null}
-                <div className="rounded-[20px] border border-violet-100 bg-white/92 p-6 shadow-[0_12px_30px_rgba(88,28,135,0.10)]">
-                  <div className="flex items-center gap-4">
-                    <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[#35126f] text-2xl text-white">☆</span>
-                    <div className="text-[22px] font-black text-[#35126f]">สรุปไฮไลต์</div>
-                  </div>
-                  <ul className="mt-5 space-y-2 pl-8 text-[17px] font-semibold leading-snug text-slate-950">
-                    {insightRows.map((item) => <li key={item}>{item}</li>)}
-                  </ul>
-                </div>
-              </section>
-            </div>
-
-            <div className="grid grid-cols-[760px_1fr] gap-6">
-              <section className="rounded-[24px] border border-violet-100 bg-white/92 p-6 shadow-[0_14px_34px_rgba(88,28,135,0.12)]">
-                <SlideRibbon index="2" label="Monthly Analytics / Topic Performance" />
-                <div className="mt-4 text-[20px] font-black text-slate-950">Monthly Analytics</div>
-                <div className="text-[12px] font-semibold text-slate-500">Last 3 months for tracking monthly score movement</div>
-                <div className="mt-4 grid grid-cols-3 gap-3">
-                  <ScopeBox label="Visible Rows" value={`${resolvedMonthRows.length}`} />
-                  <ScopeBox label="Total Cases" value={`${resolvedMonthRows.reduce((sum, item) => sum + item.cases, 0)}`} blue />
-                  <ScopeBox label="Zero Case Rows" value="0" green />
-                </div>
-                <div className="mt-4 overflow-hidden rounded-xl border border-violet-100">
-                  <div className="grid grid-cols-[1.4fr_0.7fr_0.9fr_0.6fr_1fr] bg-slate-950 px-4 py-3 text-[13px] font-black uppercase tracking-[0.08em] text-white">
-                    <div>Month</div><div className="text-center">Cases</div><div className="text-center">Average</div><div className="text-center">Grade</div><div className="text-center">Progress</div>
-                  </div>
-                  {resolvedMonthRows.map((row) => (
-                    <div key={row.key} className="grid grid-cols-[1.4fr_0.7fr_0.9fr_0.6fr_1fr] items-center border-t border-slate-100 px-4 py-3 text-[15px] font-bold text-slate-900">
-                      <div>{row.label}</div>
-                      <div className="text-center">{row.cases}</div>
-                      <div className="text-center">{row.avg.toFixed(2)}</div>
-                      <div className="text-center"><span className="rounded-full bg-emerald-50 px-2 py-0.5 text-emerald-700">{row.grade}</span></div>
-                      <div className="flex items-center gap-2">
-                        <div className="h-2 flex-1 rounded-full bg-violet-100"><div className="h-full rounded-full bg-gradient-to-r from-violet-700 to-fuchsia-500" style={{ width: `${Math.max(8, (row.cases / maxMonthCases) * 100)}%` }} /></div>
-                        <span className="w-8 text-right text-[10px] text-slate-500">{row.cases}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-
-              <section className="rounded-[24px] border border-violet-100 bg-white/92 p-6 shadow-[0_14px_34px_rgba(88,28,135,0.12)]">
-                <div className="text-[20px] font-black text-slate-950">Topic Performance</div>
-                <div className="text-[12px] font-semibold text-slate-500">Average topic score in current view</div>
-                <div className="mt-4 overflow-hidden rounded-xl border border-violet-100">
-                  <div className="grid grid-cols-[0.5fr_2.2fr_0.9fr_0.7fr_0.8fr] bg-[#35126f] px-4 py-3 text-[13px] font-black text-white">
-                    <div className="text-center">Topic</div><div>Description</div><div className="text-center">Avg Score</div><div className="text-center">Max</div><div className="text-center">Avg %</div>
-                  </div>
-                  {(sections.topicPerformance ? topicRows.slice(0, 4) : []).map((row, index) => (
-                    <div key={row.id} className="grid grid-cols-[0.5fr_2.2fr_0.9fr_0.7fr_0.8fr] border-t border-slate-100 px-4 py-3 text-[15px] font-bold text-slate-900">
-                      <div className="text-center">{index + 1}</div>
-                      <div>{truncateText(row.title, 48)}</div>
-                      <div className="text-center">{row.score.toFixed(2)}</div>
-                      <div className="text-center">{row.max.toFixed(0)}</div>
-                      <div className="text-center">{row.percent.toFixed(2)}%</div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
+  return <div className="relative h-[900px] w-[1600px] overflow-hidden bg-white px-[54px] pb-[28px] pt-[38px] font-['Kanit'] text-[#142B4D]">
+    <div className="flex h-[92px] items-start justify-between"><div className="flex gap-4"><span className="mt-1 h-[54px] w-[6px] rounded-full bg-[#5B35C9]" /><div><h2 className="text-[34px] font-black leading-none">QA Weekly Comparison</h2><p className="mt-3 text-[15px] font-semibold text-[#596D8B]">{scopeLabel} | {comparisonWeek.label} เทียบกับ {selectedWeek.label}</p></div></div><div className="mr-4 text-right"><img src="/robinhood-logo.png" alt="Robinhood" className="ml-auto h-[38px] w-auto object-contain" /><div className="mt-1 text-[11px] font-bold tracking-wide text-[#596D8B]">QA PERFORMANCE REVIEW</div></div></div>
+    <div className="grid grid-cols-5 gap-[14px]">{kpis.map((item) => <div key={item.label} className={`h-[92px] rounded-xl border border-[#DCE3EE] border-t-[4px] ${item.accent} bg-white px-5 py-3`}><div className="text-[12px] font-black tracking-wide text-[#596D8B]">{item.label}</div><div className={`mt-1 flex items-end justify-between gap-3 ${item.green ? "text-[#009B76]" : "text-[#142B4D]"}`}><span className="text-[30px] font-black leading-none">{item.value}</span><span className="max-w-[125px] pb-1 text-right text-[10px] font-bold leading-tight text-[#596D8B]">{item.note}</span></div></div>)}</div>
+    <div className="mt-4 grid h-[130px] grid-cols-[1.62fr_0.95fr] gap-4"><section className="rounded-xl border border-[#DCE3EE] bg-[#F6F6FB] px-5 py-4"><h3 className="text-[17px] font-black">WEEK-OVER-WEEK SCORE</h3><div className="mt-4 grid grid-cols-[145px_1fr_96px_150px] items-center gap-x-4 gap-y-4 text-[13px] font-bold"><span className="text-[#596D8B]">{comparisonWeek.label}</span><ScoreBar value={comparisonAverage} color="#9C7CE7" /><span className="text-right text-[18px] font-black">{comparisonAverage.toFixed(2)}%</span><div className={`row-span-2 flex h-[58px] items-center justify-center rounded-xl text-[20px] font-black ${weekChange !== null && weekChange >= 0 ? "bg-[#E9F7F1] text-[#009B76]" : "bg-[#FBECEF] text-[#C23B5A]"}`}>{weekChange === null ? "ไม่มีข้อมูลเทียบ" : `${weekChange >= 0 ? "เพิ่มขึ้น" : "ลดลง"} ${Math.abs(weekChange).toFixed(2)}%`}</div><span className="text-[#596D8B]">{selectedWeek.label}</span><ScoreBar value={currentAverage} color="#5B35C9" /><span className="text-right text-[18px] font-black">{currentAverage.toFixed(2)}%</span></div></section><section className="rounded-xl border border-[#DCE3EE] bg-white px-5 py-4"><h3 className="text-[17px] font-black">REVIEW STATUS &amp; GRADE MIX</h3><div className="mt-3 flex justify-between text-[13px] font-black"><span className="text-[#5B35C9]">Original {reviewCounts.original} เคส ({originalPct.toFixed(2)}%)</span><span className="text-[#596D8B]">Revised {reviewCounts.revised} เคส ({revisedPct.toFixed(2)}%)</span></div><div className="my-3 h-px bg-[#DCE3EE]" /><div className="flex items-center justify-between text-[13px] font-black"><span className="text-[#596D8B]">Grade Mix</span><span>{["A", "B", "C", "D", "F", "G"].map((grade) => `${grade} ${grades[grade] || 0}`).join("   ")}</span></div></section></div>
+    <div className="mt-4 flex items-end justify-between"><h3 className="text-[19px] font-black">TOPIC PERFORMANCE</h3><span className="text-[12px] font-semibold text-[#596D8B]">ประเด็นข้อผิดพลาดที่ตรวจพบ (% ของเคสทั้งหมด {currentCases.length} เคส)</span></div>
+    <div className="mt-2 grid h-[380px] grid-cols-2 grid-rows-2 gap-3">{Array.from({ length: 4 }).map((_, index) => <TopicPreviewCard key={topics[index]?.id || index} index={index} topic={topics[index]} selectedWeek={selectedWeek} comparisonWeek={comparisonWeek} />)}</div>
+    <div className="absolute bottom-[20px] left-[54px] right-[54px] border-t border-[#DCE3EE] pt-2 text-[10px] font-semibold text-[#596D8B]">ข้อผิดพลาดแต่ละประเภท (%) = สัดส่วนเคสจาก {currentCases.length} เคส (1 เคสพบได้หลายประเภท) | % การเปลี่ยนแปลงเทียบกับสัปดาห์ก่อน</div>
+  </div>;
 }
-
-function SlideRibbon({ index, label }: { index: string; label: string }) {
-  return (
-    <div className="-ml-6 -mt-6 inline-flex min-w-[250px] items-center gap-4 rounded-br-2xl rounded-tl-[22px] bg-gradient-to-r from-[#35126f] to-[#9d3df2] px-6 py-3 text-white">
-      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-[18px] font-black text-[#35126f]">{index}</span>
-      <span className="text-[22px] font-black">{label}</span>
-    </div>
-  );
-}
-
-function ScopeBox({ label, value, blue = false, green = false }: { label: string; value: string; blue?: boolean; green?: boolean }) {
-  const labelColor = green ? "text-emerald-600" : blue ? "text-sky-600" : "text-violet-700";
-  return (
-    <div className="min-w-0 rounded-xl border border-violet-100 bg-white px-4 py-3">
-      <div className={`text-[12px] font-black uppercase ${labelColor}`}>{label}</div>
-      <div className="mt-1 text-[15px] font-black leading-tight text-slate-950">{value}</div>
-    </div>
-  );
-}
-
-function DashboardMiniKpi({ label, value, sub, highlight = false, blue = false }: { label: string; value: string; sub: string; highlight?: boolean; blue?: boolean }) {
-  const valueColor = blue ? "text-sky-700" : highlight ? "text-violet-700" : "text-slate-950";
-  return (
-    <div className="rounded-[18px] border border-violet-100 bg-white px-6 py-4">
-      <div className="text-[15px] font-bold text-slate-500">{label}</div>
-      <div className={`mt-2 text-[42px] font-black leading-none ${valueColor}`}>{value}</div>
-      <div className="mt-2 text-[12px] font-semibold text-slate-500">{sub}</div>
-    </div>
-  );
-}
-
-function RightKpi({ icon, label, value, small = false }: { icon: string; label: string; value: string; small?: boolean }) {
-  return (
-    <div className="flex min-h-[90px] items-center gap-5 rounded-[20px] border border-violet-100 bg-white/92 px-6 py-4 shadow-[0_10px_24px_rgba(88,28,135,0.08)]">
-      <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-700 to-[#35126f] text-2xl font-black text-white">{icon}</div>
-      <div className="min-w-0">
-        <div className="text-[17px] font-semibold text-slate-900">{label}</div>
-        <div className={`mt-1 font-black leading-none text-slate-950 ${small ? "text-[17px]" : "text-[30px]"}`}>{value}</div>
-      </div>
-    </div>
-  );
-}
-
-function SlideKpi({ label, value, sub, green = false }: { label: string; value: string; sub: string; green?: boolean }) {
-  return (
-    <div className="rounded-2xl border border-violet-100 bg-white px-4 py-3 shadow-[0_12px_28px_rgba(88,28,135,0.08)]">
-      <div className="text-[13px] font-black text-slate-700">{label}</div>
-      <div className={`mt-1 text-[32px] font-black leading-none ${green ? "text-emerald-700" : "text-violet-800"}`}>{value}</div>
-      <div className="mt-2 text-[12px] font-semibold text-slate-500">{sub}</div>
-    </div>
-  );
-}
-
-function MiniMetric({ label, value, highlight = false }: { label: string; value: string; highlight?: boolean }) {
-  return (
-    <div className="rounded-xl bg-white px-3 py-2">
-      <div className="text-[11px] font-bold text-slate-500">{label}</div>
-      <div className={`mt-1 text-[21px] font-black ${highlight ? "text-violet-800" : "text-slate-800"}`}>{value}</div>
-    </div>
-  );
-}
-
-function SlidePanel({ title, tone, children }: { title: string; tone: "violet" | "green" | "red"; children: React.ReactNode }) {
-  const toneClass =
-    tone === "green"
-      ? "border-emerald-100 bg-emerald-50/70 text-emerald-900"
-      : tone === "red"
-        ? "border-rose-100 bg-rose-50/70 text-rose-900"
-        : "border-violet-100 bg-violet-50/70 text-violet-950";
-  return (
-    <div className={`rounded-2xl border p-4 ${toneClass}`}>
-      <div className="mb-3 text-[16px] font-black">{title}</div>
-      {children}
-    </div>
-  );
-}
-
-function SlideTopicList({ title, tone, rows }: { title: string; tone: "green" | "red"; rows: TopicRow[] }) {
-  const color = tone === "green" ? "text-emerald-700 bg-emerald-50 border-emerald-100" : "text-rose-700 bg-rose-50 border-rose-100";
-  return (
-    <SlidePanel title={title} tone={tone}>
-      <div className="space-y-2">
-        {rows.length ? (
-          rows.map((item, index) => (
-            <div key={item.id} className="flex items-center gap-2 rounded-lg bg-white px-3 py-2">
-              <div className={`flex h-6 w-6 items-center justify-center rounded-full border text-[11px] font-black ${color}`}>{index + 1}</div>
-              <div className="min-w-0 flex-1 text-[13px] font-black leading-tight">{truncateText(item.title, 32)}</div>
-              <div className={`text-[15px] font-black ${tone === "green" ? "text-emerald-700" : "text-rose-700"}`}>{item.percent.toFixed(1)}%</div>
-            </div>
-          ))
-        ) : (
-          <div className="text-[13px] text-slate-500">ยังไม่มีข้อมูลหัวข้อ</div>
-        )}
-      </div>
-    </SlidePanel>
-  );
+function ScoreBar({ value, color }: { value: number; color: string }) { return <div className="h-[12px] overflow-hidden rounded-full bg-[#E8EAF1]"><div className="h-full rounded-full" style={{ width: `${Math.max(2, Math.min(100, value))}%`, backgroundColor: color }} /></div>; }
+function TopicPreviewCard({ index, topic, selectedWeek, comparisonWeek }: { key?: React.Key; index: number; topic?: TopicComparison; selectedWeek: WeekBucket; comparisonWeek: WeekBucket }) {
+  if (!topic) return <div className="rounded-xl border border-dashed border-[#DCE3EE] bg-white" />;
+  const changeText = topic.changePercent === null ? "ไม่มีข้อมูลเทียบ" : `${topic.changePercent >= 0 ? "เพิ่มขึ้น" : "ลดลง"} ${Math.abs(topic.changePercent).toFixed(2)}%`;
+  const tags = topic.tags.length ? topic.tags.slice(0, 6) : [{ name: "ไม่พบข้อผิดพลาด", count: 0, percent: 0 }];
+  return <section className="overflow-hidden rounded-xl border border-[#DCE3EE] bg-white px-5 py-3"><div className="flex items-center gap-3"><span className="flex h-[30px] w-[38px] items-center justify-center rounded-lg bg-[#F6F3FD] text-[15px] font-black text-[#5B35C9]">{String(index + 1).padStart(2, "0")}</span><h4 className="min-w-0 flex-1 truncate text-[18px] font-black">{topic.title}</h4></div><div className="mt-2 grid grid-cols-[1fr_1fr_150px] rounded-lg bg-[#F6F6FB] px-3 py-2 text-[13px] font-black"><span>{comparisonWeek.label} {topic.previousPercent.toFixed(2)}%</span><span className="text-[#5B35C9]">{selectedWeek.label} {topic.currentPercent.toFixed(2)}%</span><span className={`text-right ${topic.changePercent !== null && topic.changePercent >= 0 ? "text-[#009B76]" : "text-[#C23B5A]"}`}>{changeText}</span></div><div className="mt-2 space-y-1">{tags.map((tag, tagIndex) => <div key={`${tag.name}-${tagIndex}`} className={`flex items-center justify-between gap-4 text-[13px] leading-tight ${tagIndex === 0 ? "font-black text-[#142B4D]" : "font-semibold text-[#596D8B]"}`}><span className="truncate">{tag.name}</span><span className={tagIndex === 0 ? "font-black text-[#5B35C9]" : "text-[#596D8B]"}>{tag.percent.toFixed(2)}%</span></div>)}</div></section>;
 }
