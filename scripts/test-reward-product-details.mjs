@@ -42,14 +42,16 @@ try{
  const tiles=[...document.querySelectorAll("[data-reward-item]")];
  assert.equal(tiles.length,4);
  const ids=tiles.slice().sort((a,b)=>Number(a.style.order)-Number(b.style.order)).map(x=>x.dataset.rewardItem);
- assert.deepEqual(ids,["seven-100","netflix-1m","amazon-55","punthai-65"]);
+ const coffeePromo=Date.now()>=Date.parse("2026-11-24T00:00:00+07:00")&&Date.now()<Date.parse("2026-12-01T00:00:00+07:00");
+ assert.deepEqual(ids,coffeePromo?["amazon-55","punthai-65","seven-100","netflix-1m"]:["seven-100","netflix-1m","amazon-55","punthai-65"]);
  assert.equal(calls.length,0,"Reward Center is read-only until redemption confirmation");
  await click(document.querySelector('[data-reward-item="punthai-65"]'));
  let popup=document.querySelector(".sr-modal");
  assert.ok(popup);
  assert.ok(popup.querySelector('[data-sr-reward-description="product"]'));
  assert.match(popup.textContent,/เติมความสดชื่นกับพันธุ์ไทย/);
- assert.match(popup.textContent,/6,500/);
+ assert.match(popup.textContent,coffeePromo?/220/:/6,500/);
+ if(coffeePromo&&Date.now()<Date.parse("2026-11-25T00:00:00+07:00")){assert.ok(popup.querySelector(".sr-primary").disabled);assert.match(popup.textContent,/เปิดให้แลก 25/);}
  assert.match(popup.textContent,/65/);
  assert.ok(!popup.textContent.includes("วิธีใช้งาน Item"));
  assert.ok(!popup.textContent.includes("กรอกเลขที่ใบเสร็จ"));

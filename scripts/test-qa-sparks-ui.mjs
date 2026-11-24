@@ -152,13 +152,14 @@ try{
   const displayedOrder=[...main.querySelectorAll(".qa-sparks-reward-grid .qa-sparks-mini-item")]
     .sort((a,b)=>Number(a.style.order)-Number(b.style.order))
     .map(item=>item.dataset.rewardItem);
-  assert.deepEqual(displayedOrder,["seven-100","netflix-1m","truemoney-20","amazon-55","punthai-65","qa-access-auto-pass","typing-relief","announcement-shield","mining-lucky-boost"],
+  const coffeePromo=Date.now()>=Date.parse("2026-11-24T00:00:00+07:00")&&Date.now()<Date.parse("2026-12-01T00:00:00+07:00");
+  assert.deepEqual(displayedOrder,coffeePromo?["amazon-55","punthai-65","seven-100","netflix-1m","truemoney-20","qa-access-auto-pass","typing-relief","announcement-shield","mining-lucky-boost"]:["seven-100","netflix-1m","truemoney-20","amazon-55","punthai-65","qa-access-auto-pass","typing-relief","announcement-shield","mining-lucky-boost"],
     "Reward Center must display all six rewards from most Sparks to least, including TrueMoney's displayed price");
   await act(async()=>main.querySelector('[data-reward-item="punthai-65"]').dispatchEvent(new MouseEvent("click",{bubbles:true})));
   const punthaiPopup=document.querySelector(".sr-modal");
   assert.ok(punthaiPopup && punthaiPopup.textContent.includes("รายละเอียดรางวัล"),
     "new reward details must read like a product promotion");
-  assert.ok(punthaiPopup.textContent.includes("6,500") && punthaiPopup.textContent.includes("65"),
+  assert.ok(punthaiPopup.textContent.includes(coffeePromo?"220":"6,500") && punthaiPopup.textContent.includes("65"),
     "product details show Sparks and benefit");
   assert.ok(!punthaiPopup.textContent.includes("วิธีใช้งาน Item") &&
     !punthaiPopup.textContent.includes("กดใช้ Item ก่อนวันหมดอายุ"),
