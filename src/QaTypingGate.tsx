@@ -74,6 +74,8 @@ export default function QaTypingGate({
   const [rewardChoice, setRewardChoice] = useState<"checking" | "offer" | "typing">("typing");
   const [rewardOwned, setRewardOwned] = useState(0);
   const [autoPassOwned,setAutoPassOwned] = useState(0);
+  const [autoPassStatus,setAutoPassStatus] = useState<"loading"|"ready"|"error">("loading");
+  const [rewardRefresh,setRewardRefresh] = useState(0);
   const [confirmAutoPass,setConfirmAutoPass] = useState(false);
   const [rewardBalance, setRewardBalance] = useState(0);
   const [rewardError, setRewardError] = useState("");
@@ -97,10 +99,12 @@ export default function QaTypingGate({
     setRewardError("");
     setConfirmRewardPurchase(false);
     setRewardOwned(0);
+    setAutoPassStatus("loading");
     setAutoPassOwned(0);
     setConfirmAutoPass(false);
     setRewardBalance(0);
     if (!challenge || !enabled || !currentUser?.sessionId) {
+      setAutoPassStatus("error");
       setRewardChoice("typing");
       return;
     }
@@ -112,15 +116,17 @@ export default function QaTypingGate({
       if(!active)return;
       const autoPass=autoPassResult.status==="fulfilled"?autoPassResult.value:null;
       const relief=reliefResult.status==="fulfilled"?reliefResult.value:null;
-      setAutoPassOwned(Number(autoPass?.owned)||0);
+      const validAutoPass=autoPass!==null&&Number.isFinite(Number(autoPass.owned))&&autoPass.owned!==undefined;
+      setAutoPassStatus(validAutoPass?"ready":"error");
+      if(validAutoPass)setAutoPassOwned(Number(autoPass.owned)||0);
       setRewardOwned(Number(relief?.owned)||0);
       setRewardBalance(Number(autoPass?.balance??relief?.balance)||0);
-      if(autoPassResult.status==="rejected"&&challenge.mode==="sentence")
-        setRewardError("ตรวจสอบ Auto-Pass ไม่สำเร็จ สามารถเลือกพิมพ์ตามปกติได้");
-      setRewardChoice(challenge.mode==="word"||Number(autoPass?.owned)>0?"offer":"typing");
+      if(!validAutoPass)
+        setRewardError("ตรวจสอบ Auto-Pass ไม่สำเร็จ กรุณาตรวจสอบสิทธิ์ใหม่ หรือพิมพ์ตามปกติ");
+      setRewardChoice(challenge.mode==="word"||!validAutoPass||Number(autoPass?.owned)>0?"offer":"typing");
     });
     return () => { active = false; };
-  }, [username, currentUser?.sessionId, challenge?.id, challenge?.assignedAt, challenge?.mode, enabled]);
+  }, [username, currentUser?.sessionId, challenge?.id, challenge?.assignedAt, challenge?.mode, enabled, rewardRefresh]);
 
   useEffect(() => {
     attemptVersionRef.current += 1;
@@ -214,7 +220,7 @@ export default function QaTypingGate({
   const contentLabel = isSentence ? "ประโยค" : "คำ";
 
   const useAutoPass = async () => {
-    if(!currentUser?.sessionId||!challenge||rewardBusy||autoPassOwned<1)return;
+    if(!currentUser?.sessionId||!challenge||rewardBusy||attemptPhaseRef.current==="checking"||autoPassStatus!=="ready"||autoPassOwned<1)return;
     setRewardBusy(true);setRewardError("");
     try{
       const result=await qaAutoPassAction("auto-pass-use",username,currentUser.sessionId,{challengeId:challenge.id});
@@ -333,7 +339,7 @@ export default function QaTypingGate({
           {rewardChoice === "checking" ? <p className="mt-4 text-sm text-slate-600">กำลังตรวจสอบ Item ที่พร้อมใช้งาน...</p>
             : <>
               <p className="mt-3 text-sm text-slate-600">ภารกิจนี้กำหนดให้พิมพ์ <strong>{challenge.repeatCount} {challenge.mode==="sentence"?"รอบ":"คำ"}</strong> · เลือกใช้ Auto-Pass เพื่อข้ามทั้งภารกิจ หรือพิมพ์ตามปกติ</p>
-              {autoPassOwned>0?<div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
+              {autoPassStatus==="ready"&&autoPassOwned>0?<div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
                 <strong className="text-sm text-amber-900">QA Access Auto-Pass · คงเหลือ {autoPassOwned} สิทธิ์</strong>
                 <p className="mt-1 text-xs text-amber-800">ใช้ 1 สิทธิ์เพื่อผ่าน {challenge.mode==="sentence"?"Sentence Mode":"Word Mode"} โดยไม่ต้องพิมพ์ · บันทึก Pass via Auto-Pass</p>
                 {confirmAutoPass?<div className="mt-3">
@@ -347,6 +353,8 @@ export default function QaTypingGate({
                 </div>:<button type="button" onClick={()=>setConfirmAutoPass(true)} disabled={rewardBusy}
                   className="mt-3 w-full rounded-xl bg-emerald-700 px-4 py-3 text-sm font-black text-white disabled:opacity-50">ใช้ QA Access Auto-Pass 1 สิทธิ์</button>}
               </div>:null}
+              {autoPassStatus==="error"?<div className="mt-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900" role="status">ยังตรวจสอบสิทธิ์ Auto-Pass ไม่สำเร็จ<button type="button" disabled={rewardBusy||!currentUser?.sessionId} onClick={()=>setRewardRefresh(v=>v+1)} className="mt-2 w-full rounded-lg bg-violet-700 px-3 py-2 font-bold text-white disabled:opacity-50">ตรวจสอบสิทธิ์ใหม่</button></div>:null}
+              {rewardError&&challenge.mode!=="word"?<p role="alert" className="mt-3 text-sm font-bold text-rose-700">{rewardError}</p>:null}
               {challenge.mode==="word"?<>
               <p className="mt-3 text-xs text-violet-700">Typing Relief ลดจำนวนคำพิมพ์ 60% ใน Word Mode โดยยังต้องพิมพ์ส่วนที่เหลือให้ถูกต้อง</p>
               <div className="mt-4 rounded-xl bg-violet-50 p-4 text-sm font-semibold text-violet-900">
@@ -384,6 +392,7 @@ export default function QaTypingGate({
         <div className="h-1.5 bg-gradient-to-r from-violet-600 via-fuchsia-500 to-indigo-500" />
         <div className="max-h-[calc(100vh-2rem)] overflow-y-auto p-5 sm:p-7 lg:p-9">
           <div className="mx-auto max-w-[860px]">
+            {rewardChoice==="typing"?<div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-violet-200 bg-violet-50 p-3 text-sm"><span className="font-bold text-violet-900">QA Access Auto-Pass · {autoPassStatus==="ready"?`คงเหลือ ${autoPassOwned} สิทธิ์`:autoPassStatus==="loading"?"กำลังตรวจสอบสิทธิ์":"ยังตรวจสอบสิทธิ์ไม่ได้"}</span><button type="button" disabled={rewardBusy||checking||!currentUser?.sessionId} onClick={()=>{setConfirmAutoPass(false);setRewardRefresh(v=>v+1);}} className="rounded-lg bg-violet-700 px-4 py-2 font-bold text-white disabled:opacity-50">{autoPassStatus==="ready"&&autoPassOwned>0?"ใช้ QA Access Auto-Pass":"ตรวจสอบ Item / สิทธิ์ใหม่"}</button></div>:null}
             <div className="text-center">
               <div className="inline-flex items-center gap-2 rounded-xl bg-violet-100 px-4 py-2 text-xs font-black uppercase tracking-[0.12em] text-violet-700">
                 <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-violet-600 text-white">⌨</span>
