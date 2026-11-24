@@ -12,7 +12,8 @@ const REWARDS:SpecialReward[]=[
  {id:"amazon-55",title:"เครื่องดื่ม Café Amazon",brand:"Café Amazon",price:8000,maxTHB:55,type:"receipt",monthlyLimit:1},
  {id:"seven-100",title:"ซื้อสินค้าที่ 7-Eleven",brand:"7-Eleven",price:20000,maxTHB:100,type:"receipt",monthlyLimit:1}
 ];
-const coffeePromoActive=(now=Date.now())=>now>=Date.parse("2026-11-25T00:00:00+07:00")&&now<Date.parse("2026-12-01T00:00:00+07:00");
+const coffeePromoActive=(now=Date.now())=>now>=Date.parse("2026-11-24T00:00:00+07:00")&&now<Date.parse("2026-12-01T00:00:00+07:00");
+const coffeePromoLocked=(now=Date.now())=>coffeePromoActive(now)&&now<Date.parse("2026-11-25T00:00:00+07:00");
 const coffeePromoId=(id:string)=>id==="punthai-65"||id==="amazon-55";
 const PRODUCT_COPY:Record<string,{headline:string;description:string;benefit:string;terms:string}>={
  "punthai-65":{
@@ -82,7 +83,7 @@ export default function SpecialRewardCenter({mode,username,sessionId,balance,loa
  const pending=useRef(false);pending.current=busy;
  const [promoNow,setPromoNow]=useState(Date.now);
  useEffect(()=>{const timer=setInterval(()=>setPromoNow(Date.now()),1000);return ()=>clearInterval(timer);},[]);
- const promoCatalog=REWARDS.map(r=>({...r,normalPrice:r.price,price:coffeePromoActive(promoNow)&&coffeePromoId(r.id)?220:r.price}));
+ const promoCatalog=REWARDS.map(r=>({...r,normalPrice:r.price,promoLocked:coffeePromoId(r.id)&&coffeePromoLocked(promoNow),price:coffeePromoActive(promoNow)&&coffeePromoId(r.id)?220:r.price}));
  const rewardOrder=(r:typeof promoCatalog[number])=>r.price!==r.normalPrice?30000+r.normalPrice:r.normalPrice;
  const reward=promoCatalog.find(r=>r.id===selectedReward);
  const item=items.find(i=>i.itemId===selectedItem)||null;
@@ -135,7 +136,7 @@ export default function SpecialRewardCenter({mode,username,sessionId,balance,loa
    finally{setBusy(false);}
  };
  const redeem=async()=>{
-   if(!reward||busy)return;
+   if(!reward||busy||(coffeePromoId(reward.id)&&coffeePromoLocked()))return;
    if(!requestId.current)requestId.current=newRequestId();
    await handle("special-rewards-redeem",{rewardId:reward.id,requestId:requestId.current});
  };
@@ -151,7 +152,7 @@ export default function SpecialRewardCenter({mode,username,sessionId,balance,loa
     onClick={e=>open(r.id,null,e)}>
     <span className="qa-sparks-mini-art qa-sparks-mini-art--special"><RewardImage id={r.id}/></span>
     <strong className="qa-sparks-mini-name">{r.title}</strong>
-    <span className="qa-sparks-mini-value qa-sparks-shop-price">{r.price!==r.normalPrice?<><small>Special Discount · ถึง 30 พ.ย. 2569</small><small><s>{fmt(r.normalPrice)} Sparks</s></small></>:null}<strong>{fmt(r.price)} Sparks</strong></span>
+    <span className="qa-sparks-mini-value qa-sparks-shop-price">{r.price!==r.normalPrice?<><small>Special Discount · ถึง 30 พ.ย. 2569</small>{r.promoLocked?<small>เปิดให้แลก 25 พ.ย. 2569</small>:null}<small><s>{fmt(r.normalPrice)} Sparks</s></small></>:null}<strong>{fmt(r.price)} Sparks</strong></span>
   </button>):<>
    {!inventoryLoaded&&loaded&&!error?<span role="status" className="qa-sparks-inventory-progress">กำลังโหลด Item...</span>:null}
    {error&&!opened?<span role="alert" className="sr-error">ไม่สามารถโหลด Item: {error}</span>:null}
@@ -213,10 +214,10 @@ export default function SpecialRewardCenter({mode,username,sessionId,balance,loa
       {mode==="reward"?<div className="sr-actions">
        {confirm?<><p>ยืนยันแลกรางวัลนี้ด้วย {fmt(reward.price)} Sparks ใช่หรือไม่?</p>
          <button type="button" onClick={()=>setConfirm(false)} disabled={busy}>กลับ</button>
-         <button type="button" className="sr-primary" onClick={()=>void redeem()} disabled={!loaded||busy||balance<reward.price}>{busy?"กำลังบันทึก...":"ยืนยันแลก"}</button></>:
+         <button type="button" className="sr-primary" onClick={()=>void redeem()} disabled={!loaded||busy||reward.promoLocked||balance<reward.price}>{busy?"กำลังบันทึก...":"ยืนยันแลก"}</button></>:
         <><span>คงเหลือ {fmt(balance)} Sparks</span><button type="button" className="sr-primary"
-          disabled={!loaded||busy||balance<reward.price} onClick={()=>setConfirm(true)}>
-          {balance<reward.price?"Sparks ไม่เพียงพอ":"แลกเป็น Item"}</button></>}</div>:null}
+          disabled={!loaded||busy||reward.promoLocked||balance<reward.price} onClick={()=>setConfirm(true)}>
+          {reward.promoLocked?"เปิดให้แลก 25 พ.ย. 2569":balance<reward.price?"Sparks ไม่เพียงพอ":"แลกเป็น Item"}</button></>}</div>:null}
       {mode==="inventory"&&item?.status==="unused"&&!expired(item)?<button type="button"
        className="sr-primary sr-block" disabled={busy} onClick={()=>void handle("special-rewards-activate",{itemId:item.itemId})}>
        {busy?"กำลังบันทึก...":"กดใช้ Item"}</button>:null}
