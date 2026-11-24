@@ -9,7 +9,7 @@ export const SPECIAL_REWARDS=Object.freeze([
  {id:"amazon-55",title:"เครื่องดื่ม Café Amazon",brand:"Café Amazon",price:8000,maxTHB:55,type:"receipt",monthlyLimit:1},
  {id:"seven-100",title:"ซื้อสินค้าที่ 7-Eleven",brand:"7-Eleven",price:20000,maxTHB:100,type:"receipt",monthlyLimit:1}
 ]);
-const coffeePromoActive=(now=Date.now())=>now>=Date.parse("2026-11-24T00:00:00+07:00")&&now<Date.parse("2026-12-01T00:00:00+07:00");
+const coffeePromoActive=(now=Date.now())=>now>=Date.parse("2026-11-25T00:00:00+07:00")&&now<Date.parse("2026-12-01T00:00:00+07:00");
 const coffeePromoId=id=>id==="punthai-65"||id==="amazon-55";
 const pricedReward=(r,now=Date.now())=>coffeePromoId(r.id)&&coffeePromoActive(now)?{...r,price:220}:r;
 const VALIDITY=30*86400000,MAX_ITEMS=200;
