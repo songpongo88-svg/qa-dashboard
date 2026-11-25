@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import {transactionText} from "./sparksTransactionText.mjs";
 import type { SparksHistoryItem } from "./qaSparksStore";
 import {isItemHistoryEntry,itemHistoryLabel,itemHistoryDeltaText} from "./sparksItemHistory.mjs";
 
@@ -42,7 +43,7 @@ export function memberHistoryText(item: SparksHistoryItem, reversedTestIds: Read
     detail: "โอนเงิน TrueMoney 20 บาทสำเร็จ",
     note: item.detail === "Admin ยืนยันโอน TrueMoney 20 บาทสำเร็จ" ? "" : item.detail,
   };
-  return { title: item.title, detail: item.detail, note: "" };
+  return { ...transactionText(item), note: "" };
 }
 
 function formatDate(date: string) {

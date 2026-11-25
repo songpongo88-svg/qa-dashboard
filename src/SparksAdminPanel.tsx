@@ -10,6 +10,7 @@ import SparksAdminTimeline from "./SparksAdminTimeline";
 import { SparksOwnerAccessControl } from "./SparksAccessGate";
 import {isItemHistoryEntry,itemHistoryLabel,itemHistoryDeltaText} from "./sparksItemHistory.mjs";
 import "./sparksAdminWorkspace.css";
+import {transactionText,REFUND_REASONS} from "./sparksTransactionText.mjs";
 import { assertFirestoreReadAllowed, isFirestoreQuotaError, noteFirestoreReadError } from "./firestoreReadPolicy";
 
 type AdminUser = {
@@ -125,6 +126,7 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount,
   const [notice, setNotice] = useState("");
   const [operation, setOperation] = useState<Operation | null>(null);
   const [amount, setAmount] = useState("");
+  const [refundReason,setRefundReason]=useState("");
   const [reason, setReason] = useState("");
   const [referenceId, setReferenceId] = useState("");
   const [requestId, setRequestId] = useState("");
@@ -451,6 +453,7 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount,
     setAmount(kind === "refund" && item ? String(-item.amount) : "");
     setReferenceId(kind === "refund" ? String(item?.id || "") : "");
     setReason("");
+    setRefundReason("");
     setRequestId(createRequestId());
     setConfirm(false);
     setNotice("");
@@ -464,6 +467,7 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount,
   function beginConfirmation() {
     const value = Number(amount);
     if (!chosen || !operation) return;
+    if(operation==="refund"&&!refundReason){setError("กรุณาเลือกเหตุผลการคืนคะแนน");return;}
     if (reason.trim().length < 5) { setError("กรุณาระบุเหตุผลอย่างน้อย 5 ตัวอักษร"); return; }
     if (operation !== "refund" && (!Number.isSafeInteger(value) || value < 1 || value > 100000)) {
       setError("ระบุจำนวน Sparks ตั้งแต่ 1–100,000"); return;
@@ -663,10 +667,10 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount,
           {firestoreLimited ? <p className="qa-sparks-admin-empty">ประวัติล่าสุดยังตรวจสอบไม่ได้ระหว่างที่ Firestore เกินโควตา</p> : null}
           <div className="qa-sparks-admin-history-list">
             {history.map((entry) => <article className="qa-sparks-admin-history-row" key={entry.id}>
-              <div><strong>{itemHistoryLabel(entry)?.name||entry.title}</strong><small>{thaiDate(entry.createdAt)}</small>
+              <div><strong>{transactionText(entry).title||itemHistoryLabel(entry)?.name}</strong><small>{thaiDate(entry.createdAt)}</small>
                 {isItemHistoryEntry(entry)?<p><b>{itemHistoryLabel(entry)?.action}</b> · Item {itemHistoryDeltaText(entry)}
                   {itemHistoryLabel(entry)?.extra?" · "+itemHistoryLabel(entry)?.extra:""}</p>:null}
-                <p>{entry.detail || "—"}{entry.performedBy ? " · โดย " + entry.performedBy : ""}</p>
+                <p>{transactionText(entry).detail || "—"}{entry.performedBy ? " · โดย " + entry.performedBy : ""}</p>
                 {entry.reason && entry.reason !== entry.detail ? <p>เหตุผล: {entry.reason}</p> : null}
                 {entry.referenceId ? <small>อ้างอิง: {entry.referenceId}</small> : null}
                 {entry.status ? <small>สถานะ: {entry.status}</small> : null}
@@ -730,7 +734,7 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount,
         <input id="qa-sparks-adjust-amount" type="number" min="1" max="100000" step="1" value={amount} disabled={confirm || operation === "refund" || saving} onChange={(e) => setAmount(e.target.value)}/>
         {operation === "refund" ? <p className="qa-sparks-admin-reference">อ้างอิงรายการแลก: {referenceId}</p> : null}
         <label htmlFor="qa-sparks-adjust-reason">เหตุผล (บังคับ)</label>
-        <textarea id="qa-sparks-adjust-reason" rows={3} maxLength={500} value={reason} disabled={confirm || saving} onChange={(e) => setReason(e.target.value)} placeholder="ระบุเหตุผลที่เพิ่ม คืน หรือปรับลดคะแนน"/>
+        {operation==="refund"?<><select id="qa-sparks-adjust-reason" value={refundReason} disabled={confirm||saving} onChange={e=>{setRefundReason(e.target.value);setReason(e.target.value==="other"?"":e.target.value);}}><option value="">เลือกเหตุผลการคืนคะแนน</option>{REFUND_REASONS.map(r=><option key={r} value={r}>{r}</option>)}<option value="other">อื่น ๆ (ระบุเหตุผลเพิ่มเติม)</option></select>{refundReason==="other"?<textarea rows={3} maxLength={500} value={reason} disabled={confirm||saving} onChange={e=>setReason(e.target.value)} placeholder="ระบุเหตุผลการคืนคะแนน"/>:null}</>:<textarea id="qa-sparks-adjust-reason" rows={3} maxLength={500} value={reason} disabled={confirm || saving} onChange={(e) => setReason(e.target.value)} placeholder="ระบุเหตุผลที่เพิ่ม หรือปรับลดคะแนน"/>}
         {confirm ? <div className="qa-sparks-admin-confirm">
           ยืนยัน <strong>{operationLabel(operation)} {fmt(Number(amount))} Sparks</strong> ให้บัญชี {selected.displayName} ใช่หรือไม่?
           <p>ระบบจะบันทึกผู้ดำเนินการ วันที่ เวลา และเหตุผลลงใน History</p>

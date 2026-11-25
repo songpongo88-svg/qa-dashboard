@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { isItemHistoryEntry, itemHistoryLabel, itemHistoryDeltaText } from "./sparksItemHistory.mjs";
 import "./sparksAdminTimeline.css";
+import {transactionText} from "./sparksTransactionText.mjs";
 
 type TimelineUser = { username: string; displayName: string; role: string; teamName?: string; status: string };
 type Entry = {
@@ -30,6 +31,7 @@ const dayLabel = (value: string) => new Date(value + "T12:00:00+07:00").toLocale
 const clock = (value: string) => new Date(value).toLocaleTimeString("th-TH", { timeZone: "Asia/Bangkok", hour: "2-digit", minute: "2-digit", hour12: false });
 function typeLabel(entry: Entry) {
   if (entry.voided) return "ยกเลิกรายการ";
+  if(entry.source==="reward-refund")return "คืน Sparks";
   const item = itemHistoryLabel(entry);
   if (item) return item.action;
   return entry.amount > 0 ? "ได้รับ Sparks" : entry.amount < 0 ? "ใช้ Sparks" : "บันทึกกิจกรรม";
@@ -103,9 +105,9 @@ export default function SparksAdminTimeline({ active, users, revision, request, 
         "ผู้ใช้งาน": nameByUsername.get(item.username)?.displayName || item.username,
         "Username": item.username,
         "ทีม": nameByUsername.get(item.username)?.teamName || "—",
-        "กิจกรรม / รางวัล": itemHistoryLabel(item)?.name || item.title,
+        "กิจกรรม / รางวัล": transactionText(item).title || itemHistoryLabel(item)?.name,
         "ประเภท": typeLabel(item),
-        "รายละเอียด": item.detail || "",
+        "รายละเอียด": transactionText(item).detail,
         "Sparks เปลี่ยนแปลง": Number(item.amount || 0),
         "Sparks คงเหลือหลังรายการ": item.balanceAfter ?? "",
         "จำนวน Item": itemHistoryDeltaText(item) === "—" ? "" : itemHistoryDeltaText(item),
@@ -162,7 +164,7 @@ export default function SparksAdminTimeline({ active, users, revision, request, 
             return <tr key={entry.username + ":" + entry.id}>
               <td data-label="เวลา">{parts(entry.createdAt) ? clock(entry.createdAt) : "—"}</td>
               <td data-label="ผู้ใช้งาน"><button type="button" className="sat-user" onClick={() => onOpenUser(entry.username)}>{member?.displayName || entry.username}<small>@{entry.username} · {member?.teamName || member?.role || "User"}</small></button></td>
-              <td data-label="กิจกรรม / รางวัล"><strong>{item?.name || entry.title || "รายการ Sparks"}</strong><small>{entry.detail || entry.source}{item?.extra ? " · " + item.extra : ""}</small></td>
+              <td data-label="กิจกรรม / รางวัล"><strong>{transactionText(entry).title || item?.name || "รายการ Sparks"}</strong><small>{transactionText(entry).detail || "—"}{item?.extra ? " · " + item.extra : ""}</small></td>
               <td data-label="ประเภท"><span className="sat-type">{typeLabel(entry)}</span>{item && <small className="sat-item">{itemHistoryDeltaText(entry)}</small>}</td>
               <td data-label="ยอดเปลี่ยนแปลง"><strong className={entry.amount > 0 ? "sat-positive" : entry.amount < 0 ? "sat-negative" : ""}>{entry.amount === 0 ? "—" : (entry.amount > 0 ? "+" : "") + number(entry.amount) + " Sparks"}</strong></td>
               <td data-label="ยอดหลังรายการ">{entry.balanceAfter === null ? "—" : number(entry.balanceAfter) + " Sparks"}{entry.voided && <small>รายการถูกยกเลิก</small>}</td>
