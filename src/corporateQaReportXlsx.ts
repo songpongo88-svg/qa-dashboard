@@ -20,7 +20,7 @@ const add = (doc: XMLDocument, parent: Element, name: string, attrs: Record<stri
   parent.appendChild(element);
   return element;
 };
-type StyleName = "mastheadRight" | "mastheadDetail" | "mastheadMeta" | "mastheadAccent" | "mastheadLine" | "title" | "subtitle" | "hero" | "section" | "cardLabel" | "cardValue" | "cardDetail" | "heading" | "stripe" | "stripeCenter" | "score" | "success" | "danger" | "footer" | "topicBar" | "plain" | "commentLink" | "commentBody" | "comparePositive" | "compareNegative" | "compareBody" | "caseGroup" | "caseAltGroup" | "caseColumn" | "caseComment" | "topicOneLine" | "numeric2" | "percent2" | "tagPercent2";
+type StyleName = "mastheadRight" | "mastheadDetail" | "mastheadMeta" | "mastheadAccent" | "mastheadLine" | "title" | "subtitle" | "hero" | "section" | "cardLabel" | "cardValue" | "cardDetail" | "heading" | "stripe" | "stripeCenter" | "score" | "success" | "danger" | "footer" | "topicBar" | "plain" | "commentLink" | "commentBody" | "comparePositive" | "compareNegative" | "compareBody" | "caseGroup" | "caseAltGroup" | "caseColumn" | "caseComment" | "topicOneLine" | "numeric2" | "percent2" | "tagPercent2" | "kpiPass" | "kpiFail" | "kpiCardPass" | "kpiCardFail" | "kpiCardPercent" | "topicName" | "tagName" | "metaLabel" | "topStrip";
 function createStyles(source: string) {
   const doc = parse(source);
   const root = doc.documentElement;
@@ -52,14 +52,30 @@ function createStyles(source: string) {
     footer: font("584368",false,9), bar: font("8755AF",true,12),
     headerDetail: font("E7DBF2",false,11), headerMeta: font("F2E8F7",false,9),
     headerAccent: font("FFCF85",true,10), headerId: font("FFCF85",true,12),
+    cardGreen: font("187756",true,22), cardRed: font("BC3D52",true,22),
     topicName: font(deep,true,11), metaLabel: font("5E4270",true,9,"Kanit"),
   };
   const fillsId = { deep: fill(deep), purple: fill(purple), pale: fill(pale), light: fill(light),
     white: fill("FFFFFF"), violet: fill("EADBF0"), gold: fill("F6E6CC") };
+  // Existing SheetJS date/time formats may already occupy custom IDs 166/167.
+  // Reuse only an exact format match, otherwise allocate a free custom ID.
+  let formats=child(root,"numFmts");
+  if(!formats){formats=doc.createElementNS(NS,"numFmts");root.insertBefore(formats,root.firstChild);}
+  const formatId=(code:string)=>{
+    const entries=Array.from(formats!.children);
+    const existing=entries.find(n=>n.getAttribute("formatCode")===code);
+    if(existing)return Number(existing.getAttribute("numFmtId"));
+    const used=new Set(entries.map(n=>Number(n.getAttribute("numFmtId"))));
+    let id=164;while(used.has(id))id++;
+    add(doc,formats!,"numFmt",{numFmtId:String(id),formatCode:code});
+    return id;
+  };
+  const numericFormat=2; // Built-in 0.00.
+  const percentFormat=formatId('0.00"%"'); // Source data uses 0–100, not 0–1.
   const styles: Record<StyleName,number> = {} as Record<StyleName,number>;
   function style(name:StyleName, fontId:number, fillId:number, center=false, wrap=false, right=false, top=false) {
     const id=xfs.children.length;
-    const numberFormatId=name==="percent2"||name==="tagPercent2"?167:name==="numeric2"?166:0;
+    const numberFormatId=["percent2","tagPercent2","kpiPass","kpiFail","kpiCardPass","kpiCardFail","kpiCardPercent"].includes(name)?percentFormat:name==="numeric2"?numericFormat:0;
     const xf = add(doc,xfs,"xf",{
       numFmtId:String(numberFormatId),fontId:String(fontId),fillId:String(fillId),borderId:"0",xfId:"0",
       applyFont:"1",applyFill:"1",applyAlignment:"1",applyNumberFormat:numberFormatId?"1":"0"
@@ -98,6 +114,11 @@ function createStyles(source: string) {
   style("numeric2",fontsId.score,fillsId.white,true);
   style("percent2",fontsId.score,fillsId.white,true);
   style("tagPercent2",fontsId.plain,fillsId.light,true);
+  style("kpiPass",fontsId.green,fillsId.pale,true);
+  style("kpiFail",fontsId.red,fillsId.pale,true);
+  style("kpiCardPass",fontsId.cardGreen,fillsId.white,true);
+  style("kpiCardFail",fontsId.cardRed,fillsId.white,true);
+  style("kpiCardPercent",fontsId.value,fillsId.white,true);
   style("stripe",fontsId.plain,fillsId.light,false,true);
   style("stripeCenter",fontsId.plain,fillsId.light,true,true);
   style("score",fontsId.score,fillsId.light,true);
@@ -105,12 +126,6 @@ function createStyles(source: string) {
   style("danger",fontsId.red,fillsId.pale,true);
   style("footer",fontsId.footer,fillsId.pale,true,true);
   style("topicBar",fontsId.bar,fillsId.white,true);
-  let formats=child(root,"numFmts");
-  if(!formats){formats=doc.createElementNS(NS,"numFmts");root.insertBefore(formats,root.firstChild);}
-  for(const [id,fmt] of [[166,"0.00"],[167,'0.00"%"']] as const) {
-    if(!Array.from(formats.children).some(n=>n.getAttribute("numFmtId")===String(id)))
-      add(doc,formats,"numFmt",{numFmtId:String(id),formatCode:fmt});
-  }
   formats.setAttribute("count",String(formats.children.length));
   fonts.setAttribute("count",String(fonts.children.length));
   fills.setAttribute("count",String(fills.children.length));
@@ -153,6 +168,25 @@ function styleSheet(source:string, sheetName:string, st:Record<StyleName,number>
     if(text)return text;
     return Array.from(cell.getElementsByTagNameNS(NS,"v")).map(el=>el.textContent||"").join("");
   };
+  function freezeHeaders(xSplit=0,ySplit=1) {
+    let views=child(root,"sheetViews");
+    if(!views){
+      views=doc.createElementNS(NS,"sheetViews");
+      root.insertBefore(views,child(root,"sheetFormatPr")||child(root,"cols")||child(root,"sheetData"));
+    }
+    let view=child(views,"sheetView");
+    if(!view)view=add(doc,views,"sheetView",{workbookViewId:"0"});
+    Array.from(view.children).filter(el=>el.localName==="pane"||el.localName==="selection").forEach(el=>view!.removeChild(el));
+    const topLeftCell=XLSX.utils.encode_cell({r:ySplit,c:xSplit});
+    const activePane=xSplit?"bottomRight":"bottomLeft";
+    const pane=doc.createElementNS(NS,"pane");
+    Object.entries({...(xSplit?{xSplit:String(xSplit)}:{}),ySplit:String(ySplit),topLeftCell,activePane,state:"frozen"}).forEach(([k,v])=>pane.setAttribute(k,v));
+    view.insertBefore(pane,view.firstChild);
+    const selection=doc.createElementNS(NS,"selection");
+    selection.setAttribute("pane",activePane);selection.setAttribute("activeCell",topLeftCell);selection.setAttribute("sqref",topLeftCell);
+    view.insertBefore(selection,pane.nextSibling);
+  }
+  const scoreStyle=(value:string):StyleName=>value!==""&&Number.isFinite(Number(value))?(Number(value)>=85?"kpiPass":"kpiFail"):"percent2";
   const groupedCaseDetail=sheetName==="Case Detail" && textAt(1,"A").startsWith("CASE INFORMATION");
   if(compareOverview) {
     // Compare-only workbook: every section has a clear heading and date-labelled columns.
@@ -236,7 +270,7 @@ function styleSheet(source:string, sheetName:string, st:Record<StyleName,number>
       for(let col=11;col<=16;col++)set(r,col,r%2===0?"stripe":"stripeCenter");
     }
     for(const row of [19,21,23,25]){
-      set(row,2,"topicOneLine");
+      set(row,2,"topicName");
       for(const col of [6,7,8])set(row,col,col===8?"percent2":"numeric2");
       set(row,9,"stripeCenter");
     }
@@ -246,14 +280,18 @@ function styleSheet(source:string, sheetName:string, st:Record<StyleName,number>
     for(let col=2;col<=16;col++){set(45,col,"section");set(47,col,"heading");}
     for(let r=48;r<=59;r++){
       for(let col=2;col<=16;col++)set(r,col,r%2===0?"stripe":"stripeCenter");
-      set(r,2,"plain");set(r,8,"numeric2");
+      set(r,2,"plain");
+      const status=textAt(r,"K");
+      set(r,8,status==="Pass"?"kpiPass":status==="Below 85%"?"kpiFail":"percent2");
+      if(status==="Pass"||status==="Below 85%")set(r,11,status==="Pass"?"success":"danger");
     }
     for(let r=62;r<=64;r++){
       for(let col=2;col<=16;col++)set(r,col,"footer");
       set(r,2,"metaLabel");
     }
     for(let col=2;col<=16;col++)set(66,col,"footer");
-    set(9,2,"numeric2");
+    const average=textAt(9,"B");
+    set(9,2,average!==""&&Number.isFinite(Number(average))?(Number(average)>=85?"kpiCardPass":"kpiCardFail"):"kpiCardPercent");
   } else {
     const rowElements=Array.from(data.children).filter(r=>r.localName==="row");
     const maxRow=Math.max(...rowElements.map(r=>Number(r.getAttribute("r"))),1);
@@ -262,15 +300,20 @@ function styleSheet(source:string, sheetName:string, st:Record<StyleName,number>
     for(let c=1;c<=count;c++)set(1,c,"section");
     for(let r=2;r<=maxRow;r++) for(let c=1;c<=count;c++)set(r,c,r%2===0?"stripe":"plain");
     // Keep numeric data as numbers while displaying consistent 2-digit precision.
-    const floatColumns=baseName==="Performance Summary"?[3]:
-      baseName==="Agent Performance"?[3]:
-      baseName==="Topic Performance"?[2,3]:
-      baseName==="Case Detail"?[]:[];
+    const reportDetailSheets=["Performance Summary","Agent Performance","Topic Performance","Tag Analysis","Case Detail","Comment Detail"];
+    if(reportDetailSheets.includes(baseName))freezeHeaders(baseName==="Case Detail"?4:baseName==="Comment Detail"?1:0);
+    const floatColumns=baseName==="Topic Performance"?[2,3]:[];
     const percentColumns=baseName==="Tag Analysis"?[3]:
       baseName==="Topic Performance"?[4]:[];
     for(let r=2;r<=maxRow;r++){
       for(const c of floatColumns)set(r,c,"numeric2");
       for(const c of percentColumns)set(r,c,"tagPercent2");
+      if(baseName==="Performance Summary")set(r,3,scoreStyle(textAt(r,"C")));
+      if(baseName==="Agent Performance"){
+        const status=textAt(r,"D");
+        set(r,3,status==="Pass"?"kpiPass":status==="Below 85%"?"kpiFail":"percent2");
+        if(status==="Pass"||status==="Below 85%")set(r,4,status==="Pass"?"success":"danger");
+      }
       if(baseName==="Comment Detail"){
         set(r,1,"metaLabel");
         set(r,4,"topicName");
@@ -281,11 +324,13 @@ function styleSheet(source:string, sheetName:string, st:Record<StyleName,number>
           const address = c.getAttribute("r") || "";
           const col = colNumber(address.replace(/\d/g,""));
           // SheetJS emits inline string headers in Case Detail.
-          const text = Array.from(c.getElementsByTagNameNS(NS,"t")).map(t=>t.textContent||"").join("");
+          const text = textAt(1,address.replace(/\d/g,""));
           return [col,text] as const;
         }));
         headers.forEach((text,col)=>{
           if(/ Comment$/.test(text)||text==="ดูข้อความทั้งหมด") set(r,col,"commentLink");
+          else if(text==="Final Score"||text==="Previous Score")set(r,col,scoreStyle(textAt(r,XLSX.utils.encode_col(col-1))));
+          else if(/ (Score|Max)$/.test(text))set(r,col,"numeric2");
         });
       }
     }
