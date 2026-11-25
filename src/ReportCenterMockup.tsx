@@ -101,41 +101,38 @@ function agentRows(rows: CanonicalReportCase[], mode: Kind = "monthly") {
 }
 // Excel displays plain text exactly as the QA editor displays it, not HTML tags.
 // Keep line breaks and every character of the original narrative.
-const EXCEL_COMMENT_WRAP_CHARS = 56;
-const EXCEL_COMMENT_LINES_PER_ROW = 5;
+// Let Excel wrap the text naturally; split only at word boundaries when a
+// narrative would exceed a comfortably readable row height. Preserve all text,
+// including original paragraph breaks, rather than inserting artificial newlines.
+const EXCEL_COMMENT_LINE_CHARS = 65;
+const EXCEL_COMMENT_MAX_LINES = 16;
+function estimatedCommentLines(text: string) {
+  return text.split("\n").reduce((count,line)=>count+Math.max(1,Math.ceil(Array.from(line).length/EXCEL_COMMENT_LINE_CHARS)),0);
+}
 function wrapReportComment(text: unknown): string[] {
   const cleaned = richTextToPlainText(text)
     .replace(/\r\n?/g, "\n")
-    .replace(/\u00a0/g, " ")
-    .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "")
-    .replace(/\n{4,}/g, "\n\n")
-    .trim();
-  if (!cleaned) return [""];
-  const lines: string[] = [];
-  for (const raw of cleaned.split("\n")) {
-    if (!raw.trim()) {
-      if (lines.length && lines[lines.length - 1] !== "") lines.push("");
-      continue;
-    }
-    let units = Array.from(raw.trimEnd());
-    while (units.length > EXCEL_COMMENT_WRAP_CHARS) {
-      let cut = EXCEL_COMMENT_WRAP_CHARS;
-      for (let i = cut; i > 36; i--) {
-        if (/\s/u.test(units[i - 1])) { cut = i; break; }
-      }
-      // Keep Thai vowels and tone marks attached to their consonants.
-      while (cut < units.length && /[\u0e31\u0e34-\u0e3a\u0e47-\u0e4e\u0300-\u036f]/u.test(units[cut])) cut++;
-      lines.push(units.slice(0, cut).join("").trimEnd());
-      units = units.slice(cut);
-      while (units.length && /\s/u.test(units[0])) units.shift();
-    }
-    if (units.length) lines.push(units.join(""));
-  }
+    .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "");
+  if (!cleaned.trim()) return [""];
+  const Segmenter = (Intl as unknown as {
+    Segmenter?: new (locale: string, options: {granularity: "word"}) => {
+      segment(input: string): Iterable<{segment: string}>;
+    };
+  }).Segmenter;
+  const units = Segmenter
+    ? Array.from(new Segmenter("th", {granularity:"word"}).segment(cleaned), part=>part.segment)
+    : (cleaned.match(/\s+|[^\s]+/gu) || [cleaned]);
   const chunks: string[] = [];
-  for (let i = 0; i < lines.length; i += EXCEL_COMMENT_LINES_PER_ROW) {
-    chunks.push(lines.slice(i, i + EXCEL_COMMENT_LINES_PER_ROW).join("\n"));
+  let current = "";
+  for (const unit of units) {
+    if (current && estimatedCommentLines(current+unit)>EXCEL_COMMENT_MAX_LINES) {
+      chunks.push(current);
+      current = "";
+    }
+    current += unit;
   }
-  return chunks.length ? chunks : [""];
+  if (current) chunks.push(current);
+  return chunks;
 }
 
 function detailedRows(rows: CanonicalReportCase[]) {
@@ -143,7 +140,7 @@ function detailedRows(rows: CanonicalReportCase[]) {
     const values: Record<string, string | number> = {
       "Case ID": item.caseId,
       "Case Date": item.caseDate || "", "Audit Date": item.auditDate || "",
-      "Team": rowTeam(item), "Agent": rowAgent(item), "Month": rowMonth(item), "Week": rowWeek(item),
+      "Agent": rowAgent(item), "Month": rowMonth(item), "Week": rowWeek(item),
       "Intent TH": item.inquiryTh || "", "Intent EN": item.inquiryEn || "",
       "Case Description": item.caseDescription || "", "Final Score": rowScore(item),
       "Previous Score": item.previousScore ?? "", "Grade": item.grade || "",
@@ -175,11 +172,12 @@ function prepareReadableCaseDetails(rows: Record<string, string | number>[]) {
   rows.forEach((original) => {
     const record = { ...original };
     delete record["Row Type"];
+    delete record["Team"];
     const caseId = String(original["Case ID"] || "");
     const base = { "Case ID": caseId, "Agent": String(original.Agent || ""), "Week": String(original.Week || "") };
     const targetLinks: CellLink[] = [];
     const appendComment = (topicName: string, content: string) => {
-      const chunks = wrapReportComment(content).filter(chunk => chunk.trim());
+      const chunks = wrapReportComment(content).filter(chunk => chunk.length > 0);
       if(!chunks.length) return 0;
       const firstRow = comments.length + 2; // Header is row 1.
       chunks.forEach((chunk, i) => comments.push({
@@ -209,7 +207,7 @@ function prepareReadableCaseDetails(rows: Record<string, string | number>[]) {
     // Excel retains this column order for the entire Case Detail sheet.
     const preferred = ["Case ID","ดูข้อความทั้งหมด","Week","Agent","Final Score","Grade",
       "1 Score","2 Score","3 Score","4 Score","Review Status","Appeal Status",
-      "Intent TH","Case Description","Team","Audit Date","Case Date","Month","Intent EN","Previous Score"];
+      "Intent TH","Case Description","Audit Date","Case Date","Month","Intent EN","Previous Score"];
     const ordered = Object.fromEntries([
       ...preferred.filter(key=>Object.prototype.hasOwnProperty.call(record,key)).map(key=>[key,record[key]]),
       ...Object.entries(record).filter(([key])=>!preferred.includes(key))
@@ -287,7 +285,7 @@ export function buildReportWorkbook(rows: CanonicalReportCase[], kind: Kind, sco
     merge("B63","P63"),merge("B66","P66")
   ];
   dash["!cols"]=Array.from({length:16},(_,i)=>({wch:i===0 ? 3 : i===9 ? 3 : 15}));
-  dash["!rows"]=Array.from({length:66},(_,i)=>({hpt:i===1||i===2?28:i===3||i===4?25:i===5?10:i===6?13:i===14||i===44?32:i===16||i===46?30:i===8||i===9?26:23}));
+  dash["!rows"]=Array.from({length:66},(_,i)=>({hpt:i===1||i===2?28:i===3||i===4?25:i===5?10:i===6?13:i===14||i===44?32:i===16||i===46?30:i===8||i===9?26:i>=17&&i<=24?42:23}));
   XLSX.utils.book_append_sheet(book,dash,"Dashboard");
   const groups = reportRows(rows, kind === "weekly" ? "week" : kind === "yearly" || kind === "compare" ? "month" : "agent");
   const add = (name: string, records: Record<string, string | number>[], widths: number[], rowHeights: number[] = []) => {
@@ -321,8 +319,8 @@ export function buildReportWorkbook(rows: CanonicalReportCase[], kind: Kind, sco
     }
   }));
   add("Comment Detail",detailed.comments,
-    [17,30,28,21,15,91],
-    detailed.comments.map(record=>Math.min(150,Math.max(38,18+String(record.Comment||"").split("\n").length*17))));
+    [17,30,28,21,15,95],
+    detailed.comments.map(record=>Math.min(400,Math.max(42,20+estimatedCommentLines(String(record.Comment||""))*18))));
   return book;
 }
 
