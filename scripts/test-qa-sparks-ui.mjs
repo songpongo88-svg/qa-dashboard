@@ -136,8 +136,17 @@ try{
   assert.ok(lotteryQuest && lotteryQuest.classList.contains("qa-sparks-mini-item"), "QA Lottery uses the same compact Quest slot");
   assert.equal(main.querySelectorAll(".qa-sparks-quest-grid > .qa-sparks-mini-item").length,4, "three Quests plus Spark Transfer Item align in one grid");
   assert.ok(main.querySelector('[data-quest-item="spark-transfer"]'),"Overview shows compact Spark Transfer Item");
-  assert.equal(main.querySelectorAll(".qa-sparks-reward-grid .qa-sparks-mini-item").length,9, "Reward Center includes Mining Lucky Boost, Auto-Pass, Typing Relief, Shield, TrueMoney and four brand rewards");
+  assert.equal(main.querySelectorAll(".qa-sparks-reward-grid .qa-sparks-mini-item").length,10, "Reward Center includes Special Membership Card, Mining Lucky Boost, Auto-Pass, Typing Relief, Shield, TrueMoney and four brand rewards");
   assert.ok(main.querySelector('[data-reward-item="mining-lucky-boost"]'),"Mining Lucky Boost 25 Sparks is present");
+  const butterbearItem=main.querySelector('[data-reward-item="butterbear-special-card"]');
+  assert.ok(butterbearItem?.classList.contains("qa-sparks-mini-item"),"Butterbear must occupy a compact Reward Center slot");
+  assert.equal(butterbearItem.querySelector(".bb-full-artwork")?.getAttribute("src"),"/images/butterbear-golden-bakery-card.webp","Reward tile uses the approved artwork");
+  await act(async()=>butterbearItem.dispatchEvent(new MouseEvent("click",{bubbles:true})));
+  const bbDialog=document.querySelector(".bb-reward-dialog");
+  assert.ok(bbDialog?.textContent.includes("Golden Bakery Edition"),"Special membership opens its own detail dialog");
+  assert.ok(!bbDialog.textContent.includes("ยืนยันแลกซื้อบัตร"),"Unverified membership state must not expose purchase confirmation");
+  await act(async()=>bbDialog.querySelector(".qa-benefits-close").dispatchEvent(new MouseEvent("click",{bubbles:true})));
+  assert.equal(document.querySelector(".bb-reward-dialog"),null);
   const overviewPanels=main.querySelectorAll(".qa-sparks-dual > .qa-sparks-panel");
   assert.equal(overviewPanels.length,2,"Overview retains the original Reward Center and History panels");
   assert.ok(overviewPanels[0].querySelector(".qa-sparks-reward-grid"),"Reward Center is the first column");
@@ -153,7 +162,7 @@ try{
     .sort((a,b)=>Number(a.style.order)-Number(b.style.order))
     .map(item=>item.dataset.rewardItem);
   const coffeePromo=Date.now()>=Date.parse("2026-11-24T00:00:00+07:00")&&Date.now()<Date.parse("2026-12-01T00:00:00+07:00");
-  assert.deepEqual(displayedOrder,coffeePromo?["amazon-55","punthai-65","seven-100","netflix-1m","truemoney-20","qa-access-auto-pass","typing-relief","announcement-shield","mining-lucky-boost"]:["seven-100","netflix-1m","truemoney-20","amazon-55","punthai-65","qa-access-auto-pass","typing-relief","announcement-shield","mining-lucky-boost"],
+  assert.deepEqual(displayedOrder,coffeePromo?["amazon-55","punthai-65","seven-100","netflix-1m","truemoney-20","butterbear-special-card","qa-access-auto-pass","typing-relief","announcement-shield","mining-lucky-boost"]:["seven-100","netflix-1m","truemoney-20","amazon-55","punthai-65","butterbear-special-card","qa-access-auto-pass","typing-relief","announcement-shield","mining-lucky-boost"],
     "Reward Center must display all six rewards from most Sparks to least, including TrueMoney's displayed price");
   await act(async()=>main.querySelector('[data-reward-item="punthai-65"]').dispatchEvent(new MouseEvent("click",{bubbles:true})));
   const punthaiPopup=document.querySelector(".sr-modal");
