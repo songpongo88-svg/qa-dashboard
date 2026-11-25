@@ -342,8 +342,8 @@ function isSuspendedProfile(profile) {
   if (suspended && autoReactivate && end && end <= today) suspended = false;
   return Boolean(suspended);
 }
-async function findProfileByUsername(username) {
-  if (sparksEmailAuthEnabled()) return sparksActiveProfile(username);
+async function findProfileByUsername(username, {qaSessionOnly=false}={}) {
+  if (!qaSessionOnly && sparksEmailAuthEnabled()) return sparksActiveProfile(username);
   const name = safeUsername(username);
   for (const id of [name.charAt(0).toUpperCase() + name.slice(1), name]) {
     const row = await readDoc(path("qa_user_profiles", id));
@@ -361,9 +361,11 @@ async function requireActiveTarget(username) {
   return profile;
 }
 
-async function authorizeRewardUser(body) {
+async function authorizeRewardUser(body, {qaAccess=false}={}) {
   const username = safeUsername(body.actorUsername);
-  if (sparksEmailAuthEnabled()) {
+  // QA Access is inside the authenticated Dashboard, not the separate Sparks email portal.
+  // Only the explicitly scoped access-check actions may use a verified QA session.
+  if (sparksEmailAuthEnabled() && !(qaAccess && !hasSparksEmailAuthCookie())) {
     const verified = await getSparksRequestActor();
     if (verified.username !== username) fail("QA Sparks email account does not match the signed-in QA user", 403);
     return { username: verified.username, displayName: verified.displayName };
@@ -409,7 +411,7 @@ async function authorizeRewardUser(body) {
   if (Number.isFinite(revokedAt) && Date.parse(session.createdAt || "") <= revokedAt) {
     fail("Session นี้ถูกระงับ", 403);
   }
-  const profile = await findProfileByUsername(username);
+  const profile = await findProfileByUsername(username,{qaSessionOnly:qaAccess});
   if (isSuspendedProfile(profile) || normalize(profile.username) !== username) {
     fail("บัญชี QA ไม่พร้อมใช้งานหรือถูก Suspended", 403);
   }
@@ -1957,7 +1959,7 @@ async function sparksHandler(req, res) {
     }
     if (["auto-pass-state","auto-pass-claim-free","auto-pass-buy","auto-pass-use"].includes(body.action)) {
       let actor,quotaReadFallback=false;
-      try{actor=await authorizeRewardUser(body);}catch(error){
+      try{actor=await authorizeRewardUser(body,{qaAccess:body.action==="auto-pass-state"||body.action==="auto-pass-use"});}catch(error){
         if(body.action!=="auto-pass-state"||process.env.SPARKS_DATA_BACKEND!=="supabase"||Number(error?.status)!==429||!verifySparksReadGrant(body.readGrant,body.actorUsername,body.sessionId))throw error;
         actor={username:safeUsername(body.actorUsername),displayName:safeUsername(body.actorUsername)};quotaReadFallback=true;
       }
@@ -1969,7 +1971,7 @@ async function sparksHandler(req, res) {
       return res.status(200).json(result);
     }
     if (process.env.SPARKS_DATA_BACKEND==="supabase" && body.action==="use-typing-relief") {
-      const actor=await authorizeRewardUser(body);
+      const actor=await authorizeRewardUser(body,{qaAccess:true});
       return res.status(200).json(await typingReliefCloud.use(body,actor));
     }
     if (["get-truemoney-price","redeem-truemoney","use-truemoney-item","list-my-truemoney"].includes(body.action)) {
