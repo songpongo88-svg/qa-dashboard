@@ -111,7 +111,7 @@ export default function QaTypingGate({
     setRewardChoice("checking");
     void Promise.allSettled([
       qaAutoPassAction("auto-pass-state",username,currentUser.sessionId),
-      challenge.mode==="word"?fetchTypingReliefState(username):Promise.resolve(null),
+      challenge.mode==="word"&&import.meta.env?.VITE_SPARKS_DATA_BACKEND!=="supabase"?fetchTypingReliefState(username):Promise.resolve(null),
     ]).then(([autoPassResult,reliefResult])=>{
       if(!active)return;
       const autoPass=autoPassResult.status==="fulfilled"?autoPassResult.value:null;
@@ -119,10 +119,10 @@ export default function QaTypingGate({
       const validAutoPass=autoPass!==null&&Number.isFinite(Number(autoPass.owned))&&autoPass.owned!==undefined;
       setAutoPassStatus(validAutoPass?"ready":"error");
       if(validAutoPass)setAutoPassOwned(Number(autoPass.owned)||0);
-      setRewardOwned(Number(relief?.owned)||0);
+      setRewardOwned(Number(autoPass?.typingReliefOwned??relief?.owned)||0);
       setRewardBalance(Number(autoPass?.balance??relief?.balance)||0);
       if(!validAutoPass)
-        setRewardError("ตรวจสอบ Auto-Pass ไม่สำเร็จ กรุณาตรวจสอบสิทธิ์ใหม่ หรือพิมพ์ตามปกติ");
+        setRewardError(autoPassResult.status==="rejected"&&autoPassResult.reason instanceof Error?autoPassResult.reason.message:"ตรวจสอบ Auto-Pass ไม่สำเร็จ กรุณาตรวจสอบสิทธิ์ใหม่ หรือพิมพ์ตามปกติ");
       setRewardChoice(challenge.mode==="word"||!validAutoPass||Number(autoPass?.owned)>0?"offer":"typing");
     });
     return () => { active = false; };
@@ -367,7 +367,7 @@ export default function QaTypingGate({
                   {rewardBusy ? "กำลังใช้สิทธิ์..." : "ใช้ Typing Relief 1 สิทธิ์"}
                 </button> : confirmRewardPurchase ? <div className="mt-4 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm font-semibold text-amber-950">
                   ยืนยันหัก {getTypingReliefPricing().price} QA Sparks เพื่อรับ Typing Relief 1 สิทธิ์ใช่หรือไม่?
-                  <button type="button" onClick={() => void buyTypingRelief()} disabled={rewardBusy || rewardBalance < getTypingReliefPricing().price}
+                  <button type="button" onClick={() => void buyTypingRelief()} disabled={rewardBusy || (autoPassStatus==="error"&&import.meta.env?.VITE_SPARKS_DATA_BACKEND==="supabase") || rewardBalance < getTypingReliefPricing().price}
                     className="mt-2 w-full rounded-xl bg-violet-700 px-4 py-3 text-sm font-black text-white disabled:opacity-50">
                     {rewardBusy ? "กำลังบันทึก..." : `ยืนยันแลก ${getTypingReliefPricing().price} Sparks`}
                   </button>

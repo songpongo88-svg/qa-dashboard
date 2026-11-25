@@ -44,7 +44,7 @@ export function createQaAutoPassService({
   async function state(actor) {
     const wallet=recordValue(await readDoc(walletDocumentPath(actor.username)));
     return {
-      owned:count(wallet.autoPassOwned),balance:readBalance(wallet),
+      owned:count(wallet.autoPassOwned),typingReliefOwned:count(wallet.typingReliefOwned),balance:readBalance(wallet),
       freeClaimed:Boolean(wallet.autoPassFreeClaimedAt),
       freeActive:autoPassFreeActive(clock()),freeQuantity:AUTO_PASS_FREE_QUANTITY,
       normalPrice:AUTO_PASS_PRICE,freeEndDate:"2026-12-25",

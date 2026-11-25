@@ -1956,11 +1956,16 @@ async function sparksHandler(req, res) {
       return res.status(200).json(await takeThankYouSupportPopup(body));
     }
     if (["auto-pass-state","auto-pass-claim-free","auto-pass-buy","auto-pass-use"].includes(body.action)) {
-      const actor=await authorizeRewardUser(body);
+      let actor,quotaReadFallback=false;
+      try{actor=await authorizeRewardUser(body);}catch(error){
+        if(body.action!=="auto-pass-state"||process.env.SPARKS_DATA_BACKEND!=="supabase"||Number(error?.status)!==429||!verifySparksReadGrant(body.readGrant,body.actorUsername,body.sessionId))throw error;
+        actor={username:safeUsername(body.actorUsername),displayName:safeUsername(body.actorUsername)};quotaReadFallback=true;
+      }
       const result=body.action==="auto-pass-state"?await autoPass.state(actor)
         :body.action==="auto-pass-claim-free"?await autoPass.claimFree(actor)
         :body.action==="auto-pass-buy"?await autoPass.purchase(body,actor)
         :await autoPass.use(body,actor);
+      if(body.action==="auto-pass-state"&&process.env.SPARKS_DATA_BACKEND==="supabase")return res.status(200).json({...result,quotaReadFallback,...(!quotaReadFallback?{readGrant:issueSparksReadGrant(actor.username,body.sessionId)}:{})});
       return res.status(200).json(result);
     }
     if (process.env.SPARKS_DATA_BACKEND==="supabase" && body.action==="use-typing-relief") {
