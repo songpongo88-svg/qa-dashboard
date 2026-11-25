@@ -41,9 +41,8 @@ export function ButterbearRewardItem({username,sessionId,balance,tier,year}:{use
  return <>
  <button type="button" className="qa-sparks-mini-item bb-reward-item" data-reward-item="butterbear-special-card" style={{order:-1600}} aria-haspopup="dialog" aria-expanded={open} onClick={()=>setOpen(true)}>
   <span className="qa-sparks-mini-art bb-reward-art"><ButterbearMemberCard tier={tier} year={year} displayName="MEMBER NAME" cardNumber="•••• •••• ••••" birthdayDate="" expiresAt={state?.active?state.expiresAt:""} onCopy={()=>{}} preview/></span>
-  <strong className="qa-sparks-mini-name">Butterbear<br/>Golden Bakery Edition</strong>
-  <span className="qa-sparks-mini-value">{state?.owned?<><small>บัตรสมาชิกพิเศษ</small><strong>{state.active?"กำลังใช้งาน":state.forfeited?"สิ้นสุดสิทธิ์":"หมดอายุ"}</strong>{state.active&&<small>ถึง {bbDate(state.expiresAt)}</small>}</>:state?<><small>ราคาแลก</small><strong>1,600 Sparks</strong></>:<small>กำลังตรวจสอบสิทธิ์</small>}</span>
-  <span className="bb-reward-details">ดูรายละเอียด ›</span>
+  <strong className="qa-sparks-mini-name"><span>Butterbear</span><small>Golden Bakery Edition</small></strong>
+  <span className={"qa-sparks-mini-value bb-reward-status"+(state?.owned?" bb-reward-owned":"")}>{state?.owned?<strong>{state.active?"กำลังใช้งาน":state.forfeited?"สิ้นสุดสิทธิ์":"หมดอายุ"}</strong>:state?<><small>ราคาแลก</small><strong>1,600 Sparks</strong></>:<small>ตรวจสอบสิทธิ์</small>}</span>
  </button>
  {open&&typeof document!=="undefined"?createPortal(<div className="qa-member-benefits-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setOpen(false)}}><section className="qa-member-benefits-dialog bb-reward-dialog" role="dialog" aria-modal="true" aria-label="รายละเอียดบัตร Butterbear"><header className="qa-member-benefits-header"><div><span className="qa-benefits-overline">SPECIAL MEMBERSHIP COLLECTION</span><h2>Butterbear – Golden Bakery Edition</h2></div><button type="button" className="qa-benefits-close" aria-label="ปิด" onClick={()=>setOpen(false)}>×</button></header><ButterbearShop username={username} sessionId={sessionId} balance={balance} tier={tier} year={year}/></section></div>,document.body):null}
  </>

@@ -141,6 +141,9 @@ try{
   const butterbearItem=main.querySelector('[data-reward-item="butterbear-special-card"]');
   assert.ok(butterbearItem?.classList.contains("qa-sparks-mini-item"),"Butterbear must occupy a compact Reward Center slot");
   assert.equal(butterbearItem.querySelector(".bb-full-artwork")?.getAttribute("src"),"/images/butterbear-golden-bakery-card.webp","Reward tile uses the approved artwork");
+  assert.equal(butterbearItem.children.length,3,"Special card must have only artwork, title and value; shared CSS renders the single details CTA");
+  assert.equal(butterbearItem.querySelector(".bb-reward-details"),null,"No duplicate details button");
+  assert.equal(butterbearItem.querySelector(".qa-sparks-mini-name small")?.textContent,"Golden Bakery Edition","Edition subtitle is separate from the card title");
   await act(async()=>butterbearItem.dispatchEvent(new MouseEvent("click",{bubbles:true})));
   const bbDialog=document.querySelector(".bb-reward-dialog");
   assert.ok(bbDialog?.textContent.includes("Golden Bakery Edition"),"Special membership opens its own detail dialog");

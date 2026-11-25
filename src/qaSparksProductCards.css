@@ -132,3 +132,14 @@
 .qa-sparks-reward-grid .qa-sparks-mini-item.qa-coffee-promo::after{background:linear-gradient(#b43dec,#6711aa);color:white;border-color:#e7b4ff;font-weight:750;box-shadow:0 2px 0 #45096c;}
 .qa-sparks-reward-grid .qa-sparks-mini-item.qa-coffee-promo:hover{box-shadow:0 0 0 2px #ffe9a4,0 7px 20px #9937cb88;}
 @container (max-width:540px){.qa-sparks-reward-grid .qa-sparks-mini-item.qa-coffee-promo{grid-column:span 1;}}
+
+/* Special member card uses the same four-row product grid and the shared CTA. */
+.qa-sparks-reward-grid .bb-reward-item .qa-sparks-mini-name{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:0;height:42px;min-height:0;margin:0;padding:0 1px;overflow:hidden;line-height:1.15;}
+.qa-sparks-reward-grid .bb-reward-item .qa-sparks-mini-name>span{font-size:13px;font-weight:800;max-width:100%;}
+.qa-sparks-reward-grid .bb-reward-item .qa-sparks-mini-name>small{font-size:10px;font-weight:650;line-height:1.15;white-space:normal;max-width:100%;overflow-wrap:normal;word-break:normal;}
+.qa-sparks-reward-grid .bb-reward-item .bb-reward-status{box-sizing:border-box;display:flex;flex-direction:column;flex-wrap:nowrap;justify-content:center;align-items:center;gap:3px;height:66px;min-height:66px;min-width:0;width:100%;padding:4px;overflow:hidden;text-align:center;background:#f6efff;border-color:#eddfff;color:#5f17a4;}
+.qa-sparks-reward-grid .bb-reward-item .bb-reward-status>small{display:block;font-size:11px;line-height:1.2;font-weight:400;color:#9985ae;}
+.qa-sparks-reward-grid .bb-reward-item .bb-reward-status>strong{display:block;font-size:13px;line-height:1.25;white-space:normal;max-width:100%;}
+.qa-sparks-reward-grid .bb-reward-item .bb-reward-owned{background:#f6efff;color:#5f17a4;}
+.qa-sparks-reward-grid .bb-reward-item .bb-reward-art{position:relative;box-sizing:border-box;background:#fff8e8!important;padding:6px!important;}
+.qa-sparks-reward-grid .bb-reward-item .bb-reward-art .bb-artwork-card{flex:none;max-width:100%;width:100%;}
