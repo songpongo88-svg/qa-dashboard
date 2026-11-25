@@ -72,6 +72,10 @@ try {
   assert.ok(main.querySelector(".qa-year").textContent.includes(String(currentYear)));
   assert.equal(main.querySelector(".qa-track")?.getAttribute("aria-valuenow"), "200");
   assert.match(memberTitle(), /Spark Starter/);
+  assert.ok(main.querySelector(".qa-member-benefits-inline").textContent.includes("50 Sparks"),"current member perks are visible without a popup");
+  assert.equal(main.querySelector(".qa-member-card-trigger"),null,"personal card is no longer a popup trigger");
+  await act(async()=>main.querySelector(".qa-current-card .qa-member-card").dispatchEvent(new MouseEvent("click",{bubbles:true})));
+  assert.equal(document.querySelector('[aria-labelledby="qa-member-benefits-title"]'),null,"clicking personal card does not open benefits");
 
   const readsBeforeGuide = globalThis.__memberTestReads;
   await act(async () => openGuide().dispatchEvent(new MouseEvent("click", { bubbles: true })));

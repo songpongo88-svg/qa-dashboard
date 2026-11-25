@@ -865,3 +865,13 @@
 .qa-sparks-membership .qa-gallery-card-button:focus-visible{outline:3px solid var(--qa-theme-400,#c084fc);outline-offset:5px}
 .qa-sparks-membership .qa-gallery-tap-hint{font-size:11px!important;color:var(--qa-accent)!important;margin-top:6px!important}
 .qa-sparks-membership .qa-mcard-showcase-bottom .qa-holder strong{font-weight:600;font-size:clamp(11px,3cqi,14px)}
+
+/* Outside-card member benefits; keep all ten card finishes unchanged. */
+.qa-sparks-membership .qa-mcard-cardid strong[role="button"]{cursor:copy;user-select:text;}
+.qa-sparks-membership .qa-mcard-cardid strong[role="button"]:focus-visible{outline:2px solid var(--foil);outline-offset:2px;}
+.qa-sparks-membership .qa-member-benefits-inline{grid-column:1/-1;min-width:0;padding:14px 0 0;border-top:1px solid var(--qa-rule);}
+.qa-sparks-membership .qa-member-benefits-inline h3{margin:3px 0;font-size:16px;color:var(--qa-ink);}
+.qa-sparks-membership .qa-member-benefits-inline .qa-member-benefits-grid article{position:relative;padding:12px 12px 12px 48px;min-width:0;}
+.qa-sparks-membership .qa-member-benefits-inline .qa-perk-icon{position:absolute;top:12px;left:11px;width:28px;height:28px;display:grid;place-items:center;border-radius:8px;background:color-mix(in srgb,var(--member-accent) 14%,white);color:var(--member-accent);font-size:19px;font-weight:700;}
+.qa-sparks-membership .qa-member-benefits-inline .qa-member-benefits-grid article strong{font-size:16px;}
+@media(max-width:540px){.qa-sparks-membership .qa-member-benefits-inline .qa-member-benefits-grid{grid-template-columns:1fr 1fr;}.qa-sparks-membership .qa-member-benefits-inline .qa-member-benefits-grid article{padding:10px;}.qa-sparks-membership .qa-member-benefits-inline .qa-perk-icon{position:static;margin-bottom:2px;}}
