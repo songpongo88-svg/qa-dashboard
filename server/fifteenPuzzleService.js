@@ -84,7 +84,7 @@ export function createFifteenPuzzleService(db){
    return {writes,result:{ok:true,roundId:round.id,board:initial,startedAt:now,stats:playerPublic({...p,...next}),charged:1,balance:balance-1}};
   });
  }
- async function finish(body,actor){
+ async function finish(body,actor,receivedAt=Date.now()){
   if(typeof body.roundId!=="string"||!/^[a-f0-9-]{36}$/.test(body.roundId))fail("รอบเกมไม่ถูกต้อง",400);
   return transact(async transaction=>{
    const pp=playerPath(actor),wp=walletDocumentPath(actor.username),rp=receiptPath(body.roundId);
@@ -96,11 +96,12 @@ export function createFifteenPuzzleService(db){
    if(!round||round.id!==body.roundId||round.sessionHash!==sessionHash(body.sessionId))fail("รอบเกมหมดอายุหรือมีการเริ่มเกมใหม่แล้ว");
    const played=replayFifteen(round.board,body.trace);
    if(!played.won)fail("ยังจัดเรียงตัวเลขไม่สำเร็จ");
-   const now=Date.now(),elapsedMs=now-round.startedAt;
+   // Use trusted request arrival time, not DB processing or transaction retries.
+    const now=Date.now(),elapsedMs=receivedAt-round.startedAt;
    if(elapsedMs<1000||elapsedMs>24*60*60*1000)fail("เวลาเล่นไม่ถูกต้อง");
    if(played.moves>Math.floor(elapsedMs/12)+25)fail("การเลื่อนเร็วผิดปกติ กรุณาลองใหม่");
    const day=bangkokDay(),wins=p.day===day?num(p.dailyWins):0,year=currentMemberYear();
-   const candidate={username:actor.username,displayName:String(actor.displayName||actor.username).slice(0,120),elapsedMs,moves:played.moves,achievedAt:new Date(now).toISOString()};
+   const candidate={username:actor.username,displayName:String(actor.displayName||actor.username).slice(0,120),elapsedMs,moves:played.moves,achievedAt:new Date(receivedAt).toISOString()};
    const oldRows=leaders(b),old=oldRows.find(x=>x.username===actor.username);
    const improved=!old||compare(candidate,old)<0;
    const nextRows=improved?leaders({rows:[...oldRows.filter(x=>x.username!==actor.username),candidate]}):oldRows;

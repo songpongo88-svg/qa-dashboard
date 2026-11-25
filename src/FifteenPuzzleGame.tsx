@@ -17,6 +17,8 @@ export default function FifteenPuzzleGame({username,sessionId}:{username:string;
  const [stats,setStats]=useState<Stats|null>(null),[leaderboard,setLeaderboard]=useState<Rank[]>([]);
  const [weekly,setWeekly]=useState<WeeklyInfo|null>(null);
  const round=useRef<Round|null>(null),movesRef=useRef<number[]>([]),requestId=useRef("");
+ const timer=useRef({base:0,at:0});
+ const estimateElapsed=()=>Math.max(0,timer.current.base+performance.now()-timer.current.at);
  const call=useCallback(async(action:string,extra:Record<string,unknown>={})=>{
   const response=await fetch("/api/sparks-admin",{method:"POST",credentials:"same-origin",cache:"no-store",headers:{"content-type":"application/json"},body:JSON.stringify({action,actorUsername:username,sessionId,...extra})});
   const json=await response.json().catch(()=>({}));
@@ -25,7 +27,7 @@ export default function FifteenPuzzleGame({username,sessionId}:{username:string;
  },[username,sessionId]);
  const refresh=useCallback(async()=>{try{const data=await call("puzzle15-data");setStats(data.stats);setLeaderboard(data.leaderboard||[]);setWeekly(data.week||null);}catch(e){setError(e instanceof Error?e.message:"โหลดข้อมูลไม่สำเร็จ");}},[call]);
  useEffect(()=>{void refresh();},[refresh]);
- useEffect(()=>{if(phase!=="playing"||!round.current)return;const id=window.setInterval(()=>setElapsed(Date.now()-(round.current?.startedAt||Date.now())),100);return()=>window.clearInterval(id);},[phase]);
+ useEffect(()=>{if(phase!=="playing"||!round.current||tiles.every((n,i)=>n===GOAL[i]))return;const id=window.setInterval(()=>setElapsed(Math.max(0,timer.current.base+performance.now()-timer.current.at)),100);return()=>window.clearInterval(id);},[phase,tiles]);
  const allowed=useMemo(()=>neighbors(tiles.indexOf(0)),[tiles]);
  const begin=async()=>{
   if(busy||phase==="saving")return;
@@ -36,7 +38,8 @@ export default function FifteenPuzzleGame({username,sessionId}:{username:string;
    const data=await call("puzzle15-start",{requestId:requestId.current});
    if(!validBoard(data.board)||typeof data.roundId!=="string"||!Number.isSafeInteger(data.startedAt))throw new Error("ข้อมูลกระดานผิดพลาด กรุณาโหลดหน้าใหม่");
    round.current={roundId:data.roundId,board:data.board,startedAt:data.startedAt};
-   movesRef.current=[];setTrace([]);setMoves(0);setElapsed(0);setTiles([...data.board]);setPhase("playing");setStats(data.stats||null);
+   timer.current={base:Math.max(0,(Number.isSafeInteger(data.serverNow)?data.serverNow:data.startedAt)-data.startedAt),at:performance.now()};
+    movesRef.current=[];setTrace([]);setMoves(0);setElapsed(timer.current.base);setTiles([...data.board]);setPhase("playing");setStats(data.stats||null);
    requestId.current="";window.dispatchEvent(new Event("qa:sparks-updated"));
   }catch(e){setError(e instanceof Error?e.message:"เริ่มเกมไม่สำเร็จ");}
   finally{setBusy(false);}
@@ -44,7 +47,7 @@ export default function FifteenPuzzleGame({username,sessionId}:{username:string;
  const finish=async(steps:number[])=>{
   if(!round.current)return;setPhase("saving");setBusy(true);
   try{const data=await call("puzzle15-finish",{roundId:round.current.roundId,trace:steps});
-   setResult(data.result);setStats(data.stats);setLeaderboard(data.leaderboard||[]);setPhase("won");
+   setResult(data.result);setElapsed(data.result.elapsedMs);setStats(data.stats);setLeaderboard(data.leaderboard||[]);setPhase("won");
    round.current=null;window.dispatchEvent(new Event("qa:sparks-updated"));
   }catch(e){setError(e instanceof Error?e.message:"บันทึกผลไม่สำเร็จ");setPhase("playing");}
   finally{setBusy(false);}
@@ -53,16 +56,16 @@ export default function FifteenPuzzleGame({username,sessionId}:{username:string;
   if(phase!=="playing"||busy||!allowed.includes(i))return;
   const a=[...tiles],z=a.indexOf(0);[a[z],a[i]]=[a[i],a[z]];
   const steps=[...movesRef.current,i];movesRef.current=steps;setTrace(steps);setMoves(steps.length);setTiles(a);
-  if(a.every((n,j)=>n===GOAL[j]))void finish(steps);
+  if(a.every((n,j)=>n===GOAL[j])){setElapsed(estimateElapsed());void finish(steps);}
  };
  const exit=()=>{if(phase==="saving")return;if(phase==="playing"&&!window.confirm("ออกจากเกมตอนนี้จะไม่ได้รับรางวัลและไม่คืนค่าเข้า 1 Spark ยืนยันออกจากเกมหรือไม่?"))return;
   round.current=null;movesRef.current=[];setTiles(GOAL);setMoves(0);setTrace([]);setElapsed(0);setResult(null);setPhase("ready");setNotice("ออกจากเกมแล้ว ไม่ตัดสิทธิ์รับรางวัลประจำวัน แต่ค่าเข้าเดิมไม่คืน");};
  const claimed=stats?.dailyWins||0;
  return <section className="fifteen-game" aria-label="15-Puzzle เกมเลื่อนตัวเลข" data-fifteen-live="true">
-  <header className="fifteen-head"><span className="fifteen-eyebrow">QA SPARKS · MINI GAMES</span><h2>✦ 15-Puzzle (4×4)</h2><p>เลื่อนตัวเลข 1–15 ให้เรียงถูกต้อง ภาพพื้นหลังแต่ละช่องตั้งใจให้ชวนสับสน</p><span className="fifteen-tag">✦ ค่าเข้า 1 Spark · หักแล้วไม่คืน · รับรางวัลได้ {Math.max(0,2-claimed)}/2 ครั้งวันนี้</span></header>
+  <header className="fifteen-head"><span className="fifteen-eyebrow">QA SPARKS · MINI GAMES</span><h2>✦ 15-Puzzle (4×4)</h2><p>เลื่อนตัวเลข 1–15 ให้เรียงถูกต้อง ภาพพื้นหลังแต่ละช่องตั้งใจให้ชวนสับสน</p><span className="fifteen-tag">✦ ค่าเข้า 1 Spark · หักแล้วไม่คืน · สิทธิ์รับรางวัลคงเหลือ {Math.max(0,2-claimed)}/2 ครั้งวันนี้</span></header>
   {error?<div role="alert" className="fifteen-alert">{error}<button type="button" onClick={()=>{setError("");void refresh();}}>โหลดข้อมูลใหม่</button></div>:null}
   {notice?<p role="status" className="fifteen-victory">{notice}</p>:null}
-  <div className="fifteen-stats"><div><small>⏱ เวลา</small><strong>{duration(elapsed)}</strong></div><div><small>↔ จำนวนครั้งที่เลื่อน</small><strong>{moves}</strong></div><div><small>สถานะ</small><strong>{phase==="won"?"สำเร็จ!":phase==="saving"?"กำลังบันทึก":phase==="playing"?"กำลังเล่น":"พร้อมเล่น"}</strong></div></div>
+  <div className="fifteen-stats"><div><small>⏱ {phase==="won"?"เวลาที่รับรอง":phase==="playing"||phase==="saving"?"เวลาโดยประมาณ":"เวลา"}</small><strong>{duration(result?.elapsedMs??elapsed)}</strong></div><div><small>↔ จำนวนครั้งที่เลื่อน</small><strong>{moves}</strong></div><div><small>สถานะ</small><strong>{phase==="won"?"สำเร็จ!":phase==="saving"?"กำลังบันทึก":phase==="playing"?"กำลังเล่น":"พร้อมเล่น"}</strong></div></div>
   <div className="fifteen-board" role="group" aria-label="กระดานปริศนาขนาดสี่คูณสี่">
    {tiles.map((n,i)=>n===0?<div key="blank" className="fifteen-blank" aria-label="ช่องว่าง">✧</div>:<button type="button" key={n} aria-label={"เลื่อนเลข "+n} disabled={phase!=="playing"||busy||!allowed.includes(i)} onClick={()=>slide(i)} className={"fifteen-tile fifteen-pattern-"+n%8+(allowed.includes(i)&&phase==="playing"?" is-movable":"")}><span className="fifteen-glyph" aria-hidden="true">{["◇","✦","⬡","◈","☷","✧","⬢","❖"][n%8]}</span><span className="fifteen-number">{n}</span></button>)}
   </div>
@@ -76,7 +79,7 @@ export default function FifteenPuzzleGame({username,sessionId}:{username:string;
    <section><h3>♛ Leaderboard Top 5 · รายสัปดาห์</h3>
     <p>สรุปอันดับและจ่ายโบนัสทุกวันจันทร์ 11:00 น. (เวลาไทย) · ไม่มีโบนัสทันทีเมื่อขึ้นอันดับ</p>
     {weekly?<p>รอบ: {weekly.key==="legacy"?"รอบแรกก่อน 23 พ.ย.":weekly.key} · ปิด {new Date(weekly.nextResetAt).toLocaleString("th-TH",{timeZone:"Asia/Bangkok",day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit",hour12:false})} น.</p>:null}
-    <div className="fifteen-rank-list">{REWARDS.map((prize,i)=><div key={i}><span>อันดับ {i+1} · {leaderboard[i]?.displayName||"ว่าง"}</span><strong>{leaderboard[i]?duration(leaderboard[i].elapsedMs):"--:--"} · +{prize}</strong></div>)}</div><small>รางวัลจ่ายตามอันดับสุดท้ายขณะปิดรอบ: 150 / 120 / 100 / 80 / 50 Sparks · เวลาดีที่สุดของผู้เล่นแต่ละคน · เวลาเท่ากันดูการทำสำเร็จก่อน</small>
+    <div className="fifteen-rank-list">{REWARDS.map((prize,i)=><div key={i}><span>อันดับ {i+1} · {leaderboard[i]?.displayName||"ว่าง"}</span><strong>{leaderboard[i]?duration(leaderboard[i].elapsedMs):"--:--"} · +{prize}</strong></div>)}</div><small>รางวัลจ่ายตามอันดับสุดท้ายขณะปิดรอบ: 150 / 120 / 100 / 80 / 50 Sparks · เวลาดีที่สุดของผู้เล่นแต่ละคน · เวลาเท่ากันดูจำนวนครั้งที่เลื่อนน้อยกว่า แล้วจึงดูผู้ทำสำเร็จก่อน</small>
     {weekly?.previousChampions?.length?<p>แชมป์รอบก่อน: {weekly.previousChampions.map(c=>"อันดับ "+c.rank+" "+(c.displayName||c.username)+" +"+c.amount).join(" · ")}</p>:null}</section></div>
  </section>;
 }

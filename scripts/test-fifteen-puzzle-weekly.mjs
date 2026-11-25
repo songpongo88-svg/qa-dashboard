@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
+import {createHash} from "node:crypto";
 import {createFifteenPuzzleService} from "../server/fifteenPuzzleService.js";
 const OriginalDate=Date, monday=OriginalDate.parse("2026-11-23T04:00:10Z");
+let clockNow=monday,readDelay=0;
 class Clock extends OriginalDate {
- constructor(...args){super(...(args.length?args:[monday]));}
- static now(){return monday;}
+ constructor(...args){super(...(args.length?args:[clockNow]));}
+ static now(){return clockNow;}
 }
 globalThis.Date=Clock;
 const store=new Map(),path=(...parts)=>parts.join("/");
@@ -28,7 +30,7 @@ const db={
   }
   return {};
  },
- readDoc:async key=>store.has(key)?{key,fields:store.get(key)}:null,
+ readDoc:async key=>{clockNow+=readDelay;return store.has(key)?{key,fields:store.get(key)}:null;},
  recordValue:doc=>doc?.fields||{},
  updateWrite:(key,data)=>({mode:"update",key,data}),
  createWrite:(key,data)=>({mode:"create",key,data}),
@@ -55,5 +57,20 @@ try {
  assert.equal(current.week.key,"2026-11-23");
  assert.equal(current.leaderboard.length,0,"new week starts empty");
  assert.equal(current.week.previousChampions.length,3,"past results preserved");
- console.log("PASS 15-Puzzle weekly Top 5: Monday cutover, ordered payouts, separate new board, history and no double credit");
+ const pp="qa_sparks_fruit_players_v1/p15-b",bp="qa_sparks_fruit_boards/p15-week-2026-11-23",id="12345678-1234-1234-1234-123456789abc",sessionId="test-session";
+ clockNow=monday+200000;
+ const player=store.get(pp);
+ store.set(pp,{...player,day:"2026-11-23",dailyWins:1,activeRound:{id,sessionHash:createHash("sha256").update(sessionId).digest("hex"),startedAt:clockNow-117000,board:[1,2,3,4,5,6,7,8,9,10,11,12,13,14,0,15]}});
+ store.set(bp,{rows:[{username:"a",displayName:"A",elapsedMs:121539,moves:162,achievedAt:new Date().toISOString()},{username:"b",displayName:"B",elapsedMs:150505,moves:270,achievedAt:new Date().toISOString()}]});
+ readDelay=2000;
+ const before=store.get("qa_sparks_wallets/b").balance;
+ const finished=await service.finish({roundId:id,sessionId,trace:[15]},{username:"b",displayName:"B"});
+ assert.equal(finished.result.elapsedMs,117000,"database latency must not inflate elapsed time");
+ assert.equal(finished.result.rank,1,"improved second round must overtake previous leader");
+ assert.equal(finished.stats.dailyWins,2);
+ assert.equal(finished.result.earned,80);
+ const repeated=await service.finish({roundId:id,sessionId,trace:[15]},{username:"b",displayName:"B"});
+ assert.equal(repeated.result.elapsedMs,117000);
+ assert.equal(store.get("qa_sparks_wallets/b").balance,before+80,"finish retry never pays twice");
+ console.log("PASS 15-Puzzle weekly and finish timing: rank update, second daily win, no double credit");
 } finally {globalThis.Date=OriginalDate;}

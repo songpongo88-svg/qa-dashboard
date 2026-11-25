@@ -1871,7 +1871,7 @@ function sparksCloudReadOnlyEnabled() {
   return process.env.SPARKS_DATA_BACKEND==="supabase" && process.env.SPARKS_CLOUD_READ_ONLY==="1";
 }
 
-async function sparksHandler(req, res) {
+async function sparksHandler(req, res, receivedAt = Date.now()) {
   res.setHeader("Cache-Control", "no-store");
   // Keep Sparks gameplay, rewards, admin wallets and scheduled jobs paused.
   // The owner-only QA credential migration is a maintenance operation, not a
@@ -2114,8 +2114,8 @@ async function sparksHandler(req, res) {
       const actor=await authorizeRewardUser(body);
       const result=body.action==="puzzle15-data"?await fifteenPuzzle.data(actor)
         :body.action==="puzzle15-start"?await fifteenPuzzle.start(body,actor)
-        :await fifteenPuzzle.finish(body,actor);
-      return res.status(200).json(result);
+        :await fifteenPuzzle.finish(body,actor,receivedAt);
+      return res.status(200).json({...result,serverNow:Date.now()});
     }
     if (["fruit-match-data","fruit-match-start","fruit-match-finish","fruit-match-recover"].includes(body.action)) {
       const actor = await authorizeRewardUser(body);
@@ -2393,5 +2393,6 @@ async function sparksHandler(req, res) {
 
 
 export default function handler(req, res) {
-  return withSparksRequest(req, res, () => sparksHandler(req, res));
+  const receivedAt=Date.now();
+  return withSparksRequest(req, res, () => sparksHandler(req, res, receivedAt));
 }
