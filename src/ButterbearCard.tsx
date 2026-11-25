@@ -1,6 +1,6 @@
 import React,{useEffect,useState} from "react";
 import "./butterbearCard.css";
-type State={owned:boolean;active:boolean;monthlyClaimed:boolean;balance:number;purchasedAt:string;expiresAt:string;forfeited:boolean};
+type State={owned:boolean;active:boolean;monthlyClaimed:boolean;balance:number;purchasedAt:string;expiresAt:string;forfeited:boolean;birthdayClaimedAt:string};
 export function useButterbear(username?:string,sessionId?:string){
  const [state,setState]=useState<State|null>(null),[busy,setBusy]=useState(false),[message,setMessage]=useState("");
  async function request(action:string,extra:Record<string,unknown>={}){

@@ -1136,7 +1136,8 @@ async function claimMemberBirthday(body,actor) {
   const today=bangkokQuestDate();
   const year=Number(today.slice(0,4));
   const walletPath=walletDocumentPath(actor.username);
-  const historyPath=path("qa_sparks_wallets",walletKey(actor.username),"history","birthday-gift-2026");
+  const historyPath=path("qa_sparks_wallets",walletKey(actor.username),"history","birthday-gift-"+year);
+  const claimedField="birthdayClaimed"+year+"At";
   for(let attempt=0;attempt<4;attempt++){
     const begin=await firestoreRequest(":beginTransaction","POST",{options:{readWrite:{}}});
     const transaction=begin?.transaction;
@@ -1144,30 +1145,30 @@ async function claimMemberBirthday(body,actor) {
     try {
       const [snap,claimed]=await Promise.all([readDoc(walletPath,transaction),readDoc(historyPath,transaction)]);
       const wallet=recordValue(snap);
-      if(claimed||wallet.birthdayClaimed2026At)
-        return {ok:true,alreadyClaimed:true,claimedAt:wallet.birthdayClaimed2026At||recordValue(claimed).createdAt};
-      if(year!==2026)fail("การรับของขวัญย้อนหลังปี 2569 สิ้นสุดแล้ว",400);
+      if(claimed||wallet[claimedField])
+        return {ok:true,alreadyClaimed:true,claimedAt:wallet[claimedField]||recordValue(claimed).createdAt};
+      if(year!==2026&&!butterbearActive(wallet))fail("การรับของขวัญย้อนหลังปี 2569 สิ้นสุดแล้ว",400);
       const dob=String(wallet.birthdayDate||"");
       const mmdd=dob.slice(5);
       if(!validBirthdayDate(dob)||!validBirthdayMMDD(mmdd))fail("กรุณาบันทึกวัน เดือน และปีเกิดก่อนรับของขวัญ",400);
       // Retroactive eligibility for every 2026 birthday already elapsed.
       // Feb 29 is observed on Feb 28 in 2026 (non-leap year).
-      const observed=mmdd==="02-29"?"02-28":mmdd;
-      if(observed>today.slice(5))fail("ยังไม่ถึงวันเกิดของคุณในปี 2569",400);
-      const annual=annualEarnedFromWallet(wallet,2026);
+      const observed=mmdd==="02-29"&&new Date(Date.UTC(year,1,29)).getUTCMonth()!==1?"02-28":mmdd;
+      if(observed>today.slice(5))fail("ยังไม่ถึงวันเกิดของคุณในปีนี้",400);
+      const annual=annualEarnedFromWallet(wallet,year);
       const amount=BIRTHDAY_2026_POINTS[sparksMemberIndex(annual)]+(butterbearActive(wallet)?BUTTERBEAR_BIRTHDAY:0);
       const now=new Date().toISOString();
-      const nextBalance=spendableBalance(wallet,2026)+amount;
+      const nextBalance=spendableBalance(wallet,year)+amount;
       const nextAnnual=annual+amount;
       await firestoreRequest(":commit","POST",{transaction,writes:[
         updateWrite(walletPath,{
-          username:actor.username,birthdayClaimed2026At:now,birthdayLockedAt:now,
-          balance:nextBalance,balanceYear:2026,totalEarned:intCount(wallet.totalEarned)+amount,
-          memberYear:2026,memberYearEarned:nextAnnual,updatedAt:now
+          username:actor.username,[claimedField]:now,birthdayLockedAt:now,
+          balance:nextBalance,balanceYear:year,totalEarned:intCount(wallet.totalEarned)+amount,
+          memberYear:year,memberYearEarned:nextAnnual,updatedAt:now
         },snap),
         createWrite(historyPath,{
-          createdAt:now,type:"earn",source:"membership-birthday",title:"Birthday Gift 2026",
-          detail:"โบนัสวันเกิดประจำปี 2569 (รวมสิทธิ์ย้อนหลัง)",amount,
+          createdAt:now,type:"earn",source:"membership-birthday",title:"Birthday Gift "+year,
+          detail:"โบนัสวันเกิดประจำปี "+(year+543)+" (รวมสิทธิ์ย้อนหลัง)",amount,
           balanceAfter:nextBalance,performedBy:actor.username,status:"Completed"
         })
       ]});

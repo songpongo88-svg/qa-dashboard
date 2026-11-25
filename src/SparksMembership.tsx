@@ -101,10 +101,10 @@ export default function MemberJourney({ earned, year, displayName, balance, rewa
   const [giftClaimed,setGiftClaimed]=useState(Boolean(birthdayClaimed2026At));
   const [giftBusy,setGiftBusy]=useState(false);
   const [giftMessage,setGiftMessage]=useState("");
-  useEffect(()=>setGiftClaimed(Boolean(birthdayClaimed2026At)),[birthdayClaimed2026At]);
+  useEffect(()=>setGiftClaimed(year===2026?Boolean(birthdayClaimed2026At||butterbear.state?.birthdayClaimedAt):Boolean(butterbear.state?.birthdayClaimedAt)),[year,birthdayClaimed2026At,butterbear.state?.birthdayClaimedAt]);
   const localDate=localBangkokDate();
   const observedBirthday=storedDOB.slice(5)==="02-29"?"02-28":storedDOB.slice(5);
-  const eligibleBirthdayGift=Boolean(storedDOB)&&localDate.startsWith("2026-")&&observedBirthday<=localDate.slice(5);
+  const eligibleBirthdayGift=Boolean(storedDOB)&&(localDate.startsWith("2026-")||bbActive)&&observedBirthday<=localDate.slice(5);
   const level=member.current.level;
   const bonus=checkinBonus[level-1]+(bbActive?20:0);
   const discount=memberDiscount(level)+(bbActive?5:0);
@@ -216,8 +216,8 @@ export default function MemberJourney({ earned, year, displayName, balance, rewa
           </div>
           {bbActive&&<div className="qa-member-benefits-grid bb-extra-perks"><article><span className="qa-perk-icon" aria-hidden="true">✦</span><span>Monthly Gift</span><strong>300 Sparks / เดือน</strong><small>รับได้เดือนละ 1 ครั้ง</small><button type="button" className="qa-action" disabled={butterbear.busy||butterbear.state?.monthlyClaimed} onClick={()=>void butterbear.run("butterbear-monthly")}>{butterbear.state?.monthlyClaimed?"รับของขวัญเดือนนี้แล้ว":"รับของขวัญประจำเดือน"}</button>{butterbear.message&&<small role="status">{butterbear.message}</small>}</article><article><span className="qa-perk-icon" aria-hidden="true">▦</span><span>Card Validity</span><strong>{bbDate(butterbear.state?.expiresAt||"")}</strong><small>อายุบัตร 1 ปีนับจากวันที่ออกบัตร</small></article></div>}
           <div className="qa-member-birthday-action">
-            <strong>ของขวัญวันเกิด 2569</strong>
-            <p>{!storedDOB?"กรุณาบันทึกวันเกิดเพื่อเปิดรับสิทธิ์":giftClaimed?"รับของขวัญวันเกิดปีนี้แล้ว":eligibleBirthdayGift?"มีสิทธิ์กดรับของขวัญย้อนหลังปี 2569":localDate.startsWith("2026-")?"ยังไม่ถึงวันเกิดของคุณในปีนี้":"พ้นระยะเวลารับย้อนหลังปี 2569"}</p>
+            <strong>ของขวัญวันเกิด {year+543}</strong>
+            <p>{!storedDOB?"กรุณาบันทึกวันเกิดเพื่อเปิดรับสิทธิ์":giftClaimed?"รับของขวัญวันเกิดปีนี้แล้ว":eligibleBirthdayGift?"มีสิทธิ์กดรับของขวัญวันเกิดปีนี้":(localDate.startsWith("2026-")||bbActive)?"ยังไม่ถึงวันเกิดของคุณในปีนี้":"พ้นระยะเวลารับของขวัญปี 2569"}</p>
             {eligibleBirthdayGift&&!giftClaimed?
               <button type="button" disabled={giftBusy} onClick={()=>void claimBirthday()}>
                 {giftBusy?"กำลังยืนยันสิทธิ์...":"รับของขวัญวันเกิด "+number(birthdayPoints[level-1]+(bbActive?500:0))+" Sparks"}
