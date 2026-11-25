@@ -251,3 +251,60 @@ revoke all on all functions in schema sparks_transfer from public,anon,authentic
 revoke all on function public.sparks_transfer_v2(text,jsonb) from public,anon;
 grant execute on function public.sparks_transfer_v2(text,jsonb) to authenticated;
 select cron.schedule('qa-sparks-transfer-expiry','* * * * *','SELECT sparks_transfer.expire_due(200);');
+
+-- Reissue fee and entitlement change are committed with the new card number and PIN.
+-- Patch verified live function definition without altering unrelated transfer logic.
+DO $patch$
+DECLARE f text; old text; replacement text;
+BEGIN
+ select pg_get_functiondef('public.sparks_transfer_v2(text,jsonb)'::regprocedure) into f;
+ IF position('bb_special_active' in f)>0 THEN RETURN; END IF;
+ old:=' v_balance bigint; v_month_start timestamptz; v_now timestamptz:=now(); v_ok boolean;';
+ IF position(old in f)=0 THEN RAISE EXCEPTION 'membership function declaration changed'; END IF;
+ f:=replace(f,old,old||' bb_wallet jsonb; bb_special_active boolean:=false; bb_expires timestamptz; bb_type text; bb_stamp text; bb_balance bigint; bb_spent bigint; bb_history text;');
+ old:=' if p_action=''card-state'' then';
+ IF position(old in f)=0 THEN RAISE EXCEPTION 'membership state anchor changed'; END IF;
+ replacement:=$a$
+ if p_action in ('card-state','card-reissue') then
+   if p_action='card-reissue' then
+     perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('qa_sparks_wallets/'||me,0));
+     select fields into bb_wallet from sparks_runtime.documents where source_path='qa_sparks_wallets/'||me for update;
+   else
+     select fields into bb_wallet from sparks_runtime.documents where source_path='qa_sparks_wallets/'||me;
+   end if;
+   if nullif(bb_wallet #>> '{butterbearPurchasedAt,stringValue}','') is not null then
+     bb_expires:=(((bb_wallet #>> '{butterbearPurchasedAt,stringValue}')::timestamptz at time zone 'Asia/Bangkok')+interval '1 year') at time zone 'Asia/Bangkok';
+     bb_special_active:=bb_expires>v_now and nullif(bb_wallet #>> '{butterbearForfeitedAt,stringValue}','') is null;
+   end if;
+ end if;
+ if p_action='card-state' then$a$;
+ f:=replace(f,old,replacement);
+ old:='''pinConfigured'',coalesce(currentcard.active,false),';
+ IF position(old in f)=0 THEN RAISE EXCEPTION 'membership result anchor changed'; END IF;
+ f:=replace(f,old,old||'''specialActive'',bb_special_active,''specialExpiresAt'',bb_expires,');
+ old:='   v_card:=(floor(random()*900000000000)::bigint + 100000000000)::text;';
+ IF position(old in f)=0 THEN RAISE EXCEPTION 'membership issuance anchor changed'; END IF;
+ replacement:=$a$
+   if p_action='card-reissue' then
+     bb_type:=coalesce(p_payload->>'cardType','');
+     if bb_special_active and bb_type not in ('default','butterbear') then raise exception 'เลือกประเภทบัตรที่จะออกใหม่' using errcode='22023';end if;
+     if bb_type='butterbear' and not bb_special_active then raise exception 'บัตรพิเศษหมดอายุหรือไม่มีสิทธิ์' using errcode='22023';end if;
+     if bb_special_active and coalesce(p_payload->>'previousCard','')<>currentcard.card_number then raise exception 'หมายเลขบัตรเดิมเปลี่ยนไป กรุณาเปิดหน้าจัดการบัตรใหม่' using errcode='22023';end if;
+     if bb_special_active then
+       bb_stamp:=to_char(v_now at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"');
+       if bb_type='butterbear' then
+         bb_history:='special-card-reissue-'||currentcard.card_number;
+         bb_balance:=sparks_transfer.wallet_move(me,-250,bb_history,'member-card-reissue','ค่าธรรมเนียมออกบัตร Butterbear – Golden Bakery Edition ใหม่');
+         select coalesce((fields #>> '{totalSpent,integerValue}')::bigint,0) into bb_spent from sparks_runtime.documents where source_path='qa_sparks_wallets/'||me;
+         update sparks_runtime.documents set fields=fields||jsonb_build_object('totalSpent',jsonb_build_object('integerValue',(bb_spent+250)::text),'memberCardSkin',jsonb_build_object('stringValue','butterbear')),update_time=bb_stamp where source_path='qa_sparks_wallets/'||me;
+         update sparks_runtime.documents set fields=jsonb_set(fields,'{title}',jsonb_build_object('stringValue','Special Membership Card Reissue Fee')) where source_path='qa_sparks_wallets/'||me||'/history/'||bb_history;
+       else
+         update sparks_runtime.documents set fields=fields||jsonb_build_object('butterbearForfeitedAt',jsonb_build_object('stringValue',bb_stamp),'memberCardSkin',jsonb_build_object('stringValue','default'),'updatedAt',jsonb_build_object('stringValue',bb_stamp)),update_time=bb_stamp where source_path='qa_sparks_wallets/'||me;
+       end if;
+     end if;
+   end if;
+   v_card:=(floor(random()*900000000000)::bigint + 100000000000)::text;$a$;
+ f:=replace(f,old,replacement);
+ f:=replace(f,'active=true,failed_attempts=0,locked_until=null,updated_at=v_now;','active=true,failed_attempts=0,locked_until=null,issued_at=v_now,updated_at=v_now;');
+ EXECUTE f;
+END $patch$;

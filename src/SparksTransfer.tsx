@@ -5,7 +5,7 @@ import "./sparksTransfer.css";
 type Summary={balance:number;sentThisMonth:number;remaining:number;monthlyLimit:number;
   cardActive:boolean;cardNumber:string|null;incoming:Transfer[];history:Transfer[]};
 type Transfer={id:string;amount:number;sender:string;recipient?:string;status:string;expiresAt:string;sentAt?:string};
-type Card={cardActive:boolean;cardNumber:string|null;pinConfigured:boolean;lockedUntil?:string|null};
+type Card={cardActive:boolean;cardNumber:string|null;pinConfigured:boolean;lockedUntil?:string|null;specialActive?:boolean};
 const readable=(reason:unknown)=>{const message=String(reason instanceof Error?reason.message:reason||"");
   const codes:Record<string,string>={
     PIN_INCORRECT:"PIN ไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง (ผิดครบ 5 ครั้งจะล็อก 15 นาที)",
@@ -41,6 +41,7 @@ export default function SparksTransfer({username,sessionId,active}:{username:str
  const [amount,setAmount]=useState(""),[requestId,setRequestId]=useState(""),[confirmSend,setConfirmSend]=useState(false);
  const [busy,setBusy]=useState(false),[loading,setLoading]=useState(false),[notice,setNotice]=useState(""),[error,setError]=useState("");
  const [reissue,setReissue]=useState(false),[oldPin,setOldPin]=useState("");
+ const [reissueType,setReissueType]=useState<"default"|"butterbear">("default");
  const call=useCallback(async(action:string,extra:Record<string,unknown>={})=>{
   const response=await fetch("/api/sparks-admin",{method:"POST",credentials:"same-origin",cache:"no-store",
    headers:{"content-type":"application/json"},body:JSON.stringify({action,actorUsername:username,sessionId,...extra})});
@@ -63,10 +64,10 @@ export default function SparksTransfer({username,sessionId,active}:{username:str
   finally{setBusy(false);}
  };
  const activate=()=>void run(reissue?"member-card-reissue":"member-card-activate",
-  {newPin,confirmPin,...(reissue?{confirm:"REISSUE"}:{})},async result=>{
+  {newPin,confirmPin,...(reissue?{confirm:"REISSUE",cardType:reissueType,previousCard:card?.cardNumber}:{})},async result=>{
    setCard({cardActive:true,cardNumber:result.cardNumber,pinConfigured:true});setNewPin("");setConfirmPin("");
    setReissue(false);setScreen("gate");setNotice("เปิดใช้งานบัตรเรียบร้อย กรุณากรอก PIN เพื่อเข้า Spark Transfer");
-   window.dispatchEvent(new Event("qa:sparks-card-updated"));await refresh();
+   window.dispatchEvent(new Event("qa:sparks-card-updated"));window.dispatchEvent(new Event("qa:butterbear-updated"));window.dispatchEvent(new Event("qa:sparks-updated"));await refresh();
   });
  const unlock=()=>void run("member-pin-verify",{pin},async()=>{await refresh();setScreen("send");});
  const lookup=()=>void run("sparks-transfer-lookup",{recipientCard},result=>{setRecipientName(result.recipientName);setConfirmSend(false);});
@@ -104,9 +105,10 @@ export default function SparksTransfer({username,sessionId,active}:{username:str
       {!loading&&screen==="activate"?<>
         <h3>{reissue?"ออกบัตรสมาชิกใหม่":"เปิดใช้งานบัตรสมาชิก"}</h3>
         <p>{reissue?"บัตรเดิมจะถูกยกเลิกถาวรและออกเลขบัตรใหม่ คะแนนและประวัติยังอยู่กับบัญชีเดิม":"ตั้ง PIN 6 หลักเพื่อเปิดใช้งานบัตรและใช้ Spark Transfer"}</p>
+        {reissue&&card?.specialActive&&<fieldset className="bb-reissue"><legend>เลือกประเภทบัตรที่จะออกใหม่</legend><label><input type="radio" name="reissue-type" checked={reissueType==="default"} onChange={()=>setReissueType("default")}/> Default Card · ฟรี (สละสิทธิ์บัตร Special เดิมถาวร)</label><label><input type="radio" name="reissue-type" checked={reissueType==="butterbear"} onChange={()=>setReissueType("butterbear")}/> Butterbear – Golden Bakery Edition · 250 Sparks (คงวันหมดอายุเดิม)</label><p>ไม่รับโบนัสแลกซื้อซ้ำ</p></fieldset>}
         <label>PIN ใหม่ 6 หลัก<input type="password" inputMode="numeric" maxLength={6} autoComplete="new-password" value={newPin} onChange={e=>setNewPin(e.target.value.replace(/\D/g,"").slice(0,6))}/></label>
         <label>ยืนยัน PIN ใหม่<input type="password" inputMode="numeric" maxLength={6} autoComplete="new-password" value={confirmPin} onChange={e=>setConfirmPin(e.target.value.replace(/\D/g,"").slice(0,6))}/></label>
-        <button className="qa-transfer-main" type="button" disabled={busy||!pinValid(newPin)||newPin!==confirmPin} onClick={activate}>{reissue?"ยืนยันทำบัตรใหม่":"เปิดใช้งานบัตร"}</button>
+        <button className="qa-transfer-main" type="button" disabled={busy||!pinValid(newPin)||newPin!==confirmPin||(reissue&&reissueType==="butterbear"&&(!summary||summary.balance<250))} onClick={activate}>{reissue?"ยืนยันทำบัตรใหม่":"เปิดใช้งานบัตร"}</button>
         {reissue?<button type="button" className="qa-transfer-text" onClick={()=>{setReissue(false);switchScreen("gate");}}>กลับ</button>:null}
       </>:null}
       {!loading&&screen==="gate"&&card?.cardActive?<div className="qa-transfer-gate">
@@ -117,7 +119,7 @@ export default function SparksTransfer({username,sessionId,active}:{username:str
           onChange={e=>setPin(e.target.value.replace(/\D/g,"").slice(0,6))} placeholder="••••••"/>
         <button type="button" className="qa-transfer-main" disabled={busy||!pinValid(pin)} onClick={unlock}>ยืนยัน PIN</button>
         <div className="qa-transfer-inline"><button type="button" onClick={()=>switchScreen("settings")}>เปลี่ยน PIN</button>
-         <button type="button" onClick={()=>{setReissue(true);setNewPin("");setConfirmPin("");switchScreen("activate");}}>ลืม PIN · ทำบัตรใหม่</button></div>
+         <button type="button" onClick={()=>{setReissue(true);setReissueType("default");setNewPin("");setConfirmPin("");switchScreen("activate");}}>ลืม PIN · ทำบัตรใหม่</button></div>
       </div>:null}
       {!loading&&screen==="settings"?<>
         <h3>เปลี่ยน PIN บัตรสมาชิก</h3><p>ต้องทราบ PIN เดิม หากจำไม่ได้ต้องทำบัตรใหม่</p>

@@ -2101,7 +2101,7 @@ async function sparksHandler(req, res) {
       const payload={
         pin:String(body.pin||""),newPin:String(body.newPin||""),
         confirmPin:String(body.confirmPin||""),confirm:String(body.confirm||""),
-        recipientCard:String(body.recipientCard||""),requestId:String(body.requestId||""),
+        recipientCard:String(body.recipientCard||""),requestId:String(body.requestId||""),cardType:String(body.cardType||""),previousCard:String(body.previousCard||""),
         amount:body.amount,transferId:String(body.transferId||""),
       };
       const result=await sparksTransferV2(actions[body.action],payload);
