@@ -1,3 +1,4 @@
+import {ButterbearMemberCard,useButterbear} from "./ButterbearCard";
 import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { SPARKS_MEMBER_LEVELS, SPARKS_TOP_LEVEL_POINTS, getSparksMemberLevel, type MemberLevel } from "./qaSparksMemberLevels";
@@ -70,6 +71,8 @@ export function SparksWalletSummary({ balance, rewardOrders, compact = false }: 
 
 export default function MemberJourney({ earned, year, displayName, balance, rewardOrders, username, sessionId, birthdayDate = "", birthdayClaimed2026At = "" }: { earned: number; year: number; displayName: string; balance: number; rewardOrders: number; username?: string; sessionId?: string; birthdayDate?: string; birthdayClaimed2026At?: string }) {
   const member = getSparksMemberLevel(earned);
+  const butterbear=useButterbear(username,sessionId);
+  const bbActive=Boolean(butterbear.state?.active);
   const [guideOpen, setGuideOpen] = useState(false);
   const [cardNumber, setCardNumber] = useState("");
   const [storedDOB, setStoredDOB] = useState(birthdayDate);
@@ -102,7 +105,7 @@ export default function MemberJourney({ earned, year, displayName, balance, rewa
   const observedBirthday=storedDOB.slice(5)==="02-29"?"02-28":storedDOB.slice(5);
   const eligibleBirthdayGift=Boolean(storedDOB)&&localDate.startsWith("2026-")&&observedBirthday<=localDate.slice(5);
   const level=member.current.level;
-  const bonus=checkinBonus[level-1];
+  const bonus=checkinBonus[level-1]+(bbActive?20:0);
   const discount=memberDiscount(level);
   async function claimBirthday(){
     if(giftBusy||giftClaimed||!eligibleBirthdayGift||!username||!sessionId)return;
@@ -169,8 +172,9 @@ export default function MemberJourney({ earned, year, displayName, balance, rewa
     </div> : <div className="qa-membership" data-member-wallet="integrated">
       <div className="qa-section-top"><div><p>ANNUAL MEMBERSHIP · {year}</p><h2>บัตรสมาชิกของคุณ</h2></div><button ref={openButton} type="button" className="qa-action" aria-expanded={false} onClick={() => setGuideOpen(true)}>ดูระดับสมาชิกทั้งหมด <span aria-hidden="true">↗</span></button></div>
       <div className="qa-member-hero">
-        <div className="qa-current-card"><MemberCard tier={member.current} year={year} displayName={displayName} cardNumber={cardNumber} birthdayDate={storedDOB} onCopyNumber={()=>void copyCardNumber()}/></div>
+        <div className="qa-current-card">{bbActive?<ButterbearMemberCard tier={member.current} year={year} displayName={displayName} cardNumber={cardNumber} birthdayDate={storedDOB} onCopy={()=>void copyCardNumber()}/>:<MemberCard tier={member.current} year={year} displayName={displayName} cardNumber={cardNumber} birthdayDate={storedDOB} onCopyNumber={()=>void copyCardNumber()}/> }</div>
         <div className="qa-benefits-hint" role="status">{copyMessage||(cardActive?"คลิกหมายเลขบัตรเพื่อคัดลอก":"เปิดใช้งานบัตรเพื่อรับหมายเลขบัตร")}</div>
+        {butterbear.state?.owned&&<div className="bb-controls"><button type="button" disabled={butterbear.busy||!bbActive} onClick={()=>void butterbear.run("butterbear-select",{skin:"default"})}>Default</button><button type="button" disabled={butterbear.busy||bbActive} onClick={()=>void butterbear.run("butterbear-select",{skin:"butterbear"})}>Butterbear</button></div>}
         <div className="qa-member-card-controls">
           <span className={cardActive?"qa-card-status-active":"qa-card-status-inactive"}>
             {cardActive?"บัตรเปิดใช้งานแล้ว · PIN 6 หลัก":"บัตรยังไม่เปิดใช้งาน · กรุณาตั้ง PIN 6 หลัก"}
@@ -195,7 +199,7 @@ export default function MemberJourney({ earned, year, displayName, balance, rewa
           <div className="qa-benefits-level-heading">สิทธิ์ที่ปลดล็อกแล้ว</div>
           <div className="qa-member-benefits-grid">
             <article><span className="qa-perk-icon" aria-hidden="true">▦</span><span>Daily Check-in</span><strong>{bonus>0?"+"+bonus+" Sparks / วัน":"สิทธิ์พื้นฐาน"}</strong><small>รับโบนัสตามระดับสูงสุดที่ปลดล็อก ในวันที่มีกิจกรรม Check-in</small></article>
-            <article><span className="qa-perk-icon" aria-hidden="true">✦</span><span>Birthday Gift</span><strong>{number(birthdayPoints[level-1])} Sparks</strong><small>รับได้ปีละครั้ง · จำนวนตามระดับสมาชิกเมื่อกดรับ</small></article>
+            <article><span className="qa-perk-icon" aria-hidden="true">✦</span><span>Birthday Gift</span><strong>{number(birthdayPoints[level-1]+(bbActive?500:0))} Sparks</strong><small>รับได้ปีละครั้ง · จำนวนตามระดับสมาชิกเมื่อกดรับ</small></article>
           </div>
           <div className="qa-benefits-level-heading">สิทธิพิเศษเพิ่มเติม</div>
           <div className="qa-member-benefits-grid">
@@ -208,12 +212,13 @@ export default function MemberJourney({ earned, year, displayName, balance, rewa
               <small>Item VIP · ตราโปรไฟล์ · Monthly Surprise อยู่ระหว่างเตรียมเปิด</small>
             </article>
           </div>
+          {butterbear.state?.owned&&<div className="bb-perks"><strong>Butterbear Special Benefits · {bbActive?"กำลังใช้งาน":"ยังไม่เปิดใช้งาน"}</strong><p>โบนัสเช็กอินเพิ่ม 20 Sparks/วัน · ของขวัญวันเกิดเพิ่ม 500 Sparks · ของขวัญรายเดือน 300 Sparks</p><p>ส่วนลด Item เพิ่ม 5% (รอเปิดใช้งาน)</p><div className="bb-controls"><button type="button" disabled={!bbActive||butterbear.busy||butterbear.state.monthlyClaimed} onClick={()=>void butterbear.run("butterbear-monthly")}>{butterbear.state.monthlyClaimed?"รับของขวัญเดือนนี้แล้ว":"รับของขวัญประจำเดือน 300 Sparks"}</button></div>{butterbear.message&&<p role="status">{butterbear.message}</p>}</div>}
           <div className="qa-member-birthday-action">
             <strong>ของขวัญวันเกิด 2569</strong>
             <p>{!storedDOB?"กรุณาบันทึกวันเกิดเพื่อเปิดรับสิทธิ์":giftClaimed?"รับของขวัญวันเกิดปีนี้แล้ว":eligibleBirthdayGift?"มีสิทธิ์กดรับของขวัญย้อนหลังปี 2569":localDate.startsWith("2026-")?"ยังไม่ถึงวันเกิดของคุณในปีนี้":"พ้นระยะเวลารับย้อนหลังปี 2569"}</p>
             {eligibleBirthdayGift&&!giftClaimed?
               <button type="button" disabled={giftBusy} onClick={()=>void claimBirthday()}>
-                {giftBusy?"กำลังยืนยันสิทธิ์...":"รับของขวัญวันเกิด "+number(birthdayPoints[level-1])+" Sparks"}
+                {giftBusy?"กำลังยืนยันสิทธิ์...":"รับของขวัญวันเกิด "+number(birthdayPoints[level-1]+(bbActive?500:0))+" Sparks"}
               </button>:null}
             {giftMessage?<p role="status">{giftMessage}</p>:null}
           </div>

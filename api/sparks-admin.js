@@ -1,3 +1,4 @@
+import {createButterbearService,butterbearActive,BUTTERBEAR_DAILY,BUTTERBEAR_BIRTHDAY} from "../server/butterbearCardService.js";
 import {appendKnownItemExpirations} from "../src/sparksItemHistory.mjs";
 import { createSign, createHash, randomUUID, timingSafeEqual } from "node:crypto";
 import { createFruitMatchService } from "../server/fruitMatchService.js";
@@ -1154,7 +1155,7 @@ async function claimMemberBirthday(body,actor) {
       const observed=mmdd==="02-29"?"02-28":mmdd;
       if(observed>today.slice(5))fail("ยังไม่ถึงวันเกิดของคุณในปี 2569",400);
       const annual=annualEarnedFromWallet(wallet,2026);
-      const amount=BIRTHDAY_2026_POINTS[sparksMemberIndex(annual)];
+      const amount=BIRTHDAY_2026_POINTS[sparksMemberIndex(annual)]+(butterbearActive(wallet)?BUTTERBEAR_BIRTHDAY:0);
       const now=new Date().toISOString();
       const nextBalance=spendableBalance(wallet,2026)+amount;
       const nextAnnual=annual+amount;
@@ -1209,7 +1210,7 @@ async function claimDailyCheckin(body, actor) {
       }
       const memberYear = currentMemberYear();
       const earnedThisYear = annualEarnedFromWallet(wallet, memberYear);
-      const reward = baseReward + MEMBER_CHECKIN_BONUS[sparksMemberIndex(earnedThisYear)];
+      const reward = baseReward + MEMBER_CHECKIN_BONUS[sparksMemberIndex(earnedThisYear)] + (butterbearActive(wallet)?BUTTERBEAR_DAILY:0);
       const now = new Date().toISOString();
       // Never reduce earned levels when tickets are redeemed.
       const lifetimeEarned = Math.max(intCount(wallet.totalEarned), intCount(wallet.firstLogin?.amount));
@@ -1953,6 +1954,12 @@ async function sparksHandler(req, res) {
         error:"QA Sparks เวอร์ชันทดสอบ Supabase เปิดให้ดูข้อมูลอย่างเดียว ยังไม่อนุญาตให้เพิ่ม หัก แลก หรือยืนยันรางวัล",
         code:"SPARKS_CLOUD_PREVIEW_READ_ONLY",
       });
+    }
+    if (["butterbear-state","butterbear-buy","butterbear-select","butterbear-monthly"].includes(body.action)) {
+      if(process.env.SPARKS_DATA_BACKEND!=="supabase")fail("บัตรพิเศษใช้ฐานข้อมูล Supabase เท่านั้น",423);
+      const actor=await authorizeRewardUser(body);
+      const run=createButterbearService({readDoc,recordValue,firestoreRequest,updateWrite,createWrite,walletDocumentPath,walletKey,path,spendableBalance,annualEarnedFromWallet,currentMemberYear,intCount,bangkokQuestDate,fail});
+      return res.status(200).json(await run(body,actor));
     }
     if (body.action === "thank-you-support-popup") {
       return res.status(200).json(await takeThankYouSupportPopup(body));
