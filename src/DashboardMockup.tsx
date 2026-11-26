@@ -64,7 +64,6 @@ import { canonicalAgentIdentityKey, canonicalizeAgentName, isSameCanonicalAgent,
 import { resolveCaseAgentTeam, type CaseAgentDirectoryEntry } from "./lib/caseAgentTeam";
 import { calculateMonthlyKpi, selectMonthlyKpiCases } from "./lib/monthlyKpi";
 import { getCaseDetailTopicTitle } from "./lib/rubricVersions";
-import MonthlyKpiNotice from "./MonthlyKpiNotice";
 import { fetchStoredRolePermissions } from "./userRoleStore";
 import { ProcessReferenceDisplay } from "./processLibrary";
 import { type DeductionTag } from "./lib/evaluation/deductionTags";
@@ -8478,19 +8477,6 @@ export default function DashboardMockup({
                   </div>
 
                   <div id="qa-dashboard-announcement-ticker" className="empty:hidden" />
-
-                  {!readOnlyRecovery && isMonthlyView && currentUser?.username && monthlyKpiNeedsAttention ? (
-                    <MonthlyKpiNotice
-                      cases={monthlyKpiCases}
-                      agent={effectiveSelectedAgent}
-                      monthKey={selectedMonthKey}
-                      monthLabel={currentViewingMonthLabel}
-                      viewer={currentUser.username}
-                      agentOptions={isAllAgentsView ? qaIncompleteMonthlyKpiAgentOptions : qaMonthlyKpiAgentOptions}
-                      canBrowseAgents={qaCanBrowseMonthlyKpiAgents}
-                      autoOpen={true}
-                    />
-                  ) : null}
 
                   {canViewAnalytics && analyticsContent ? (
                     <section

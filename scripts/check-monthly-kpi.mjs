@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import ts from "typescript";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { evaluationAgentFocusPopupPatch } from "../build/evaluationAgentFocusPopupPatch.js";
 
 const source = (file) => readFileSync(new URL(`../src/${file}`, import.meta.url), "utf8");
 const parse = (file) => ts.createSourceFile(file, source(file), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
@@ -140,78 +141,29 @@ check("all-agent completion checks each person's quota, including known zero-cas
   assert.equal(dashboardState(rows(10,85),true,false,false,["Agent One","Agent Two"]).label,"—");
 });
 
-const hooks = {useMemo:React.useMemo,useRef:React.useRef,useState:React.useState,useEffect:React.useEffect};
-const Component = run(moduleCode("MonthlyKpiNotice.tsx"),{React,...hooks,...kpi}).default;
-check("popup renders all scenarios with agent/month, safe labels and capped progress", () => {
-  for(const [n,total] of [[0,0],[8,660],[6,540],[9,855],[8,640],[10,872],[10,839],[11,850]]) {
-    const html = renderToStaticMarkup(React.createElement(Component,{cases:rows(n,n?total/n:0),agent:"Agent <One>",monthKey:"2026-08",monthLabel:"August 2026",viewer:"viewer"}));
-    assert.match(html,/Agent &lt;One&gt;/); assert.match(html,/August 2026/);
-    assert.match(html,/<dialog/); assert.match(html,/aria-labelledby="qmk-title"/);
-    assert.match(html,new RegExp(`aria-valuenow="${Math.min(10,n)}"`));
-    assert.doesNotMatch(html,/NaN|Infinity|ข้อมูลสมมติ/);
-    assert.match(html,/ไม่รวม Test Case/); assert.match(html,/รับทราบ/);
+check("retired KPI and evaluation notifications never render for any user or role", () => {
+  const Monthly = run(moduleCode("MonthlyKpiNotice.tsx")).default;
+  const Progress = run(moduleCode("QaEvaluationProgressNotice.tsx")).default;
+  for (const role of ["Owner", "QA", "Admin Live Chat", "Senior", "Supervisor"]) {
+    for (const n of [0,5,10]) {
+      assert.equal(renderToStaticMarkup(React.createElement(Monthly,{cases:rows(n),agent:"Agent One",monthKey:"2026-08",monthLabel:"August 2026",viewer:role,canBrowseAgents:true,autoOpen:true})), "");
+      assert.equal(renderToStaticMarkup(React.createElement(Progress,{currentUser:{username:role,role}})), "");
+    }
   }
+  assert.doesNotMatch(source(dashboard), /<MonthlyKpiNotice\\b/);
+  const progressPatch=readFileSync(new URL("../build/qaEvaluationProgressPatch.js",import.meta.url),"utf8");
+  assert.doesNotMatch(progressPatch, /<QaEvaluationProgressNotice\\b/);
+  assert.match(progressPatch, /setQaEvaluationProgress/);
 });
-check("QA popup renders one accessible Agent picker with previous and next controls", () => {
-  const agentOptions=[{agent:"Agent One",cases:rows(8,82.5)},{agent:"Agent Two",cases:rows(6,90,"Agent Two")},{agent:"Agent Zero",cases:[]}];
-  const html=renderToStaticMarkup(React.createElement(Component,{cases:agentOptions[0].cases,agent:"Agent One",agentOptions,canBrowseAgents:true,monthKey:"2026-08",monthLabel:"August 2026",viewer:"qa.user"}));
-  assert.match(html,/Agent 3 คน/);
-  assert.match(html,/data-tooltip="เป้าคะแนน KPI"/);
-  assert.match(html,/<svg viewBox="0 0 24 24"/);
-  assert.doesNotMatch(html,/>ดูเป้าคะแนน KPI/);
-  assert.match(source("monthlyKpiNotice.css"),/\.qmk-launcher \{ position: fixed; right: 26px; bottom: 104px;/);
-  assert.match(html,/<select id="qmk-agent-select"/);
-  for(const agent of ["Agent One","Agent Two","Agent Zero"]) assert.match(html,new RegExp(`<option value="${agent}"`));
-  assert.match(html,/← ก่อนหน้า/); assert.match(html,/คนถัดไป →/); assert.match(html,/1 \/ 3/);
-  const ordinary=renderToStaticMarkup(React.createElement(Component,{cases:agentOptions[0].cases,agent:"Agent One",agentOptions,canBrowseAgents:false,monthKey:"2026-08",monthLabel:"August 2026",viewer:"agent.user"}));
-  assert.doesNotMatch(ordinary,/qmk-agent-select|Agent Two|คนถัดไป/);
-});
-check("native modal has Escape/dismiss/reopen and hidden-workspace cleanup", () => {
-  const code = source("MonthlyKpiNotice.tsx");
-  assert.match(code,/onCancel=\{\(event\) => \{ event.preventDefault\(\); setOpen\(false\); \}\}/);
-  assert.match(code,/dialog.showModal\(\)/); // native focus trap and focus restoration
-  assert.match(code,/if \(dialog.open\) dialog.close\(\)/);
-  assert.match(code,/onClick=\{\(\) => setOpen\(true\)\}/);
-  assert.match(code,/attributeFilter: \["aria-hidden"\]/);
-  assert.match(code,/observer.disconnect\(\)/);
-  assert.match(code,/window.clearTimeout\(timer\)/);
-});
-check("automatic notices, dismissal, score refresh and retained-workspace visibility execute correctly", () => {
-  const memory = new Map(), timers = new Map(), slots = [];
-  let index = 0, dirty = false, pending = [], tree, observerCallback, hidden = false, timerId = 0;
-  const workspace = { getAttribute: () => String(hidden) };
-  const root = { closest: () => workspace };
-  const dialog = { open:false, opens:0, showModal(){this.open=true;this.opens++;}, close(){this.open=false;} };
-  const fakeHooks = {
-    useMemo:(fn,deps)=>{const id=index++,old=slots[id];if(!old||deps.some((v,i)=>!Object.is(v,old.deps[i])))slots[id]={deps,value:fn()};return slots[id].value;},
-    useRef:(initial)=>{const id=index++;return slots[id] ||= {current:initial};},
-    useState:(initial)=>{const id=index++;if(!slots[id])slots[id]={value:initial};return [slots[id].value,(next)=>{const v=typeof next==="function"?next(slots[id].value):next;if(v!==slots[id].value){slots[id].value=v;dirty=true;}}];},
-    useEffect:(effect,deps)=>{const id=index++,old=slots[id];if(!old||deps.some((v,i)=>!Object.is(v,old.deps[i]))){pending.push(()=>{old?.cleanup?.();slots[id]={deps,cleanup:effect()};});}}
-  };
-  const window = { sessionStorage:{getItem:(key)=>memory.get(key)||null,setItem:(key,v)=>memory.set(key,v)},setTimeout:(fn)=>{const id=++timerId;timers.set(id,fn);return id;},clearTimeout:(id)=>timers.delete(id) };
-  class Observer {constructor(fn){observerCallback=fn;} observe(){} disconnect(){observerCallback=null;}}
-  const Popup = run(moduleCode("MonthlyKpiNotice.tsx"),{React,...fakeHooks,...kpi,window,MutationObserver:Observer}).default;
-  let props={cases:rows(8,82.5),agent:"Agent One",monthKey:"2026-08",monthLabel:"August 2026",viewer:"viewer"};
-  const visit=(node,fn)=>{if(!React.isValidElement(node))return;fn(node);React.Children.forEach(node.props.children,(child)=>visit(child,fn));};
-  function flush(){let guard=0;do{dirty=false;index=0;pending=[];tree=Popup(props);visit(tree,(el)=>{if(el.ref)el.ref.current=el.type==="dialog"?dialog:root;});pending.forEach((fn)=>fn());assert.ok(++guard<10,"render loop");}while(dirty);}
-  function tick(){for(const [id,fn] of [...timers]){timers.delete(id);fn();}flush();}
-  function action(predicate,event){let clicked=false;visit(tree,(el)=>{if(!clicked&&predicate(el)){clicked=true;event(el.props);}});assert.ok(clicked);flush();}
-  flush(); assert.equal(dialog.open,false); tick(); assert.equal(dialog.open,true); assert.equal(memory.size,1);
-  action((el)=>el.type==="button"&&el.props.children==="รับทราบ",(p)=>p.onClick()); assert.equal(dialog.open,false);
-  props={...props,cases:[...props.cases].reverse()};flush();tick();assert.equal(dialog.open,false);
-  action((el)=>el.type==="button"&&el.props["aria-haspopup"]==="dialog",(p)=>p.onClick());assert.equal(dialog.open,true);
-  action((el)=>el.type==="dialog",(p)=>p.onCancel({preventDefault(){}}));assert.equal(dialog.open,false);
-  props={...props,cases:props.cases.map((c,i)=>i?c:{...c,finalScore:90})};flush();tick();assert.equal(dialog.open,true);
-  hidden=true;observerCallback();flush();assert.equal(dialog.open,false);
-  props={...props,cases:props.cases.map((c,i)=>i?c:{...c,finalScore:95})};flush();tick();assert.equal(dialog.open,false);
-  hidden=false;observerCallback();flush();tick();assert.equal(dialog.open,true);
-  const agentOptions=[{agent:"Agent One",cases:rows(8,82.5)},{agent:"Agent Two",cases:rows(6,90,"Agent Two")}];
-  props={...props,agent:"Agent One",cases:agentOptions[0].cases,agentOptions,canBrowseAgents:true};flush();tick();
-  action((el)=>el.type==="select"&&el.props.id==="qmk-agent-select",(p)=>p.onChange({target:{value:"Agent Two"}}));
-  let markup=renderToStaticMarkup(tree);assert.match(markup,/<p id="qmk-subject">Agent Two · August 2026<\/p>/);assert.match(markup,/aria-valuenow="6"/);
-  action((el)=>el.type==="button"&&String(el.props.children).includes("ก่อนหน้า"),(p)=>p.onClick());
-  markup=renderToStaticMarkup(tree);assert.match(markup,/<p id="qmk-subject">Agent One · August 2026<\/p>/);assert.match(markup,/aria-valuenow="8"/);
-  for(const slot of slots)slot?.cleanup?.();assert.equal(dialog.open,false);assert.equal(timers.size,0);
+check("Agent selection keeps inline status and profile without a popup or timer", () => {
+  const plugin=evaluationAgentFocusPopupPatch();
+  const result=plugin.transform.call({error:message=>{throw Error(message);}},source("CreateEvaluationMockup.tsx"),"/src/CreateEvaluationMockup.tsx");
+  assert.ok(result);
+  assert.match(result.code,/Current Evaluation/);
+  assert.match(result.code,/selectedAgentCaseCount/);
+  assert.match(result.code,/setAgentName\\(event.target.value\\)/);
+  assert.doesNotMatch(result.code,/agentFocusPopupOpen|agentFocusPopupTimerRef|evaluationAgentPopupIn|Close agent evaluation popup/);
+  plugin.buildEnd.call({error:message=>{throw Error(message);}});
 });
 check("monthly analytics status is also pending before ten without changing grade or incentive", () => {
   assert.match(source("SummaryMockup.tsx"),/const kpiPending = monthlyMode && caseCount < CASE_TARGET/);

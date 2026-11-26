@@ -103,7 +103,7 @@ export function qaEvaluationProgressPatch() {
         if (!next.includes('from "./qaEvaluationProgressStore"')) {
           next = next.replace(
             importAnchor,
-            `${importAnchor}\nimport QaEvaluationProgressNotice from "./QaEvaluationProgressNotice";\nimport { clearQaEvaluationProgressByEvaluator } from "./qaEvaluationProgressStore";`
+            `${importAnchor}\nimport { clearQaEvaluationProgressByEvaluator } from "./qaEvaluationProgressStore";`
           );
         }
 
@@ -114,15 +114,6 @@ export function qaEvaluationProgressPatch() {
         next = next.replace(
           stateAnchor,
           `  useEffect(() => {\n    const evaluatorUsername = String(currentUser?.username || "").trim();\n    if (!evaluatorUsername || activeTab === "create-evaluation") return;\n    void clearQaEvaluationProgressByEvaluator(evaluatorUsername).catch((error) =>\n      console.warn("QA evaluation progress evaluator cleanup failed", error)\n    );\n  }, [activeTab, currentUser?.username]);\n\n${stateAnchor}`
-        );
-
-        const noticeAnchor = '      <QaTypingGate currentUser={currentUser} enabled={activeTab === "dashboard"} />';
-        if (!next.includes(noticeAnchor)) {
-          this.error("QA evaluation progress patch could not find QA typing gate render anchor.");
-        }
-        next = next.replace(
-          noticeAnchor,
-          `${noticeAnchor}\n      <QaEvaluationProgressNotice currentUser={currentUser} />`
         );
 
         if (next === code) {
