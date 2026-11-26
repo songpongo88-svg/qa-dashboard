@@ -38,3 +38,10 @@ assert.doesNotMatch(css, /\.qa-quick-tile span:last-child/, "No descendant selec
 assert.match(css, /\.qa-quick-icon--process img/, "Process icon should render independently of SharePoint favicon");
 console.log("PASS Quick Access presentation: balanced two-column tiles, equal text, badge counts and distinct Process SVG");
 
+
+assert.match(ui, /host === "operations-portal\.apps\.prod\.riderplatform\.com" \|\|\s+host === "onecallvoicerecord\.dtac\.co\.th"\) return \[\];/, "Private portal logos must not fall through to generic favicon services");
+assert.match(ui, /host === "operations-portal\.apps\.prod\.riderplatform\.com"\) return "bike";/);
+assert.match(ui, /host === "onecallvoicerecord\.dtac\.co\.th"\) return "file";/);
+assert.doesNotMatch(ui, /host === "operations-portal\.apps\.prod\.riderplatform\.com"\) return "OPS";/);
+assert.match(ui, /host === "adminpanel-v2-prod\.robinhood\.in\.th" \|\|\s+host === "adminpanel\.robinhood\.in\.th"\)\s+return \["\/robinhood-logo\.png", direct, googleFavicon\];/);
+console.log("PASS Quick Access: unverified OPS and Tomcat logos excluded, neutral fallback icons only; Admin Panel unchanged");

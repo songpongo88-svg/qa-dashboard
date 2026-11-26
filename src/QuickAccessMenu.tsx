@@ -76,7 +76,14 @@ const suggestTitle = (raw: string) => {
   const first = host.split(".")[0] || "";
   return first.charAt(0).toUpperCase() + first.slice(1).replace(/[-_]/g, " ");
 };
-const selectedIcon = (item: QuickLink | DraftLink) => item.icon === "auto" ? "globe" : item.icon;
+// Private portals without verified product logos use the existing neutral UI glyphs.
+const selectedIcon = (item: QuickLink | DraftLink): MenuIcon => {
+  const href = safeUrl(item.url);
+  const host = href ? new URL(href).hostname.toLowerCase() : "";
+  if (host === "operations-portal.apps.prod.riderplatform.com") return "bike";
+  if (host === "onecallvoicerecord.dtac.co.th") return "file";
+  return item.icon === "auto" ? "globe" : item.icon;
+};
 const iconColors: Record<MenuIcon, string> = {
   auto: "#64748b", chat: "#11a999", dashboard: "#7555d4", bike: "#db922d",
   users: "#4587cc", presentation: "#cb6744", sheet: "#249e65", link: "#6e78be",
@@ -127,9 +134,12 @@ function logoCandidates(rawUrl: string): string[] {
     return ["/quick-access/google-sheets.svg", direct, googleFavicon];
   if (host.endsWith(".sharepoint.com") || host === "sharepoint.com")
     return ["/quick-access/sharepoint.svg", direct, googleFavicon];
+  // Do not display unrelated Robinhood art or the Tomcat server favicon.
+  // No verified original portal asset is currently available for these hosts.
+  if (host === "operations-portal.apps.prod.riderplatform.com" ||
+      host === "onecallvoicerecord.dtac.co.th") return [];
   if (host === "adminpanel-v2-prod.robinhood.in.th" ||
-      host === "adminpanel.robinhood.in.th" ||
-      host === "operations-portal.apps.prod.riderplatform.com")
+      host === "adminpanel.robinhood.in.th")
     return ["/robinhood-logo.png", direct, googleFavicon];
 
   // Other user-created links remain personalized to their real website.
@@ -140,7 +150,6 @@ function quickAccessProductLabel(rawUrl: string): string {
   if (!href) return "";
   const host = new URL(href).hostname.toLowerCase();
   if (host === "adminpanel-v2-prod.robinhood.in.th") return "V2";
-  if (host === "operations-portal.apps.prod.riderplatform.com") return "OPS";
   if (host === "adminpanel.robinhood.in.th") return "USER";
   return "";
 }
