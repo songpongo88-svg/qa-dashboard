@@ -117,6 +117,13 @@ if (!source.includes(marker)) {
     "picker name"
   );
 
+  // The picker must show the authoritative version title, not a stale case-local Step.
+  exactlyOne(
+    '      const selectedRef = parsedRefs.find((item) => item.versionId === active.id && item.slideNumber === slideNumber);\n      const typedTitle = selectedRef?.step && selectedRef.step !== "ทั้งสไลด์"\n        ? String(selectedRef.step).trim()\n        : (selectedRef?.slideTitle ? String(selectedRef.slideTitle).trim() : "");\n      return { slideNumber, title: typedTitle || originalTitle, isCustom: Boolean(typedTitle) };',
+    '      return { slideNumber, title: originalTitle, isCustom: Boolean(titleDraftsV90.current.get(slideTitleKey(active.id,slideNumber))) };',
+    "picker authoritative title"
+  );
+
   exactlyOne(
     'onBlur={(event) => persistDisplayTitleV78(meta.versionId, meta.slideNumber, event.currentTarget.value)} placeholder="พิมพ์ชื่อหัวข้อที่ต้องการแสดง..."',
     'onBlur={(event) => { void persistDisplayTitleV78(meta.versionId, meta.slideNumber, event.currentTarget.value); }}'

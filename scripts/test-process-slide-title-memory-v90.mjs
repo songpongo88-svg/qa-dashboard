@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
+import {processSlideMultiSelectPatch} from "../build/processSlideMultiSelectPatch.js";
 import {effectiveSlideTitle,slideTitleOverridePayload,slideTitleKey}
   from "../src/lib/processSlideTitleMemory.mjs";
 
@@ -21,3 +22,22 @@ assert.match(src,/titleSaveStateV90\.status==="error"/);
 assert.doesNotMatch(src,/Backfill custom titles already stored in the current case into the Process Version/);
 assert.doesNotMatch(src,/Repair titles from the submitted cases that originally introduced the custom names/);
 console.log("PASS Process slide names: per-version, per-slide overrides, optimistic reselect, error feedback, no stale case title repair");
+
+const transformed=processSlideMultiSelectPatch().transform(src,"/src/processLibrary.tsx").code;
+assert.match(transformed,/return \{ \.\.\.\(existing \|\| fromVersion\(active, slideNumber, title\)\), slideTitle: title, step: title \};/);
+assert.match(transformed,/\.\.\.previewMeta, slideTitle: title, step: title/);
+assert.doesNotMatch(transformed,/fromVersion\(active, slideNumber, options\[0\]/);
+assert.match(src,/return \{ slideNumber, title: originalTitle, isCustom:/);
+const titles=Array.from({length:114},(_,i)=>"Slide "+(i+1));
+titles[79]="การยืนยันตัวตนไรเดอร์ (Rider Verify)";
+titles[97]="14. ระบบยิงงานไกลเกิน 8 กม.";
+const active={id:"test-version",slideTitles:titles};
+const parsedRefs=[{versionId:active.id,slideNumber:98,slideTitle:titles[97],step:"ข้อ 14"}];
+const start=transformed.indexOf("const existingBySlide = new Map(parsedRefs.filter");
+const end=transformed.indexOf("                  writeRefs(",start);
+assert.ok(start>=0&&end>start);
+const choose=Function("parsedRefs","active","pickerSlideNumbers","titleDraftsV90","slideTitleKey","fromVersion",transformed.slice(start,end)+"\nreturn selectedForActive;");
+const selected=choose(parsedRefs,active,[80,98],new Map(),slideTitleKey,(version,slideNumber,step)=>({versionId:version.id,slideNumber,slideTitle:version.slideTitles[slideNumber-1],step}));
+assert.deepEqual(selected.map(r=>[r.slideNumber,r.slideTitle,r.step]),[[80,titles[79],titles[79]],[98,titles[97],titles[97]]]);
+assert.equal(parsedRefs[0].step,"ข้อ 14","saved input is not mutated");
+console.log("PASS Process selected slides: full title for 80 and 98, stale Step repaired only on selection, original refs unchanged");

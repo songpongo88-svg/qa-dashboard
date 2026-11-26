@@ -111,10 +111,9 @@ export function processSlideMultiSelectPatch() {
                   const existingBySlide = new Map(parsedRefs.filter((item) => item.versionId === active.id).map((item) => [item.slideNumber, item]));
                   const preservedOtherProcesses = parsedRefs.filter((item) => item.versionId !== active.id);
                   const selectedForActive = pickerSlideNumbers.slice().sort((a, b) => a - b).map((slideNumber) => {
+                    const title = String(titleDraftsV90.current.get(slideTitleKey(active.id,slideNumber)) || active.slideTitles[slideNumber - 1] || ("Slide " + slideNumber)).trim();
                     const existing = existingBySlide.get(slideNumber);
-                    if (existing) return existing;
-                    const options = stepsForSlideV68(active, slideNumber);
-                    return fromVersion(active, slideNumber, options[0] || "ทั้งสไลด์");
+                    return { ...(existing || fromVersion(active, slideNumber, title)), slideTitle: title, step: title };
                   });
                   writeRefs([...preservedOtherProcesses, ...selectedForActive].sort((a, b) => a.processName.localeCompare(b.processName, "th") || a.slideNumber - b.slideNumber));
                   setSlidePickerOpen(false);
@@ -151,7 +150,11 @@ export function processSlideMultiSelectPatch() {
           }
           const exists = parsedRefs.some((item) => item.versionId === previewMeta.versionId && item.slideNumber === previewMeta.slideNumber);
           if (exists) removeSlide(previewMeta.versionId, previewMeta.slideNumber);
-          else writeRefs([...parsedRefs, previewMeta].sort((a, b) => a.processName.localeCompare(b.processName, "th") || a.slideNumber - b.slideNumber));
+          else {
+            const version = processLibraryV84.find((row) => row.id === previewMeta.versionId) || (active.id === previewMeta.versionId ? active : null);
+            const title = String(titleDraftsV90.current.get(slideTitleKey(previewMeta.versionId,previewMeta.slideNumber)) || version?.slideTitles[previewMeta.slideNumber - 1] || previewMeta.slideTitle || ("Slide " + previewMeta.slideNumber)).trim();
+            writeRefs([...parsedRefs, { ...previewMeta, slideTitle: title, step: title }].sort((a, b) => a.processName.localeCompare(b.processName, "th") || a.slideNumber - b.slideNumber));
+          }
         }}
         onRenameTitle={historical ? undefined : (nextTitle) => {
           if (!previewMeta) return;
