@@ -288,8 +288,8 @@ function normalizeHistoryRecord(id: string, row: any): QaTypingChallengeHistoryR
 
       if (cleanId.endsWith("/src/DashboardMockup.tsx")) {
         next = mustReplace(this, next,
-          'import MonthlyKpiNotice from "./MonthlyKpiNotice";',
-          'import MonthlyKpiNotice from "./MonthlyKpiNotice";\nimport QaAccessCaseHistoryPopup from "./QaAccessCaseHistoryPopup";',
+          'import { calculateMonthlyKpi, selectMonthlyKpiCases } from "./lib/monthlyKpi";',
+          'import { calculateMonthlyKpi, selectMonthlyKpiCases } from "./lib/monthlyKpi";\nimport QaAccessCaseHistoryPopup from "./QaAccessCaseHistoryPopup";',
           "dashboard import"
         );
         next = mustReplace(this, next,
