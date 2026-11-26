@@ -134,10 +134,10 @@ function logoCandidates(rawUrl: string): string[] {
     return ["/quick-access/google-sheets.svg", direct, googleFavicon];
   if (host.endsWith(".sharepoint.com") || host === "sharepoint.com")
     return ["/quick-access/sharepoint.svg", direct, googleFavicon];
-  // Do not display unrelated Robinhood art or the Tomcat server favicon.
-  // No verified original portal asset is currently available for these hosts.
-  if (host === "operations-portal.apps.prod.riderplatform.com" ||
-      host === "onecallvoicerecord.dtac.co.th") return [];
+  // Use the product favicons supplied by the QA owner as browser-tab references.
+  // Do not fall back to the unrelated Robinhood or Tomcat server images.
+  if (host === "operations-portal.apps.prod.riderplatform.com") return ["/quick-access/operations-portal.png"];
+  if (host === "onecallvoicerecord.dtac.co.th") return ["/quick-access/dtac-orkui.png"];
   if (host === "adminpanel-v2-prod.robinhood.in.th" ||
       host === "adminpanel.robinhood.in.th")
     return ["/robinhood-logo.png", direct, googleFavicon];
